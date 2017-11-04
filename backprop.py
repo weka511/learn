@@ -22,22 +22,25 @@ def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
     X=Inputs
     m=len(X)
     for Theta in Thetas:
-        X_with_bias=np.append(X,np.ones((m,1)),axis=1)
-        Activation=fn(np.sum(np.dot(Theta,X_with_bias),axis=1))
-        m=len(Activation)
-        X=Activation.reshape(m,1)
+        X_with_bias=np.append(X,[1],axis=0)
+        XR=np.reshape(X_with_bias,(m+1,1))
+        X=fn(np.sum(np.dot(Theta,XR),axis=1))
+        m=len(X)
+        
     return X
 
 def create_thetas(layer_spec):
     def create_theta(a,b):
         eps=math.sqrt(6)/math.sqrt(a+b+1)
-        print (a,b,eps)
         theta=np.random.rand(b,a+1)
         return np.subtract(np.multiply(theta,2*eps),eps)
     return [create_theta(a,b) for a,b in zip(layer_spec[:-1],layer_spec[1:])]
 
         
 if __name__=='__main__':
-    Thetas=create_thetas([400,25,10])
+    M=400
+    N=25
+    L=10
+    Thetas=create_thetas([M,N,L])
     print (Thetas)
-    #print (predict(Thetas,X2))
+    print (predict(Thetas,[0 for x in range(M)]))
