@@ -23,16 +23,8 @@ def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
     m=len(X)
     derivatives=[]
     for Theta in Thetas:
-        #print ('Theta',Theta)
-        #print (X)
         X_with_bias=np.append(X,[1],axis=0)
-        #print (X_with_bias)
-        #XR=np.reshape(X_with_bias,(m+1,1))
-        #print ("XR",XR)
-        #print (np.dot(Theta,XR))
-        #print ("Prod",np.dot(X_with_bias,Theta))
         X=fn(np.dot(X_with_bias,Theta))
-        #print (X)
         derivatives.append([g*(1-g) for g in X])
         m=len(X)       
     return (X,derivatives)
@@ -54,30 +46,13 @@ def train(Thetas, Inputs,Outputs,fn=np.vectorize(sigmoid)):
     
 if __name__=='__main__':
     class TestEvaluation(unittest.TestCase):
+        '''Tests based on https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/'''
         def test_forward(self):
+            '''A test to verify correct calculation of feedforward network'''
             Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
-            #Theta2=np.array([[0.4,0.45,0.6],[0.5,0.55,0.6]])
             Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
             z,_=predict([Theta1,Theta2],[0.05,0.1])
-            self.assertAlmostEqual(0.75136507,z[0],delta=0.0001)
-            self.assertAlmostEqual(0.772928465,z[1],delta=0.0001)
-    #N=100
-    #Thetas=create_thetas([2,4,2])
-    #for i in range(N):
-        #Inputs=[random.choice([0,1]) for i in range(2)]
-        #xor =0 if Inputs[0]==Inputs[1] else 1
-        #Outputs=[xor,1-xor]
-        #print (Inputs,Outputs)
-        #train(Thetas, Inputs,Outputs)
-    #M=400
-    #N=25
-    #L=10
-    #Thetas=create_thetas([M,N,L])
-    #print (Thetas)
-    #print (predict(Thetas,[0 for x in range(M)]))
+            self.assertAlmostEqual(0.75136507,z[0],delta=0.0000001)
+            self.assertAlmostEqual(0.772928465,z[1],delta=0.0000001)
     
-    # https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
-    
-    #Theta1=np.array([[0.15,0.2, 0,35],[0.2,0.3,0.35]])
-
     unittest.main()
