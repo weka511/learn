@@ -36,6 +36,9 @@ def create_thetas(layer_spec):
         return np.subtract(np.multiply(theta,2*eps),eps)
     return [create_theta(a,b) for a,b in zip(layer_spec[:-1],layer_spec[1:])]
 
+def error(target,output):
+    return 0.5*sum([(t-o)*(t-o) for t,o in zip(target,output)])
+    
 def train(Thetas, Inputs,Outputs,fn=np.vectorize(sigmoid)):
     a_k,derivatives=predict(Thetas, Inputs,fn=fn)
     delta_k=[a - o for (a,o) in zip(a_k,Outputs)]
@@ -54,5 +57,7 @@ if __name__=='__main__':
             z,_=predict([Theta1,Theta2],[0.05,0.1])
             self.assertAlmostEqual(0.75136507,z[0],delta=0.0000001)
             self.assertAlmostEqual(0.772928465,z[1],delta=0.0000001)
+        def test_error(self):
+            self.assertAlmostEqual(0.2983171109,error([0.01,0.99],[0.75136507,0.772928465]),delta=0.0001)
     
     unittest.main()
