@@ -18,22 +18,26 @@ import math,numpy as np
 def sigmoid(z):
     return 1.0/(1.0+math.exp(-z))
 
-def predict(Thetas, X,fn=np.vectorize(sigmoid)):
-    XX=X
+def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
+    X=Inputs
     m=len(X)
     for Theta in Thetas:
-        XX=np.append(XX,np.ones((m,1)),axis=1)
-        XT=np.dot(Theta,XX)
-        Activation=fn(np.sum(XT,axis=1))
+        X_with_bias=np.append(X,np.ones((m,1)),axis=1)
+        Activation=fn(np.sum(np.dot(Theta,X_with_bias),axis=1))
         m=len(Activation)
-        XX=Activation.reshape(m,1)
-    return XX
+        X=Activation.reshape(m,1)
+    return X
 
+def create_thetas(layer_spec):
+    def create_theta(a,b):
+        eps=math.sqrt(6)/math.sqrt(a+b+1)
+        print (a,b,eps)
+        theta=np.random.rand(b,a+1)
+        return np.subtract(np.multiply(theta,2*eps),eps)
+    return [create_theta(a,b) for a,b in zip(layer_spec[:-1],layer_spec[1:])]
 
+        
 if __name__=='__main__':
-    Theta1=np.array([[1,10,100,1000],[1,1,1,1],[1,1,1,1]])
-    Theta2=np.array([[1,1,1],[1,1,1]])
-    X0=np.array([1,2,3,4])
-    m=len(X0)
-    X2=X0.reshape((m,1))
-    print (predict([Theta1,Theta2],X2))
+    Thetas=create_thetas([400,25,10])
+    print (Thetas)
+    #print (predict(Thetas,X2))
