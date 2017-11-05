@@ -21,16 +21,16 @@ def sigmoid(z):
 def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
     X=Inputs
     m=len(X)
-    derivatives=[]
+    activations=[]
     Xs=[]
     for Theta in Thetas:
         Xs.append(X)
         X_with_bias=np.append(X,[1],axis=0)
         product=np.dot(X_with_bias,Theta)
         X=fn(product)
-        derivatives.append([g*(1-g) for g in X])
+        activations.append(X)
         m=len(X)       
-    return (X,derivatives,Xs)
+    return (X,activations,Xs)
 
 def create_thetas(layer_spec):
     def create_theta(a,b):
@@ -42,13 +42,18 @@ def create_thetas(layer_spec):
 def error(target,output):
     return 0.5*sum([(t-o)*(t-o) for t,o in zip(target,output)])
     
-def delta_weights(target,output,derivs,Xs):
+def delta_weights(target,output,activations,Xs,Thetas):
     errors=np.subtract(output,target)
     deltas=[]
-    for D,X in zip(derivs[::-1],Xs[::-1]):
-        hadamard=np.multiply(D,errors)
-        delta = np.outer(X,hadamard)
+    for g,X,theta in zip(activations[::-1],Xs[::-1],Thetas[::-1]):
+        delta = np.outer(X,
+                         np.multiply(np.multiply(g,
+                                                 np.subtract(1,g)),errors))
         deltas.append(delta)
+        g2=np.multiply(g,np.subtract(1,g))
+        partialEPartialNet=np.multiply(g2,errors)
+        errors=np.sum(np.multiply(partialEPartialNet,theta),axis=1)[:-1]
+
     return deltas
 
 if __name__=='__main__':
@@ -70,13 +75,17 @@ if __name__=='__main__':
         def test_errors_output(self):
             Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
             Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
-            z,derivs,Xs=predict([Theta1,Theta2],[0.05,0.1]) 
-            deltas=delta_weights(np.array([0.01,0.99]),z,derivs,Xs)
-            subtrahend=np.multiply(0.5,deltas[0])
-            difference=np.subtract(Theta2[:-1],subtrahend)
-            self.assertAlmostEqual(0.35891648,difference[0][0],delta=0.00001)
-            self.assertAlmostEqual(0.511301270,difference[0][1],delta=0.00001)
-            self.assertAlmostEqual(0.408666186,difference[1][0],delta=0.00001)
-            self.assertAlmostEqual(0.56137012,difference[1][1],delta=0.00001)
-            
+            Thetas=[Theta1,Theta2]
+            z,activations,Xs=predict(Thetas,[0.05,0.1]) 
+            deltas=delta_weights(np.array([0.01,0.99]),z,activations,Xs,Thetas)
+            difference2=np.subtract(Theta2[:-1],np.multiply(0.5,deltas[0]))
+            self.assertAlmostEqual(0.35891648,difference2[0][0],delta=0.00001)
+            self.assertAlmostEqual(0.511301270,difference2[0][1],delta=0.00001)
+            self.assertAlmostEqual(0.408666186,difference2[1][0],delta=0.00001)
+            self.assertAlmostEqual(0.56137012,difference2[1][1],delta=0.00001)
+            difference1=np.subtract(Theta1[:-1],np.multiply(0.5,deltas[1]))
+            self.assertAlmostEqual(0.149780716,difference1[0][0],delta=0.00001)
+            self.assertAlmostEqual(0.24975114,difference1[0][1],delta=0.00001)
+            self.assertAlmostEqual(0.19956143,difference1[1][0],delta=0.00001)
+            self.assertAlmostEqual(0.29950229,difference1[1][1],delta=0.00001)
     unittest.main()
