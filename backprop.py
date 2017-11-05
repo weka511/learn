@@ -46,11 +46,13 @@ def error(target,output):
     
 def delta_weights(target,output,derivs,Xs):
     errors=np.subtract(output,target)
+    deltas=[]
     for D,X in zip(derivs[::-1],Xs[::-1]):
         hadamard=np.multiply(D,errors)
         delta = np.outer(X,hadamard)
-        return delta
-        
+        deltas.append(delta)
+    return deltas
+
 if __name__=='__main__':
     class TestEvaluation(unittest.TestCase):
         '''Tests based on https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/'''
@@ -61,15 +63,19 @@ if __name__=='__main__':
             z,_,_=predict([Theta1,Theta2],[0.05,0.1])
             self.assertAlmostEqual(0.75136507,z[0],delta=0.0000001)
             self.assertAlmostEqual(0.772928465,z[1],delta=0.0000001)
+            
         def test_error(self):
             self.assertAlmostEqual(0.2983171109,error([0.01,0.99],[0.75136507,0.772928465]),delta=0.0001)
+            
         def test_errors_output(self):
             Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
             Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
             z,derivs,Xs=predict([Theta1,Theta2],[0.05,0.1]) 
-            #print (derivs)
-            delta=delta_weights(np.array([0.01,0.99]),z,derivs,Xs)
-            for i in range(2):
-                for j in range(2):
-                    print (Theta2[i][j]-0.5*delta[i][j])
+            deltas=delta_weights(np.array([0.01,0.99]),z,derivs,Xs)
+            subtrahend=np.multiply(0.5,deltas[0])
+            difference=np.subtract(Theta2[:-1],subtrahend)
+            self.assertAlmostEqual(0.35891648,difference[0][0],delta=0.00001)
+            self.assertAlmostEqual(0.511301270,difference[0][1],delta=0.00001)
+            self.assertAlmostEqual(0.408666186,difference[1][0],delta=0.00001)
+            self.assertAlmostEqual(0.56137012,difference[1][1],delta=0.00001)
     unittest.main()
