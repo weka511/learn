@@ -39,7 +39,7 @@ def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
 def create_thetas(layer_spec):
     def create_theta(a,b):
         eps=math.sqrt(6)/math.sqrt(a+b+1)
-        theta=np.random.rand(b,a+1)
+        theta=np.random.rand(a+1,b)
         return np.subtract(np.multiply(theta,2*eps),eps)
     return [create_theta(a,b) for a,b in zip(layer_spec[:-1],layer_spec[1:])]
 
@@ -118,10 +118,11 @@ if __name__=='__main__':
                 def data():
                     i=0
                     while i<n:
+                        r=random.random()*0.01
                         if i%2==0:
-                            yield np.array([0.01,0.99]),[0.05,0.1]
+                            yield np.array([0.01,0.99]),[0.05+r,0.1-r]
                         else:
-                            yield np.array([0.99,0.01]),[0.1, 0.05]
+                            yield np.array([0.99,0.01]),[0.1+r, 0.05-r]
                         i+=1
                 return data
             
@@ -133,5 +134,34 @@ if __name__=='__main__':
             print (z)
             z,_,_=predict(Thetas,[0.1,0.05])
             print (z)
+     
+    class TestXOR(unittest.TestCase):
+        '''Tests based on /'''
+        def test_xor(self):
+            '''A test to verify correct calculation of feedforward network'''
+            def ggen(n):
+                def data():
+                    i=0
+                    while i<n:
+                        if i%4==0:
+                            yield np.array([0,1]),[0,0]
+                        elif i%4==1:
+                            yield np.array([1,0]),[0,1]
+                        elif i%4==2:
+                            yield np.array([1,0]),[1,0]                        
+                        else:
+                            yield np.array([0,1]),[1,1]
+                        i+=1
+                return data  
             
+            Thetas=create_thetas([2,2,2])
+            Thetas,_=gradient_descent(Thetas,data_source=ggen(4),n=100000,print_interval=1000)
+            z,_,_=predict(Thetas,[0,0])
+            print (z)
+            z,_,_=predict(Thetas,[1,0])
+            print (z) 
+            z,_,_=predict(Thetas,[0,1])
+            print (z)
+            z,_,_=predict(Thetas,[1,1])
+            print (z)              
     unittest.main()
