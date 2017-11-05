@@ -60,19 +60,23 @@ def delta_weights(target,output,activations,Xs,Thetas):
 
     return deltas
 
-def gradient_descent(target,Input,Thetas,eta=-0.5,n=100000,print_interval=1000):
+def gradient_descent(target,Input,Thetas,eta=0.5,n=10000,print_interval=100):
+    def new_theta(Theta,delta):
+        delta_extended=np.zeros_like(Theta)
+        delta_extended[:-1,:]=delta
+        #print ('-----')
+        #print (Theta)
+        #print (delta_extended)
+        return np.subtract(Theta,np.multiply(eta,delta_extended))  
+    
     for i in range(n):
-        def f(Theta,delta):
-            delta_extended=np.zeros_like(Theta)
-            delta_extended[:-1,:]=delta
-            return np.subtract(Theta,np.multiply(eta,delta_extended))
         z,activations,Xs=predict(Thetas,Input)
         err=error(target,z)
         if i%print_interval==0:
-            print(i,err,z)
-        deltas=delta_weights(target,z,activations,Xs,Thetas)        
-        Thetas=[f(Theta,delta) for (Theta,delta) in zip(Thetas,deltas)]
-        
+            print(i,err,z)      
+        Thetas[:]=[new_theta(Theta,delta) for (Theta,delta) in zip(Thetas,
+                                                                   delta_weights(target,z,activations,Xs,Thetas)[::-1])]
+      
 if __name__=='__main__':
     import unittest
     
@@ -95,11 +99,13 @@ if __name__=='__main__':
             Thetas=[Theta1,Theta2]
             z,activations,Xs=predict(Thetas,[0.05,0.1]) 
             deltas=delta_weights(np.array([0.01,0.99]),z,activations,Xs,Thetas)
+            
             difference2=np.subtract(Theta2[:-1],np.multiply(0.5,deltas[0]))
             self.assertAlmostEqual(0.35891648,difference2[0][0],delta=0.00001)
             self.assertAlmostEqual(0.511301270,difference2[0][1],delta=0.00001)
             self.assertAlmostEqual(0.408666186,difference2[1][0],delta=0.00001)
             self.assertAlmostEqual(0.56137012,difference2[1][1],delta=0.00001)
+            
             difference1=np.subtract(Theta1[:-1],np.multiply(0.5,deltas[1]))
             self.assertAlmostEqual(0.149780716,difference1[0][0],delta=0.00001)
             self.assertAlmostEqual(0.24975114,difference1[0][1],delta=0.00001)
@@ -107,8 +113,9 @@ if __name__=='__main__':
             self.assertAlmostEqual(0.29950229,difference1[1][1],delta=0.00001)
             
         def test_grad_descent(self):
-            Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.,0.]])
-            Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.,0.]])
+            Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
+            Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
             Thetas=[Theta1,Theta2]
             gradient_descent(np.array([0.01,0.99]),[0.05,0.1],Thetas)
+            
     unittest.main()
