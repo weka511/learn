@@ -16,7 +16,11 @@
 import math,numpy as np,random
 
 def sigmoid(z):
-    return 1.0/(1.0+math.exp(-z))
+    try:
+        return 1.0/(1.0+math.exp(-z))
+    except OverflowError as e:
+        print (e,z)
+        return 1 if z>0 else 0
 
 def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
     X=Inputs
@@ -56,6 +60,19 @@ def delta_weights(target,output,activations,Xs,Thetas):
 
     return deltas
 
+def gradient_descent(target,Input,Thetas,eta=-0.5,n=100000,print_interval=1000):
+    for i in range(n):
+        def f(Theta,delta):
+            delta_extended=np.zeros_like(Theta)
+            delta_extended[:-1,:]=delta
+            return np.subtract(Theta,np.multiply(eta,delta_extended))
+        z,activations,Xs=predict(Thetas,Input)
+        err=error(target,z)
+        if i%print_interval==0:
+            print(i,err,z)
+        deltas=delta_weights(target,z,activations,Xs,Thetas)        
+        Thetas=[f(Theta,delta) for (Theta,delta) in zip(Thetas,deltas)]
+        
 if __name__=='__main__':
     import unittest
     
@@ -88,4 +105,10 @@ if __name__=='__main__':
             self.assertAlmostEqual(0.24975114,difference1[0][1],delta=0.00001)
             self.assertAlmostEqual(0.19956143,difference1[1][0],delta=0.00001)
             self.assertAlmostEqual(0.29950229,difference1[1][1],delta=0.00001)
+            
+        def test_grad_descent(self):
+            Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.,0.]])
+            Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.,0.]])
+            Thetas=[Theta1,Theta2]
+            gradient_descent(np.array([0.01,0.99]),[0.05,0.1],Thetas)
     unittest.main()
