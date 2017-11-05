@@ -60,23 +60,24 @@ def delta_weights(target,output,activations,Xs,Thetas):
 
     return deltas
 
-def gradient_descent(target,Input,Thetas,eta=0.5,n=10000,print_interval=100):
+def gradient_descent(Thetas,data_source=None,eta=0.5,n=10000,print_interval=100):
     def new_theta(Theta,delta):
         delta_extended=np.zeros_like(Theta)
         delta_extended[:-1,:]=delta
-        #print ('-----')
-        #print (Theta)
-        #print (delta_extended)
         return np.subtract(Theta,np.multiply(eta,delta_extended))  
     
     for i in range(n):
-        z,activations,Xs=predict(Thetas,Input)
-        err=error(target,z)
-        if i%print_interval==0:
-            print(i,err,z)      
-        Thetas[:]=[new_theta(Theta,delta) for (Theta,delta) in zip(Thetas,
-                                                                   delta_weights(target,z,activations,Xs,Thetas)[::-1])]
-      
+        ds=data_source()
+        for target,Input in ds:
+            z,activations,Xs=predict(Thetas,Input)
+            err=error(target,z)
+            if i%print_interval==0:
+                print(i,err,z)
+            deltas_same_sequence_thetas=delta_weights(target,z,activations,Xs,Thetas)[::-1] #NB - reversed!
+            Thetas[:]=[new_theta(Theta,delta) for (Theta,delta) in zip(Thetas,deltas_same_sequence_thetas)]
+                                                                   
+    return (Thetas,err)
+
 if __name__=='__main__':
     import unittest
     
@@ -113,9 +114,24 @@ if __name__=='__main__':
             self.assertAlmostEqual(0.29950229,difference1[1][1],delta=0.00001)
             
         def test_grad_descent(self):
+            def ggen(n):
+                def data():
+                    i=0
+                    while i<n:
+                        if i%2==0:
+                            yield np.array([0.01,0.99]),[0.05,0.1]
+                        else:
+                            yield np.array([0.99,0.01]),[0.1, 0.05]
+                        i+=1
+                return data
+            
             Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
             Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
             Thetas=[Theta1,Theta2]
-            gradient_descent(np.array([0.01,0.99]),[0.05,0.1],Thetas)
+            Thetas,_=gradient_descent(Thetas,data_source=ggen(2))
+            z,_,_=predict(Thetas,[0.05,0.1])
+            print (z)
+            z,_,_=predict(Thetas,[0.1,0.05])
+            print (z)
             
     unittest.main()
