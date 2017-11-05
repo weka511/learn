@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import math,numpy as np,random,unittest
+import math,numpy as np,random
 
 def sigmoid(z):
     return 1.0/(1.0+math.exp(-z))
@@ -26,9 +26,7 @@ def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
     for Theta in Thetas:
         Xs.append(X)
         X_with_bias=np.append(X,[1],axis=0)
-        #print ('X_with_bias',X_with_bias)
         product=np.dot(X_with_bias,Theta)
-        #print ('P',product)
         X=fn(product)
         derivatives.append([g*(1-g) for g in X])
         m=len(X)       
@@ -54,6 +52,8 @@ def delta_weights(target,output,derivs,Xs):
     return deltas
 
 if __name__=='__main__':
+    import unittest
+    
     class TestEvaluation(unittest.TestCase):
         '''Tests based on https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/'''
         def test_forward(self):
@@ -78,4 +78,5 @@ if __name__=='__main__':
             self.assertAlmostEqual(0.511301270,difference[0][1],delta=0.00001)
             self.assertAlmostEqual(0.408666186,difference[1][0],delta=0.00001)
             self.assertAlmostEqual(0.56137012,difference[1][1],delta=0.00001)
+            
     unittest.main()
