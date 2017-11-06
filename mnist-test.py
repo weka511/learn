@@ -26,11 +26,16 @@ def data_gen(images,labels):
                 yield target,[0 if ii<64 else 1 for ii in images[i]]
                 i+=1
 
-def digit(l,threshold=0.9):
+def digit(l,threshold=0.5):
         for i in range(len(l)):
                 if l[i]>threshold:
                         return i
+        return -1
 
+def output(i,maximum_error,average_error,Thetas):
+        print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))
+        bp.save(Thetas,run='mnist')
+        
 if __name__=='__main__':                
         mndata = MNIST(r'.\data')
         
@@ -39,14 +44,15 @@ if __name__=='__main__':
         # Hidden node computed following 
         # https://stats.stackexchange.com/questions/181/how-to-choose-the-number-of-hidden-layers-and-nodes-in-a-feedforward-neural-netw
         
-        Thetas=bp.Thetas=bp.create_thetas([784,37,10])
+        Thetas=bp.Thetas=bp.create_thetas([784,100,10])
         
-        Thetas,_=bp.gradient_descent(Thetas,data_source=data_gen(images,labels),eta=0.2,print_interval=1000)
+        for i in range(10):
+                Thetas,_=bp.gradient_descent(Thetas,data_source=data_gen(images,labels),eta=0.1,print_interval=1000,output=output)
         
         images_test, labels_test = mndata.load_testing()
         
+        total_errors=0
         for i in range(len(labels_test)):
-                total_errors=0
                 target=[0]*10
                 target[labels_test[i]]=1        
                 z,_,_=bp.predict(Thetas,[0 if ii<64 else 1 for ii in images_test[i]])
@@ -55,4 +61,4 @@ if __name__=='__main__':
                 print (labels_test[i],dd,err)
                 if dd!=labels_test[i]:
                         total_errors+=1
-        print ('Error count ={0}'.format(total_errors))
+        print ('Error count ={0}, percentage ={1}'.format(total_errors,100*total_errors/len(labels_test)))
