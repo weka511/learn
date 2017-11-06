@@ -141,16 +141,31 @@ guimgr.overall-gui-state = {'windowing-policy': 'combined-window',
         -1,
         -1),
                        'attrib-starts': [],
-                       'first-line': 0L,
+                       'first-line': 22L,
                        'folded-linenos': [],
                        'history': {None: ['from mnist import MNIST\n',
         "mndata = MNIST(r'.\\data')\n",
-        'images,labels=mndata.load_training()\n']},
+        'images,labels=mndata.load_training()\n',
+        'def p():\n        pass\np([  4.28193986e-03,   9.16019816e-05 ,  3.'\
+        '50344699e-03,   9.05020719e-04,\n   7.50376687e-04,   2.15366027e-0'\
+        '4 ,  9.93982513e-01,   9.99201511e-07,\n   8.35558977e-05 ,  5.6214'\
+        '2678e-04])\n',
+        'def digit(l,threshold=0.9):\n        for i in range(len(l)):\n     '\
+        '           if l[i]>threshold:\n                        return i\n  '\
+        '              \ndigit([  4.28193986e-03,   9.16019816e-05 ,  3.5034'\
+        '4699e-03,   9.05020719e-04,\n   7.50376687e-04,   2.15366027e-04 , '\
+        ' 9.93982513e-01,   9.99201511e-07,\n   8.35558977e-05 ,  5.62142678'\
+        'e-04])\n',
+        'def digit(l,threshold=0.9):\n        for i in range(len(l)):\n     '\
+        '           if l[i]>threshold:\n                        return i\n',
+        'print(digit([  4.28193986e-03,   9.16019816e-05 ,  3.50344699e-03, '\
+        '  9.05020719e-04,\n   7.50376687e-04,   2.15366027e-04 ,  9.9398251'\
+        '3e-01,   9.99201511e-07,\n   8.35558977e-05 ,  5.62142678e-04]))\n']},
                        'launch-id': None,
-                       'sel-line': 5L,
-                       'sel-line-start': 260L,
-                       'selection_end': 260L,
-                       'selection_start': 260L,
+                       'sel-line': 29L,
+                       'sel-line-start': 1267L,
+                       'selection_end': 1267L,
+                       'selection_start': 1267L,
                        'zoom': 0L}),
                      ('messages',
                       'wide',
@@ -399,14 +414,13 @@ guimgr.overall-gui-state = {'windowing-policy': 'combined-window',
                                 'selection_start': 2579L,
                                 'zoom': 0L}),
                               (loc('mnist-test.py'),
-                               {'attrib-starts': [('data_gen',
-        14)],
-                                'first-line': 8L,
+                               {'attrib-starts': [],
+                                'first-line': 27L,
                                 'folded-linenos': [],
-                                'sel-line': 16L,
-                                'sel-line-start': 416L,
-                                'selection_end': 432L,
-                                'selection_start': 432L,
+                                'sel-line': 43L,
+                                'sel-line-start': 1285L,
+                                'selection_end': 1285L,
+                                'selection_start': 1285L,
                                 'zoom': 0L}),
                               (loc('README.md'),
                                {'attrib-starts': [],
