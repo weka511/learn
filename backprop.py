@@ -57,23 +57,30 @@ def delta_weights(target,output,activations,Xs,Thetas):
 
     return deltas
 
-def gradient_descent(Thetas,data_source=None,eta=0.5,n=10000,print_interval=100,output=lambda i,err,Thetas: print ('{0} {1:9.3g}'.format(i,err))):
-    
-    def new_theta(Theta,delta):
-        #delta_extended=np.zeros_like(Theta)
-        #delta_extended[:-1,:]=delta
-        return np.subtract(Theta,np.multiply(eta,delta))  
+def gradient_descent(Thetas,
+                     data_source=None,
+                     eta=0.5,
+                     n=10000,
+                     print_interval=100,
+                     output=lambda i,maximum_error,average_error,Thetas: print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))):
     
     for i in range(n):
         ds=data_source()
+        total_error=0
+        maximum_error=0
+        m=0
         for target,Input in ds:
             z,activations,Xs=predict(Thetas,Input)
             err=error(target,z)
-            if i%print_interval==0:
-                output(i,err,Thetas)
+            total_error+=err
+            if err>maximum_error:
+                maximum_error=err
+            m+=1
             deltas_same_sequence_thetas=delta_weights(target,z,activations,Xs,Thetas)[::-1] #NB - reversed!
-            Thetas[:]=[new_theta(Theta,delta) for (Theta,delta) in zip(Thetas,deltas_same_sequence_thetas)]
-                                                                   
+            Thetas[:]=[np.subtract(Theta,np.multiply(eta,delta))  for (Theta,delta) in zip(Thetas,deltas_same_sequence_thetas)]
+        if i%print_interval==0:
+            output(i,maximum_error,total_error/m,Thetas) 
+            
     return (Thetas,err)
 
 if __name__=='__main__':
@@ -141,14 +148,16 @@ if __name__=='__main__':
                 def data():
                     i=0
                     while i<n:
+                        r1=random.normalvariate(0,0.01)
+                        r2=random.normalvariate(0,0.01)
                         if i%4==0:
-                            yield np.array([0,1]),[0,0]
+                            yield np.array([0,1]),[r1,r2]
                         elif i%4==1:
-                            yield np.array([1,0]),[0,1]
+                            yield np.array([1,0]),[r1,1+r2]
                         elif i%4==2:
-                            yield np.array([1,0]),[1,0]                        
+                            yield np.array([1,0]),[1+r1,r2]                        
                         else:
-                            yield np.array([0,1]),[1,1]
+                            yield np.array([0,1]),[1+r1,1+r2]
                         i+=1
                 return data  
             
