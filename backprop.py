@@ -57,33 +57,9 @@ def delta_weights(target,output,activations,Xs,Thetas):
 
     return deltas
 
-def gradient_descent0(Thetas,
-                     data_source=None,
-                     eta=0.5,
-                     n=10000,
-                     print_interval=100,
-                     output=lambda i,maximum_error,average_error,Thetas: print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))):
-    
-    for i in range(n):
-        ds=data_source()
-        total_error=0
-        maximum_error=0
-        m=0
-        for target,Input in ds:
-            z,activations,Xs=predict(Thetas,Input)
-            err=error(target,z)
-            total_error+=err
-            if err>maximum_error:
-                maximum_error=err
-            m+=1
-            deltas_same_sequence_thetas=delta_weights(target,z,activations,Xs,Thetas)[::-1] #NB - reversed!
-            Thetas[:]=[np.subtract(Theta,np.multiply(eta,delta))  for (Theta,delta) in zip(Thetas,deltas_same_sequence_thetas)]
-        if i%print_interval==0:
-            output(i,maximum_error,total_error/m,Thetas) 
-            
-    return (Thetas,err)
 
-def gradient_descent1(Thetas,
+
+def gradient_descent(Thetas,
                      data_source=None,
                      eta=0.5,
                      n=10000,
@@ -161,29 +137,9 @@ if __name__=='__main__':
             self.assertAlmostEqual(0.19956143,difference1[1][0],delta=0.00001)
             self.assertAlmostEqual(0.29950229,difference1[1][1],delta=0.00001)
             
-        def test_grad_descent0(self):
-            def ggen(n):
-                def data():
-                    i=0
-                    while i<n:
-                        r=random.random()*0.01
-                        if i%2==0:
-                            yield np.array([0.01,0.99]),[0.05+r,0.1-r]
-                        else:
-                            yield np.array([0.99,0.01]),[0.1+r, 0.05-r]
-                        i+=1
-                return data
-            print ("old")
-            Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
-            Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
-            Thetas=[Theta1,Theta2]
-            Thetas,_=gradient_descent0(Thetas,data_source=ggen(2))
-            z,_,_=predict(Thetas,[0.05,0.1])
-            print (z)
-            z,_,_=predict(Thetas,[0.1,0.05])
-            print (z)
+
             
-        def test_grad_descent1(self):
+        def test_grad_descent(self):
             def ggen(n):
                 def data():
                     i=0
@@ -199,7 +155,7 @@ if __name__=='__main__':
             Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
             Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
             Thetas=[Theta1,Theta2]
-            Thetas,_=gradient_descent1(Thetas,data_source=ggen(20000))
+            Thetas,_=gradient_descent(Thetas,data_source=ggen(20000))
             z,_,_=predict(Thetas,[0.05,0.1])
             print (z)
             z,_,_=predict(Thetas,[0.1,0.05])
@@ -228,7 +184,7 @@ if __name__=='__main__':
                 return data  
             
             Thetas=create_thetas([2,5,2])
-            Thetas,_=gradient_descent1(Thetas,data_source=ggen(400000),n=100000,print_interval=1000)
+            Thetas,_=gradient_descent(Thetas,data_source=ggen(400000),n=100000,print_interval=1000)
             z,_,_=predict(Thetas,[0,0])
             print (z)
             z,_,_=predict(Thetas,[1,0])
