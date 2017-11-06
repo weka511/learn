@@ -62,17 +62,15 @@ def delta_weights(target,output,activations,Xs,Thetas):
 def gradient_descent(Thetas,
                      data_source=None,
                      eta=0.5,
-                     n=10000,
                      print_interval=100,
                      output=lambda i,maximum_error,average_error,Thetas: print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))):
 
 
-    ds=data_source()
     total_error=0
     maximum_error=0
     i=0
     m=0
-    for target,Input in ds:
+    for target,Input in data_source:
         z,activations,Xs=predict(Thetas,Input)
         err=error(target,z)
         total_error+=err
@@ -141,16 +139,15 @@ if __name__=='__main__':
             
         def test_grad_descent(self):
             def ggen(n):
-                def data():
-                    i=0
-                    while i<n:
-                        r=random.random()*0.01
-                        if i%2==0:
-                            yield np.array([0.01,0.99]),[0.05+r,0.1-r]
-                        else:
-                            yield np.array([0.99,0.01]),[0.1+r, 0.05-r]
-                        i+=1
-                return data
+                i=0
+                while i<n:
+                    r=random.random()*0.01
+                    if i%2==0:
+                        yield np.array([0.01,0.99]),[0.05+r,0.1-r]
+                    else:
+                        yield np.array([0.99,0.01]),[0.1+r, 0.05-r]
+                    i+=1
+
             print ("new")
             Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
             Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
@@ -167,21 +164,19 @@ if __name__=='__main__':
         def test_xor(self):
             '''A test to verify training for XOR'''
             def ggen(n):
-                def data():
-                    i=0
-                    while i<n:
-                        r1=random.normalvariate(0,0.01)
-                        r2=random.normalvariate(0,0.01)
-                        if i%4==0:
-                            yield np.array([0,1]),[r1,r2]
-                        elif i%4==1:
-                            yield np.array([1,0]),[r1,1+r2]
-                        elif i%4==2:
-                            yield np.array([1,0]),[1+r1,r2]                        
-                        else:
-                            yield np.array([0,1]),[1+r1,1+r2]
-                        i+=1
-                return data  
+                i=0
+                while i<n:
+                    r1=random.normalvariate(0,0.01)
+                    r2=random.normalvariate(0,0.01)
+                    if i%4==0:
+                        yield np.array([0,1]),[r1,r2]
+                    elif i%4==1:
+                        yield np.array([1,0]),[r1,1+r2]
+                    elif i%4==2:
+                        yield np.array([1,0]),[1+r1,r2]                        
+                    else:
+                        yield np.array([0,1]),[1+r1,1+r2]
+                    i+=1
             
             Thetas=create_thetas([2,5,2])
             Thetas,_=gradient_descent(Thetas,data_source=ggen(400000),n=100000,print_interval=1000)

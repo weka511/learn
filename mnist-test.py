@@ -12,15 +12,12 @@ images, labels = mndata.load_training()
 
 Thetas=bp.Thetas=bp.create_thetas([784,37,10])
 
-def data_gen(n):
-    def data():
+def data_gen():
         i=0
-        while i<n:
-            j=random.randint(0,len(labels)-1)
-            target=[0]*10
-            target[labels[j]]=1
-            yield target,[0 if ii<64 else 1 for ii in images[j]]
-            i+=1
-    return data
+        while i<len(labels):
+                target=[0]*10
+                target[labels[i]]=1
+                yield target,[0 if ii<64 else 1 for ii in images[i]]
+                i+=1
     
-bp.gradient_descent(Thetas,data_source=data_gen(512),eta=0.2,n=10000,print_interval=10)
+bp.gradient_descent(Thetas,data_source=data_gen(),eta=0.2)
