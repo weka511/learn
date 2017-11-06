@@ -27,8 +27,8 @@ def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
     activations=[]
     Xs=[]
     for Theta in Thetas:
-        Xs.append(X)
         X_with_bias=np.append(X,[1],axis=0)
+        Xs.append(X_with_bias)
         X=fn(np.dot(X_with_bias,Theta))
         activations.append(X)    
     return (X,activations,Xs)
@@ -60,9 +60,9 @@ def delta_weights(target,output,activations,Xs,Thetas):
 def gradient_descent(Thetas,data_source=None,eta=0.5,n=10000,print_interval=100,output=lambda i,err,Thetas: print ('{0} {1:9.3g}'.format(i,err))):
     
     def new_theta(Theta,delta):
-        delta_extended=np.zeros_like(Theta)
-        delta_extended[:-1,:]=delta
-        return np.subtract(Theta,np.multiply(eta,delta_extended))  
+        #delta_extended=np.zeros_like(Theta)
+        #delta_extended[:-1,:]=delta
+        return np.subtract(Theta,np.multiply(eta,delta))  
     
     for i in range(n):
         ds=data_source()
@@ -99,13 +99,13 @@ if __name__=='__main__':
             z,activations,Xs=predict(Thetas,[0.05,0.1]) 
             deltas=delta_weights(np.array([0.01,0.99]),z,activations,Xs,Thetas)
             
-            difference2=np.subtract(Theta2[:-1],np.multiply(0.5,deltas[0]))
+            difference2=np.subtract(Theta2,np.multiply(0.5,deltas[0]))
             self.assertAlmostEqual(0.35891648,difference2[0][0],delta=0.00001)
             self.assertAlmostEqual(0.511301270,difference2[0][1],delta=0.00001)
             self.assertAlmostEqual(0.408666186,difference2[1][0],delta=0.00001)
             self.assertAlmostEqual(0.56137012,difference2[1][1],delta=0.00001)
             
-            difference1=np.subtract(Theta1[:-1],np.multiply(0.5,deltas[1]))
+            difference1=np.subtract(Theta1,np.multiply(0.5,deltas[1]))
             self.assertAlmostEqual(0.149780716,difference1[0][0],delta=0.00001)
             self.assertAlmostEqual(0.24975114,difference1[0][1],delta=0.00001)
             self.assertAlmostEqual(0.19956143,difference1[1][0],delta=0.00001)
@@ -152,7 +152,7 @@ if __name__=='__main__':
                         i+=1
                 return data  
             
-            Thetas=create_thetas([2,2,2])
+            Thetas=create_thetas([2,5,2])
             Thetas,_=gradient_descent(Thetas,data_source=ggen(4),n=100000,print_interval=1000)
             z,_,_=predict(Thetas,[0,0])
             print (z)
