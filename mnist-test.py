@@ -20,4 +20,13 @@ def data_gen():
                 yield target,[0 if ii<64 else 1 for ii in images[i]]
                 i+=1
     
-bp.gradient_descent(Thetas,data_source=data_gen(),eta=0.2)
+Thetas,_=bp.gradient_descent(Thetas,data_source=data_gen(),eta=0.2)
+
+images_test, labels_test = mndata.load_testing()
+
+for i in range(len(labels_test)):
+        target=[0]*10
+        target[labels_test[i]]=1        
+        z,_,_=bp.predict(Thetas,[0 if ii<64 else 1 for ii in images_test[i]])
+        err=bp.error(target,z)
+        print (labels_test[i],err,z)       
