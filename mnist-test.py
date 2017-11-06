@@ -18,4 +18,4 @@ def data_gen(n):
             i+=1
     return data
     
-bp.gradient_descent(Thetas,data_source=data_gen(12),n=1000,print_interval=10)
+bp.gradient_descent(Thetas,data_source=data_gen(512),n=10000,print_interval=100)
