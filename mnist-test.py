@@ -1,11 +1,16 @@
 import backprop as bp, random
 from mnist import MNIST
 
+# http://yann.lecun.com/exdb/mnist/
+
 mndata = MNIST(r'.\data')
 
 images, labels = mndata.load_training()
 
-Thetas=bp.Thetas=bp.create_thetas([784,80,10])
+# Hidden node computed following 
+# https://stats.stackexchange.com/questions/181/how-to-choose-the-number-of-hidden-layers-and-nodes-in-a-feedforward-neural-netw
+
+Thetas=bp.Thetas=bp.create_thetas([784,37,10])
 
 def data_gen(n):
     def data():
@@ -18,4 +23,4 @@ def data_gen(n):
             i+=1
     return data
     
-bp.gradient_descent(Thetas,data_source=data_gen(512),n=10000,print_interval=100)
+bp.gradient_descent(Thetas,data_source=data_gen(512),eta=0.2,n=10000,print_interval=10)

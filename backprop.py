@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import math,numpy as np,random
+import math,numpy as np,random,time,os,glob
 
 def sigmoid(z):
     try:
@@ -83,6 +83,19 @@ def gradient_descent(Thetas,
             
     return (Thetas,err)
 
+
+def save(Thetas,run='nn',ext='npy',path='./weights',max_files=3):
+    np.save(os.path.join(path,
+                         '{0}-{1}.{2}'.format(run,
+                                              time.strftime('%Y-%m-%d-%H-%M-%S',time.gmtime()), 
+                                              ext)),
+            Thetas)
+    matches=glob.glob('{0}*.{1}'.format(os.path.join(path,run),ext))
+    if len(matches)>max_files:
+        matches.sort()
+        for file in matches[:-max_files]:
+            os.remove(file)
+    
 if __name__=='__main__':
     import unittest
     
@@ -170,5 +183,13 @@ if __name__=='__main__':
             z,_,_=predict(Thetas,[0,1])
             print (z)
             z,_,_=predict(Thetas,[1,1])
-            print (z)              
+            print (z) 
+            
+    class  TestFiles(unittest.TestCase):
+        def test1(self):
+            Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
+            Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
+            Thetas=[Theta1,Theta2]
+            save(Thetas)
+            
     unittest.main()
