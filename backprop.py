@@ -143,7 +143,7 @@ if __name__=='__main__':
     class TestXOR(unittest.TestCase):
         '''Tests based on /'''
         def test_xor(self):
-            '''A test to verify correct calculation of feedforward network'''
+            '''A test to verify training for XOR'''
             def ggen(n):
                 def data():
                     i=0
