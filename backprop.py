@@ -29,8 +29,7 @@ def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
     for Theta in Thetas:
         Xs.append(X)
         X_with_bias=np.append(X,[1],axis=0)
-        product=np.dot(X_with_bias,Theta)
-        X=fn(product)
+        X=fn(np.dot(X_with_bias,Theta))
         activations.append(X)    
     return (X,activations,Xs)
 
@@ -58,7 +57,7 @@ def delta_weights(target,output,activations,Xs,Thetas):
 
     return deltas
 
-def gradient_descent(Thetas,data_source=None,eta=0.5,n=10000,print_interval=100,output=lambda i,err,Thetas: print ('{0}:{1}'.format(i,err))):
+def gradient_descent(Thetas,data_source=None,eta=0.5,n=10000,print_interval=100,output=lambda i,err,Thetas: print ('{0} {1:9.3g}'.format(i,err))):
     
     def new_theta(Theta,delta):
         delta_extended=np.zeros_like(Theta)
