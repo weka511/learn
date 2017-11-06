@@ -24,7 +24,6 @@ def sigmoid(z):
 
 def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
     X=Inputs
-    m=len(X)
     activations=[]
     Xs=[]
     for Theta in Thetas:
@@ -32,8 +31,7 @@ def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
         X_with_bias=np.append(X,[1],axis=0)
         product=np.dot(X_with_bias,Theta)
         X=fn(product)
-        activations.append(X)
-        m=len(X)       
+        activations.append(X)    
     return (X,activations,Xs)
 
 def create_thetas(layer_spec):
@@ -60,7 +58,8 @@ def delta_weights(target,output,activations,Xs,Thetas):
 
     return deltas
 
-def gradient_descent(Thetas,data_source=None,eta=0.5,n=10000,print_interval=100):
+def gradient_descent(Thetas,data_source=None,eta=0.5,n=10000,print_interval=100,output=lambda i,err,Thetas: print ('{0}:{1}'.format(i,err))):
+    
     def new_theta(Theta,delta):
         delta_extended=np.zeros_like(Theta)
         delta_extended[:-1,:]=delta
@@ -72,7 +71,7 @@ def gradient_descent(Thetas,data_source=None,eta=0.5,n=10000,print_interval=100)
             z,activations,Xs=predict(Thetas,Input)
             err=error(target,z)
             if i%print_interval==0:
-                print(i,err,z)
+                output(i,err,Thetas)
             deltas_same_sequence_thetas=delta_weights(target,z,activations,Xs,Thetas)[::-1] #NB - reversed!
             Thetas[:]=[new_theta(Theta,delta) for (Theta,delta) in zip(Thetas,deltas_same_sequence_thetas)]
                                                                    
