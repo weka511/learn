@@ -18,12 +18,15 @@ from mnist import MNIST
 
 # http://yann.lecun.com/exdb/mnist/
 
+def create_target(label):
+        target=[0]*10
+        target[label]=1
+        return target
+
 def data_gen(images,labels):
         i=0
         while i<len(labels):
-                target=[0]*10
-                target[labels[i]]=1
-                yield target,[0 if ii<64 else 1 for ii in images[i]]
+                yield create_target(labels[i]),[0 if ii<64 else 1 for ii in images[i]]
                 i+=1
 
 def digit(l,threshold=0.5):
@@ -46,15 +49,14 @@ if __name__=='__main__':
         
         Thetas=bp.Thetas=bp.create_thetas([784,100,10])
         
-        for i in range(10):
+        for i in range(50):
                 Thetas,_=bp.gradient_descent(Thetas,data_source=data_gen(images,labels),eta=0.1,print_interval=1000,output=output)
         
         images_test, labels_test = mndata.load_testing()
         
         total_errors=0
         for i in range(len(labels_test)):
-                target=[0]*10
-                target[labels_test[i]]=1        
+                target=create_target(labels_test[i])        
                 z,_,_=bp.predict(Thetas,[0 if ii<64 else 1 for ii in images_test[i]])
                 err=bp.error(target,z)
                 dd=digit(z)
