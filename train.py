@@ -35,6 +35,7 @@ def digit(l,threshold=0.5):
 
 def output(i,maximum_error,average_error,Thetas,run):
     print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))
+    bp.save_status(i,maximum_error,average_error,run=run)
     bp.save(Thetas,run=run)
     
 if __name__=='__main__':

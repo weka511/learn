@@ -88,6 +88,10 @@ def gradient_descent(Thetas,
 
     return (Thetas,err)
 
+def save_status(i,maximum_error,average_error,run='nn',ext='txt',path='./weights'):
+    with open (os.path.join(path,'{0}.{1}'.format(run,ext)),'a') as status_file:
+        status_file.write('{0},{1},{2:.3g},{3:.3g}\n'.format(time.strftime('%Y-%m-%d-%H-%M-%S',time.gmtime()),i,maximum_error,average_error))
+
 def save(Thetas,run='nn',ext='npy',path='./weights',max_files=3):
     np.save(os.path.join(path,
                          '{0}-{1}.{2}'.format(run,
