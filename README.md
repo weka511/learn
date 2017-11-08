@@ -5,5 +5,4 @@ Experiments in machine learning
 |---------------|--------------------------------------------|
 | backprop.py | Train neural network using Backpropagation |
 | mnist-test.py | Use MNIST training set |
-
-
+| train.py      | Train network using NIST data |
