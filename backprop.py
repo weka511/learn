@@ -19,7 +19,7 @@ def sigmoid(z):
     try:
         return 1.0/(1.0+math.exp(-z))
     except OverflowError as e:
-        print (e,z)
+        #print (e,z)
         return 1 if z>0 else 0
 
 def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):

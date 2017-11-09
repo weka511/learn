@@ -21,10 +21,13 @@ def create_target(label):
     target[label]=1
     return target
 
+def scale_input(image,scale_factor=256):
+    return [ii/scale_factor for ii in image]
+    
 def data_gen(images,labels):
     i=0
     while i<len(labels):
-        yield create_target(labels[i]),[0 if ii<64 else 1 for ii in images[i]]
+        yield create_target(labels[i]),scale_input(images[i])
         i+=1
 
 def digit(l,threshold=0.5):
