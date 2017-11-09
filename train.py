@@ -48,22 +48,40 @@ if __name__=='__main__':
     parser.add_argument('-p','--print',action='store',type=int,default=1000,help='Interval for printing')
     args = parser.parse_args()
     
+    Thetas=None
+    
+    try:
+        with open(bp.get_status_file_name(run=args.name,ext='txt')) as status_file:
+            print ('Resuming')
+            saved=status_file.read().splitlines()
+            eta=float(saved[1].split('=')[1])
+            interval= int(saved[2].split('=')[1])
+            Thetas=bp.load(run=args.name)
+            print(Thetas)
+    except FileNotFoundError:
+        with open(bp.get_status_file_name(run=args.name,ext='txt'),'w') as status_file:
+            print ('Starting')
+            status_file.write(','.join(str(l) for l in args.layers)+'\n')
+            eta=args.eta
+            status_file.write('eta={0}\n'.format(eta))
+            interval=args.print
+            status_file.write('Interval={0}\n'.format(interval))
+            print ('Training. Eta={0}'.format(args.eta))
+            print ('Network has {0} layers'.format(len(args.layers)))
+            for i in range(len(args.layers)):
+                if i==0:
+                    title='Input Layer'
+                elif i==len(args.layers)-1:
+                    title='Output layer'
+                else:
+                    title = 'Hidden Layer {0}'.format(i)
+                    
+                print ('{0} has {1} nodes'.format(title,args.layers[i]))            
+            Thetas=bp.create_thetas(args.layers)
     try:
         print ('Reading data from {0}'.format(args.data))
         mndata=MNIST(args.data)
         images_training,labels_training=mndata.load_training()
-        Thetas=bp.create_thetas(args.layers)
-        print ('Training. Eta={0}'.format(args.eta))
-        print ('Network has {0} layers'.format(len(args.layers)))
-        for i in range(len(args.layers)):
-            if i==0:
-                title='Input Layer'
-            elif i==len(args.layers)-1:
-                title='Output layer'
-            else:
-                title = 'Hidden Layer {0}'.format(i)
-                
-            print ('{0} has {1} nodes'.format(title,args.layers[i]))
         for i in range(args.number):
             Thetas,_=bp.gradient_descent(Thetas,
                                          data_source=data_gen(images_training,labels_training),
