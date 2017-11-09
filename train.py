@@ -47,7 +47,8 @@ if __name__=='__main__':
     parser.add_argument('-n','--name',action='store',default='nn',help='Name for files')
     parser.add_argument('-N','--number',action='store',type=int,default='10',help='Number of iterations')
     parser.add_argument('-l','--layers',action='store',type=int,nargs='+',help='Number of nodes in each layer')
-    parser.add_argument('-e','--eta',action='store',type=float,default=0.2,help='Eta for training')
+    parser.add_argument('-e','--eta',action='store',type=float,default=0.5,help='Learning rate')
+    parser.add_argument('-a','--alpha',action='store',type=float,default=0.7,help='Momentum for training')
     parser.add_argument('-p','--print',action='store',type=int,default=1000,help='Interval for printing')
     args = parser.parse_args()
     
@@ -59,6 +60,7 @@ if __name__=='__main__':
             saved=status_file.read().splitlines()
             eta=float(saved[1].split('=')[1])
             interval= int(saved[2].split('=')[1])
+            alpha=float(saved[3].split('=')[1])
             Thetas=bp.load(run=args.name)
             print(Thetas)
     except FileNotFoundError:
@@ -69,7 +71,9 @@ if __name__=='__main__':
             status_file.write('eta={0}\n'.format(eta))
             interval=args.print
             status_file.write('Interval={0}\n'.format(interval))
-            print ('Training. Eta={0}'.format(args.eta))
+            alpha=args.alpha
+            status_file.write('alpha={0}\n'.format(alpha))
+            print ('Training. Eta={0},alpha={1}'.format(args.eta,args.alpha))
             print ('Network has {0} layers'.format(len(args.layers)))
             for i in range(len(args.layers)):
                 if i==0:
@@ -89,6 +93,7 @@ if __name__=='__main__':
             Thetas,_=bp.gradient_descent(Thetas,
                                          data_source=data_gen(images_training,labels_training),
                                          eta=args.eta,
+                                         alpha=alpha,
                                          print_interval=args.print,
                                          output=lambda i,maximum_error,average_error,Thetas: output(i,maximum_error,average_error,Thetas,args.name))
     except FileNotFoundError as err:

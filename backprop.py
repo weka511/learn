@@ -62,6 +62,7 @@ def delta_weights(target,output,activations,Xs,Thetas):
 def gradient_descent(Thetas,
                      data_source=None,
                      eta=0.5,
+                     alpha=0.5,
                      print_interval=100,
                      output=lambda i,maximum_error,average_error,Thetas: print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))):
 
@@ -70,6 +71,7 @@ def gradient_descent(Thetas,
     maximum_error=0
     i=0
     m=0
+    previous_deltas=[np.multiply(0,Theta) for Theta in Thetas]
     for target,Input in data_source:
         z,activations,Xs=predict(Thetas,Input)
         err=error(target,z)
@@ -78,7 +80,11 @@ def gradient_descent(Thetas,
             maximum_error=err
         m+=1
         deltas_same_sequence_thetas=delta_weights(target,z,activations,Xs,Thetas)[::-1] #NB - reversed!
-        Thetas[:]=[np.subtract(Theta,np.multiply(eta,delta))  for (Theta,delta) in zip(Thetas,deltas_same_sequence_thetas)]
+        
+        Deltas=[np.subtract(np.multiply(alpha,previous),
+                            np.multiply(eta,delta))  for (delta,previous) in zip(deltas_same_sequence_thetas,previous_deltas)]
+        Thetas[:]=[np.add(Theta,Delta) for (Theta,Delta) in zip(Thetas,Deltas)]
+        previous_deltas[:]=Deltas
         if i%print_interval==0:
             output(i,maximum_error,total_error/m,Thetas) 
             total_error=0
@@ -192,7 +198,7 @@ if __name__=='__main__':
                     i+=1
             
             Thetas=create_thetas([2,5,2])
-            Thetas,_=gradient_descent(Thetas,data_source=ggen(400000),n=100000,print_interval=1000)
+            Thetas,_=gradient_descent(Thetas,data_source=ggen(400000),print_interval=1000)
             z,_,_=predict(Thetas,[0,0])
             print (z)
             z,_,_=predict(Thetas,[1,0])
