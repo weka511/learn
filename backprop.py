@@ -71,7 +71,7 @@ def gradient_descent(Thetas,
     maximum_error=0
     i=0
     m=0
-    previous_deltas=[np.multiply(0,Theta) for Theta in Thetas]
+    previous_deltas=[np.multiply(0,Theta) for Theta in Thetas] # All zeros
     for target,Input in data_source:
         z,activations,Xs=predict(Thetas,Input)
         err=error(target,z)
@@ -104,7 +104,6 @@ def save_status(i,maximum_error,average_error,run='nn',ext='txt',path='./weights
 def load(run='nn',ext='npy',path='./weights'):
     matches=glob.glob('{0}*.{1}'.format(os.path.join(path,run),ext))
     matches.sort()
-    print (matches)
     return np.load(matches[len(matches)-1])
 
 def save(Thetas,run='nn',ext='npy',path='./weights',max_files=3):
