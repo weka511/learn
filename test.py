@@ -18,7 +18,8 @@ from mnist import MNIST
 
 def interpret(values,n_sigma=2.0):
     max_index, max_value = max(enumerate(values), key=operator.itemgetter(1))
-    return max_index if max_value > np.mean(values) + n_sigma*np.std(values) else -1
+    others=[values[i] for i in range(len(values)) if i!=max_index]
+    return max_index if max_value > np.mean(others) + n_sigma*np.std(others) else -1
 
 def test_weights(Thetas,images,labels):
     total_errors=0
