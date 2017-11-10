@@ -16,7 +16,7 @@
 import backprop as bp,argparse,train as tr,operator,numpy as np 
 from mnist import MNIST
 
-def interpret(values,n_sigma=2.0):
+def interpret(values,n_sigma=2.5):
     max_index, max_value = max(enumerate(values), key=operator.itemgetter(1))
     others=[values[i] for i in range(len(values)) if i!=max_index]
     return max_index if max_value > np.mean(others) + n_sigma*np.std(others) else -1
