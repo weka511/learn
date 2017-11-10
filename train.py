@@ -30,11 +30,7 @@ def data_gen(images,labels):
         yield create_target(labels[i]),scale_input(images[i])
         i+=1
 
-def digit(l,threshold=0.5):
-    for i in range(len(l)):
-        if l[i]>threshold:
-            return i
-    return -1
+
 
 def output(i,maximum_error,average_error,Thetas,run):
     print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))
