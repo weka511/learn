@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import backprop as bp,argparse 
+import backprop as bp,argparse,operator,numpy as np 
 from mnist import MNIST
 
 def create_target(label):
@@ -30,7 +30,24 @@ def data_gen(images,labels):
         yield create_target(labels[i]),scale_input(images[i])
         i+=1
 
+def interpret(values,n_sigma=2.5):
+    max_index, max_value = max(enumerate(values), key=operator.itemgetter(1))
+    others=[values[i] for i in range(len(values)) if i!=max_index]
+    return max_index if max_value > np.mean(others) + n_sigma*np.std(others) else -1
 
+def test_weights(Thetas,images,labels):
+    total_errors=0
+    total_missed = 0
+    for i in range(len(labels)):
+        target=create_target(labels[i])        
+        z,_,_=bp.predict(Thetas,scale_input(images[i]))
+        err=bp.error(target,z)
+        dd=interpret(z)
+        if dd!=labels[i]:
+            total_errors+=1
+        if dd==-1:
+            total_missed+=1
+    return ('Error count ={0}, percentage ={1}. Includes {2} unrecognized'.format(total_errors,100*total_errors/len(labels),total_missed))
 
 def output(i,maximum_error,average_error,Thetas,run):
     print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))
@@ -46,6 +63,7 @@ if __name__=='__main__':
     parser.add_argument('-e','--eta',action='store',type=float,default=0.5,help='Learning rate')
     parser.add_argument('-a','--alpha',action='store',type=float,default=0.7,help='Momentum for training')
     parser.add_argument('-p','--print',action='store',type=int,default=1000,help='Interval for printing')
+    parser.add_argument('-t','--test',action='store',type=int,default=2,help='Interval for testing')
     args = parser.parse_args()
     
     Thetas=None
@@ -85,6 +103,7 @@ if __name__=='__main__':
         print ('Reading data from {0}'.format(args.data))
         mndata=MNIST(args.data)
         images_training,labels_training=mndata.load_training()
+        images_test,labels_test=mndata.load_testing()
         for i in range(args.number):
             Thetas,_=bp.gradient_descent(Thetas,
                                          data_source=data_gen(images_training,labels_training),
@@ -92,5 +111,10 @@ if __name__=='__main__':
                                          alpha=alpha,
                                          print_interval=args.print,
                                          output=lambda i,maximum_error,average_error,Thetas: output(i,maximum_error,average_error,Thetas,args.name))
+            if i>0 and i%args.test==0:
+                text=test_weights(Thetas,images_test,labels_test)
+                print (text)
+                bp.save_text(text,run=run)
+                
     except FileNotFoundError as err:
         print (err)

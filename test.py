@@ -43,4 +43,4 @@ if __name__=='__main__':
     mndata=MNIST(args.data)
     images_test,labels_test=mndata.load_testing()
     Thetas=bp.load(run=args.name)
-    test_weights(Thetas,images_test,labels_test)
+    print (tr.test_weights(Thetas,images_test,labels_test))
