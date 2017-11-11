@@ -13,6 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+'''
+Train neural network using Backpropagation
+'''
+
 import math,numpy as np,random,time,os,glob
 
 def sigmoid(z):
@@ -70,6 +74,16 @@ def error(target,output):
     return 0.5*sum([(t-o)*(t-o) for t,o in zip(target,output)])
     
 def delta_weights(target,output,activations,Xs,Thetas):
+    '''
+    Compute change in weights to reduce error
+    
+        Parameters:
+            target
+            output
+            activations
+            Xs
+            Thetas
+    '''
     errors=np.subtract(output,target)
     deltas=[]
     for g,X,theta in zip(activations[::-1],Xs[::-1],Thetas[::-1]):
@@ -92,7 +106,17 @@ def gradient_descent(Thetas,
                      print_interval=100,
                      output=lambda i,maximum_error,average_error,Thetas: print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))):
 
+    '''
+    Minimize errors using gradient descent
 
+        Parameters:
+            Thetas         Weights for neural network
+            data_source    Generator producing pairs input,target
+            eta            Learning rate
+            alpha          Momentum
+            print_interval Uses to invoke 'output' function every 'print_interval' passes through dataset
+            output         Function to output data, with parameters_iteration number,maximum_error,average_error,Thetas
+    '''
     total_error=0
     maximum_error=0
     i=0
@@ -111,7 +135,8 @@ def gradient_descent(Thetas,
                             np.multiply(eta,delta))  for (delta,previous) in zip(deltas_same_sequence_thetas,previous_deltas)]
         Thetas[:]=[np.add(Theta,Delta) for (Theta,Delta) in zip(Thetas,Deltas)]
         previous_deltas[:]=Deltas
-        if i%print_interval==0:
+        
+        if i>0 and i%print_interval==0:
             output(i,maximum_error,total_error/m,Thetas) 
             total_error=0
             maximum_error=0
@@ -121,22 +146,66 @@ def gradient_descent(Thetas,
     return (Thetas,err)
 
 def get_status_file_name(run='nn',ext='txt',path='./weights'):
+    '''
+    Used to generate name for tracking progress of iterations
+    
+        Parameters:
+            run         Name of run
+            ext         File Extension
+            path        Path for storing status file 
+    '''
     return os.path.join(path,'{0}.{1}'.format(run,ext))
 
 def save_status(i,maximum_error,average_error,run='nn',ext='txt',path='./weights'):
+    '''
+    Used to record error estimates to track progress
+    
+     Parameters:
+            i             iteration number
+            maximum_error Maximum error since last save
+            average_error Average error since last save
+            run           Name of run
+            ext           File Extension
+            path          Path for storing status file 
+    '''
     with open (get_status_file_name(run=run,ext=ext,path=path),'a') as status_file:
         status_file.write('{0},{1},{2:.3g},{3:.3g}\n'.format(time.strftime('%Y-%m-%d-%H-%M-%S',time.gmtime()),i,maximum_error,average_error))
 
 def save_text(text,run='nn',ext='txt',path='./weights'):
+    '''
+    Save one line in status file
+    
+     Parameters:
+            text        Text to be saved
+            run         Name of run
+            ext         File Extension
+            path        Path for storing status file 
+    '''
     with open (get_status_file_name(run=run,ext=ext,path=path),'a') as status_file:
         status_file.write('{0}\n'.format(text))
-        
+
 def load(run='nn',ext='npy',path='./weights'):
+    '''
+    Load weights that were saved in an earlier run.
+    
+     Parameters:
+            run         Name of run
+            ext         File Extension
+            path        Path for storing status file 
+    '''
     matches=glob.glob('{0}*.{1}'.format(os.path.join(path,run),ext))
     matches.sort()
     return np.load(matches[len(matches)-1])
 
 def save(Thetas,run='nn',ext='npy',path='./weights',max_files=3):
+    '''
+    Save weights for later use
+     Parameters:
+            Theta       Weights
+            run         Name of run
+            ext         File Extension
+            path        Path for storing status file 
+    '''
     np.save(os.path.join(path,
                          '{0}-{1}.{2}'.format(run,
                                               time.strftime('%Y-%m-%d-%H-%M-%S',time.gmtime()), 

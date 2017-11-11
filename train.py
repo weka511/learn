@@ -13,30 +13,66 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+'''
+Train network using MNIST data
+'''
+
 import backprop as bp,argparse,operator,numpy as np 
 from mnist import MNIST
 
+
 def create_target(label):
+    '''
+    Convert a target from a single digit to an array compatible with output from the network.
+    E.G. 3->[0,0,0,1,0,0,0,0,0,0]
+    '''    
     target=[0]*10
     target[label]=1
     return target
 
 def scale_input(image,scale_factor=256):
+    '''
+    Convert grey scale image to numbers in range [0.0,1.0)
+    '''
     return [ii/scale_factor for ii in image]
     
 def data_gen(images,labels):
+    '''
+    Generator to supply input to bp.gradient_descent
+    
+        Parameters:
+            images    Images from mnist
+            labels    digits represents ing targets for images
+    '''
     i=0
     while i<len(labels):
         yield create_target(labels[i]),scale_input(images[i])
         i+=1
 
 def interpret(values,n_sigma=2.5):
+    '''
+    Interpet output from network as a digit. We take the index of the value that is maximal,
+    then test to see if it is sufficiently far from the mean of all the others
+    
+        Parameters:
+            values      Output from network
+            n_sigma     Maximal value needs to be at least n_sigma standard deviations above mean
+    '''
     max_index, max_value = max(enumerate(values), key=operator.itemgetter(1))
     others=[values[i] for i in range(len(values)) if i!=max_index]
     ns=(max_value - np.mean(others))/np.std(others)
     return (max_index,ns) if ns>n_sigma else (-1,ns)
 
 def test_weights(Thetas,images,labels,n_sigma=2.5):
+    '''
+    Test network against the MNIST test datset to see how we are doing.
+    
+        Parameters:
+            Thetas
+            images
+            labels
+            n_sigma
+    '''
     total_errors=0
     total_missed = 0
     n_sigmas=[]
@@ -56,6 +92,16 @@ def test_weights(Thetas,images,labels,n_sigma=2.5):
                                                                                   ','.join([str(ns) for ns in n_sigmas])))
 
 def output(i,maximum_error,average_error,Thetas,run):
+    '''
+    Used for progress reports during tarining.
+    
+        Parameters:
+            i
+            maximum_error
+            average_error
+            Thetas
+            run    
+    '''
     print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))
     bp.save_status(i,maximum_error,average_error,run=run)
     bp.save(Thetas,run=run)
@@ -75,8 +121,10 @@ if __name__=='__main__':
     parser.add_argument('-t','--test',action='store',type=int,default=2,
                         help='Every TEST runs execute network against test dataset')
     parser.add_argument('-s','--nsigma',action='store',type=float,default=2.5,
-                        help='Interpret output if maximum is more that n_sigma standard deviations above mean of other outputs') 
+                        help='Interpret output if maximum is more that n_sigma standard deviations above mean of other outputs')
+    
     args = parser.parse_args()
+    
     
     Thetas=None
     
