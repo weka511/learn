@@ -33,21 +33,27 @@ def data_gen(images,labels):
 def interpret(values,n_sigma=2.5):
     max_index, max_value = max(enumerate(values), key=operator.itemgetter(1))
     others=[values[i] for i in range(len(values)) if i!=max_index]
-    return max_index if max_value > np.mean(others) + n_sigma*np.std(others) else -1
+    ns=(max_value - np.mean(others))/np.std(others)
+    return (max_index,ns) if ns>n_sigma else (-1,ns)
 
-def test_weights(Thetas,images,labels):
+def test_weights(Thetas,images,labels,n_sigma=2.5):
     total_errors=0
     total_missed = 0
+    n_sigmas=[]
     for i in range(len(labels)):
         target=create_target(labels[i])        
         z,_,_=bp.predict(Thetas,scale_input(images[i]))
         err=bp.error(target,z)
-        dd=interpret(z)
+        dd,n_s=interpret(z,n_sigma=n_sigma)
         if dd!=labels[i]:
             total_errors+=1
         if dd==-1:
             total_missed+=1
-    return ('Error count ={0}, percentage ={1}. Includes {2} unrecognized'.format(total_errors,100*total_errors/len(labels),total_missed))
+            n_sigmas.append(n_s)
+    return ('Error count ={0}, percentage ={1}. Includes {2} unrecognized {3}'.format(total_errors,
+                                                                                  100*total_errors/len(labels),
+                                                                                  total_missed,
+                                                                                  ','.join([str(ns) for ns in n_sigmas])))
 
 def output(i,maximum_error,average_error,Thetas,run):
     print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))
@@ -56,14 +62,20 @@ def output(i,maximum_error,average_error,Thetas,run):
     
 if __name__=='__main__':
     parser=argparse.ArgumentParser('Train NN')
-    parser.add_argument('-d','--data',action='store',default='./data',help='Path where data can be found')
-    parser.add_argument('-n','--name',action='store',default='nn',help='Name for files')
-    parser.add_argument('-N','--number',action='store',type=int,default='10',help='Number of iterations')
+    parser.add_argument('-d','--data',action='store',default='./data',
+                        help='Path where data can be found')
+    parser.add_argument('-n','--name',action='store',default='nn',
+                        help='Name for files')
+    parser.add_argument('-N','--number',action='store',type=int,default='10',
+                        help='Number of iterations of training against dataset')
     parser.add_argument('-l','--layers',action='store',type=int,nargs='+',help='Number of nodes in each layer')
     parser.add_argument('-e','--eta',action='store',type=float,default=0.5,help='Learning rate')
     parser.add_argument('-a','--alpha',action='store',type=float,default=0.7,help='Momentum for training')
     parser.add_argument('-p','--print',action='store',type=int,default=1000,help='Interval for printing')
-    parser.add_argument('-t','--test',action='store',type=int,default=2,help='Interval for testing')
+    parser.add_argument('-t','--test',action='store',type=int,default=2,
+                        help='Every TEST runs execute network against test dataset')
+    parser.add_argument('-s','--nsigma',action='store',type=float,default=2.5,
+                        help='Interpret output if maximum is more that n_sigma standard deviations above mean of other outputs') 
     args = parser.parse_args()
     
     Thetas=None
@@ -73,8 +85,9 @@ if __name__=='__main__':
             print ('Resuming')
             saved=status_file.read().splitlines()
             eta=float(saved[1].split('=')[1])
-            interval= int(saved[2].split('=')[1])
+            print_interval= int(saved[2].split('=')[1])
             alpha=float(saved[3].split('=')[1])
+            n_sigma=float(saved[4].split('=')[1])
             Thetas=bp.load(run=args.name)
             print(Thetas)
     except FileNotFoundError:
@@ -83,10 +96,12 @@ if __name__=='__main__':
             status_file.write(','.join(str(l) for l in args.layers)+'\n')
             eta=args.eta
             status_file.write('eta={0}\n'.format(eta))
-            interval=args.print
-            status_file.write('Interval={0}\n'.format(interval))
+            print_interval=args.print
+            status_file.write('Interval={0}\n'.format(print_interval))
             alpha=args.alpha
             status_file.write('alpha={0}\n'.format(alpha))
+            n_sigma=args.nsigma
+            status_file.write('n sigma={0}\n'.format(n_sigma))
             print ('Training. Eta={0},alpha={1}'.format(args.eta,args.alpha))
             print ('Network has {0} layers'.format(len(args.layers)))
             for i in range(len(args.layers)):
@@ -107,14 +122,14 @@ if __name__=='__main__':
         for i in range(args.number):
             Thetas,_=bp.gradient_descent(Thetas,
                                          data_source=data_gen(images_training,labels_training),
-                                         eta=args.eta,
+                                         eta=eta,
                                          alpha=alpha,
-                                         print_interval=args.print,
+                                         print_interval=print_interval,
                                          output=lambda i,maximum_error,average_error,Thetas: output(i,maximum_error,average_error,Thetas,args.name))
             if i>0 and i%args.test==0:
-                text=test_weights(Thetas,images_test,labels_test)
+                text=test_weights(Thetas,images_test,labels_test,n_sigma)
                 print (text)
-                bp.save_text(text,run=run)
+                bp.save_text(text,run=args.name)
                 
     except FileNotFoundError as err:
         print (err)

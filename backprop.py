@@ -16,24 +16,43 @@
 import math,numpy as np,random,time,os,glob
 
 def sigmoid(z):
+    '''
+    Standard activation function for Backpropagation
+    
+        Parameters:
+            z     Weighted sum from previous layer
+    '''
     try:
         return 1.0/(1.0+math.exp(-z))
-    except OverflowError as e:
-        #print (e,z)
+    except OverflowError as e: #OK to fail silently, as 0 and 1 are the two asymptotes
         return 1 if z>0 else 0
 
 def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
+    '''
+    Calculate output from Neural Network
+    
+        Parameters:
+            Thetas    Weights
+            Inputs    Input to network
+            fn        Activation function
+    '''
     X=Inputs
     activations=[]
     Xs=[]
     for Theta in Thetas:
-        X_with_bias=np.append(X,[1],axis=0)
+        X_with_bias=np.append(X,[1],axis=0)  #Apply bias
         Xs.append(X_with_bias)
         X=fn(np.dot(X_with_bias,Theta))
         activations.append(X)    
     return (X,activations,Xs)
 
 def create_thetas(layer_spec):
+    '''
+    Factory to create random weights at the beginning of training
+    
+        Parameters:
+            layer_spec  Number of noded in each layer
+    '''
     def create_theta(a,b):
         eps=math.sqrt(6)/math.sqrt(a+b+1)
         theta=np.random.rand(a+1,b)
@@ -41,6 +60,13 @@ def create_thetas(layer_spec):
     return [create_theta(a,b) for a,b in zip(layer_spec[:-1],layer_spec[1:])]
 
 def error(target,output):
+    '''
+    Calculate mean squared error
+    
+    Parameters:
+        target   Target value
+        output    Output from network
+    '''
     return 0.5*sum([(t-o)*(t-o) for t,o in zip(target,output)])
     
 def delta_weights(target,output,activations,Xs,Thetas):
