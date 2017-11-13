@@ -36,17 +36,21 @@ def scale_input(image,scale_factor=256):
     '''
     return [ii/scale_factor for ii in image]
     
-def data_gen(images,labels):
+def data_gen(images,labels,randomize=True):
     '''
     Generator to supply input to bp.gradient_descent
     
         Parameters:
             images    Images from mnist
             labels    digits represents ing targets for images
+            randomize Randomize order of data each iteration
     '''
     i=0
+    if randomize:
+        indices= np.random.permutation(len(labels))
     while i<len(labels):
-        yield create_target(labels[i]),scale_input(images[i])
+        j=indices[i] if randomize else i
+        yield create_target(labels[j]),scale_input(images[j])
         i+=1
 
 def interpret(values,n_sigma=2.5):
@@ -93,7 +97,7 @@ def test_weights(Thetas,images,labels,n_sigma=2.5):
 
 def output(i,maximum_error,average_error,Thetas,run):
     '''
-    Used for progress reports during tarining.
+    Used for progress reports during training.
     
         Parameters:
             i
@@ -102,7 +106,7 @@ def output(i,maximum_error,average_error,Thetas,run):
             Thetas
             run    
     '''
-    print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))
+    print ('{0} {1:9.3g}'.format(i,average_error))
     bp.save_status(i,maximum_error,average_error,run=run)
     bp.save(Thetas,run=run)
     
@@ -122,7 +126,7 @@ if __name__=='__main__':
                         help='Every TEST runs execute network against test dataset')
     parser.add_argument('-s','--nsigma',action='store',type=float,default=2.5,
                         help='Interpret output if maximum is more that n_sigma standard deviations above mean of other outputs')
-    
+    parser.add_argument('-r','--randomize',action='store_true',default=False,help='Randomize order of input for each training step')
     args = parser.parse_args()
     
     
@@ -136,20 +140,24 @@ if __name__=='__main__':
             print_interval= int(saved[2].split('=')[1])
             alpha=float(saved[3].split('=')[1])
             n_sigma=float(saved[4].split('=')[1])
+            randomize=bool(saved[5].split('=')[1])
             Thetas=bp.load(run=args.name)
-            print(Thetas)
+            
     except FileNotFoundError:
         with open(bp.get_status_file_name(run=args.name,ext='txt'),'w') as status_file:
             print ('Starting')
-            status_file.write(','.join(str(l) for l in args.layers)+'\n')
             eta=args.eta
-            status_file.write('eta={0}\n'.format(eta))
             print_interval=args.print
-            status_file.write('Interval={0}\n'.format(print_interval))
             alpha=args.alpha
-            status_file.write('alpha={0}\n'.format(alpha))
             n_sigma=args.nsigma
+            randomize=args.randomize
+            
+            status_file.write(','.join(str(l) for l in args.layers)+'\n')
+            status_file.write('eta={0}\n'.format(eta))
+            status_file.write('Interval={0}\n'.format(print_interval))
+            status_file.write('alpha={0}\n'.format(alpha))           
             status_file.write('n sigma={0}\n'.format(n_sigma))
+            status_file.write('randomize={0}\n'.format(randomize))
             print ('Training. Eta={0},alpha={1}'.format(args.eta,args.alpha))
             print ('Network has {0} layers'.format(len(args.layers)))
             for i in range(len(args.layers)):
@@ -169,7 +177,7 @@ if __name__=='__main__':
         images_test,labels_test=mndata.load_testing()
         for i in range(args.number):
             Thetas,_=bp.gradient_descent(Thetas,
-                                         data_source=data_gen(images_training,labels_training),
+                                         data_source=data_gen(images_training,labels_training,randomize=randomize),
                                          eta=eta,
                                          alpha=alpha,
                                          print_interval=print_interval,

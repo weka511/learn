@@ -119,8 +119,11 @@ def gradient_descent(Thetas,
     '''
     total_error=0
     maximum_error=0
+    overall_error=0
+    overall_maximum_error=0
     i=0
     m=0
+    ii=0
     previous_deltas=[np.multiply(0,Theta) for Theta in Thetas] # All zeros
     for target,Input in data_source:
         z,activations,Xs=predict(Thetas,Input)
@@ -137,12 +140,16 @@ def gradient_descent(Thetas,
         previous_deltas[:]=Deltas
         
         if i>0 and i%print_interval==0:
-            output(i,maximum_error,total_error/m,Thetas) 
+            output(i,maximum_error,total_error/m,Thetas)
+            overall_error+=total_error/m
+            if maximum_error>overall_maximum_error:
+                overall_maximum_error=maximum_error
             total_error=0
             maximum_error=0
-            m=0 
+            m=0
+            ii+=1
         i+=1
-
+    output('-----',overall_maximum_error,overall_error/ii,Thetas)
     return (Thetas,err)
 
 def get_status_file_name(run='nn',ext='txt',path='./weights'):
