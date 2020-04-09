@@ -19,34 +19,51 @@ import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 
+# dy
+#
+# Computer derivative of state vector
+#
+# Parameters:
+#    t
+#    y       State vector
+#       S      0: Susceptible
+#       E      1: Exposed
+#       P      2: pre-symptomatic
+#       I0     3: Infectious untested
+#       I1     4: Infectious tested
+#       R0     5: Recovered untested
+#       R1     6: Recovered tested
+#    N       Population size
+#    c       Testing rate for symptomatic cases, per diem
+#    alpha   E to P transition rate, per diem
+#    beta    transmission coefficient, per diem  
+#    gamma   I to R tranition, per diem
+#    delta   P to I, per diem
+#    epsilon relative infectiousness
+#    CFR1    case fatality rate with cases exceedinging ICU max
+#    CFR0    case fatality rate for cases under ICU max
+#    nICU    number of ICU beds
+#    pICU    proportion of cases requiring ICU
 
-# S    Susceptible
-# E    Exposed
-# P    pre-symptomatic
-# I0   Infectious untested
-# I1   Infectious tested
-# R0   Recovered untested
-# R1   Recovered tested
-def model(t,y,
-          N       = 5000000,         # Population size
-          c       = 0.1,             # testing rate for symptomatic cases, per diem
-          alpha   = 0.25,            # E to P transition rate, per diem
-          beta    = 0.2463,          # transmission coefficient, per diem  
-          gamma   = 0.1,             # I to R tranition, per diem
-          delta   = 1,               # P to I, per diem
-          epsilon = 0.15,            # relative infectiousness
-          CFR1    = 2.0/100,         # case fatality rate with cases exceedinging ICU max
-          CFR0    = 1.0/100,         # case fatality rate for cases under ICU max
-          nICU    = 300,             # number of ICU beds
-          pICU    = 1.25/100      # proportion of cases requiring ICU
-          ):
+def dy(t,y,
+       N       = 5000000,  
+       c       = 0.1, 
+       alpha   = 0.25,   
+       beta    = 0.2463,   
+       gamma   = 0.1,  
+       delta   = 1,   
+       epsilon = 0.15, 
+       CFR1    = 2.0/100,  
+       CFR0    = 1.0/100,  
+       nICU    = 300,   
+       pICU    = 1.25/100 ):
     
     S,E,P,I0,I1,R0,R1 = y
-    I = I0+I1
-    CFR = CFR1 - (nICU/(N*I* pICU)) * (CFR1 - CFR0) if I>0 else I1
+    I                 = I0 + I1
+    CFR               = CFR1 - (nICU/(N*I* pICU)) * (CFR1 - CFR0) if I>0 else 0
     return [
-        -beta*S*(epsilon*P+I0+I1),
-        +beta*S*(epsilon*P+I0+I1) - alpha*E,
+        -beta*S*(epsilon*P + I),
+        +beta*S*(epsilon*P + I) - alpha*E,
         alpha*E - delta * P,
         delta*P -(gamma + c) *I0,
         c*I0 - gamma*I1,
@@ -66,64 +83,66 @@ def aggregate(ys):
     y0s,y1s = ys
     return [ y0s[i] + y1s[i] for i in range(len(y0s)) ]
 
-def plot_detail(sol,N=1,R0=1):
-    deaths         = [get_death(j,sol.y) for j in range(len(sol.y[1]))]
-    total_infected = aggregate((sol.y[ 3],sol.y[4]))
-    total_recovered = aggregate((sol.y[ 5],sol.y[6]))   
-    plt.plot(sol.t, scale(sol.y[1],N=N),        color='g',                 label='E (Exposed)')
-    plt.plot(sol.t, scale(sol.y[2],N=N),        color='r',                 label='P (Presymptomatic)')
-    plt.plot(sol.t, scale(sol.y[3],N=N),        color='c', linestyle=':',  label='I0 (Infectious, untested')
-    plt.plot(sol.t, scale(sol.y[4],N=N),        color='c', linestyle='--', label='I1 (Infectious, untested)')
-    plt.plot(sol.t, scale(total_infected,N=N),  color='c',                 label='I (Infectious)')
-    plt.plot(sol.t, scale(sol.y[5],N=N),        color='m', linestyle=':',  label='R0 (Recovered, untested)')
-    plt.plot(sol.t, scale(sol.y[6],N=N),        color='m', linestyle='--', label='R1 (Recovered, tested)')
-    plt.plot(sol.t, scale(total_recovered,N=N), color='m',                label='R (Recovered)')
-    #plt.plot(sol.t, scale(deaths, N=N),        color='k',                 label='Deaths')
+def plot_detail(t=[],y=[],N=1,Rc=1):
+    #deaths         = [get_death(j,y) for j in range(len(y[1]))]
+    total_infected = aggregate((y[ 3],y[4]))
+    total_recovered = aggregate((y[ 5],y[6]))   
+    plt.plot(t, scale(y[1],N=N),        color='g',                 label='E (Exposed)')
+    plt.plot(t, scale(y[2],N=N),        color='r',                 label='P (Presymptomatic)')
+    plt.plot(t, scale(y[3],N=N),        color='c', linestyle=':',  label='I0 (Infectious, untested')
+    plt.plot(t, scale(y[4],N=N),        color='c', linestyle='--', label='I1 (Infectious, untested)')
+    plt.plot(t, scale(total_infected,N=N),  color='c',                 label='I (Infectious)')
+    plt.plot(t, scale(y[5],N=N),        color='m', linestyle=':',  label='R0 (Recovered, untested)')
+    plt.plot(t, scale(y[6],N=N),        color='m', linestyle='--', label='R1 (Recovered, tested)')
+    plt.plot(t, scale(total_recovered,N=N), color='m',                label='R (Recovered)')
+    #plt.plot(t, scale(deaths, N=N),        color='k',                 label='Deaths')
     plt.legend(loc='best')
     plt.xlabel('t')
-    plt.title('Progression of COVID-19: R0 = {}'.format(R0))
+    plt.title('Progression of COVID-19: Rc = {}'.format(Rc))
+    plt.grid() 
+
+def plot_infections(infections):
+    for (Rc,t,y) in infections:
+        plt.plot (t,y,label='{0:.2f}'.format(Rc))
+    plt.title("Total Infections")
+    plt.legend(loc='best',title='Rc')
+    plt.xlabel('Days')
     plt.grid() 
     
 if __name__=='__main__':
     import argparse
     
     parser = argparse.ArgumentParser('Model COVID19 evolution')
-    parser.add_argument('--R0', nargs='+',type=float,default=2.5)
-    parser.add_argument('--seed',         type=int,default=20,help='Number of exposed people whom we inject into population')
-    parser.add_argument('--N',            type=int,default=5000000,help='Population size')
-    parser.add_argument('--nICU',         type=int,default=300,help='Number of ICU beds')
-    parser.add_argument('--end',          type=int,default=365,help='Number of days to be simulated')
-    parser.add_argument('--c',            type=float,default=0.1,help='testing rate for symptomatic cases, per diem')
-    parser.add_argument('--alpha',        type=float,default=0.25,help='E to P transition rate, per diem')
-    parser.add_argument('--gamma',        type=float,default=0.1,help='I to R tranition, per diem')
-    parser.add_argument('--delta',        type=float,default=1.0,help='P to I, per diem')
-    parser.add_argument('--epsilon',      type=float,default=0.15,help='relative infectiousness')
-    parser.add_argument('--CFR1',         type=float,default=2.0/100,help='case fatality rate with cases exceeding ICU max')
-    parser.add_argument('--CFR0',         type=float,default=1.0/100,help='case fatality rate for cases under ICU max')
-    parser.add_argument('--pICU',         type=float,default=1.25/100,help='proportion of cases requiring ICU')
+    parser.add_argument('--Rc', nargs='+', type=float, default=2.5,      help='Basic Reproduction number')
+    parser.add_argument('--seed',          type=int,   default=20,       help='Number of exposed people at start')
+    parser.add_argument('--N',             type=int,   default=5000000,  help='Population size')
+    parser.add_argument('--nICU',          type=int,   default=300,      help='Number of ICU beds')
+    parser.add_argument('--end',           type=int,   default=365,      help='Number of days to be simulated')
+    parser.add_argument('--c',             type=float, default=0.1,      help='testing rate for symptomatic cases, per diem')
+    parser.add_argument('--alpha',         type=float, default=0.25,     help='E to P transition rate, per diem')
+    parser.add_argument('--gamma',         type=float, default=0.1,      help='I to R tranition, per diem')
+    parser.add_argument('--delta',         type=float, default=1.0,      help='P to I, per diem')
+    parser.add_argument('--epsilon',       type=float, default=0.15,     help='relative infectiousness')
+    parser.add_argument('--CFR1',          type=float, default=2.0/100,  help='case fatality rate with cases exceeding ICU max')
+    parser.add_argument('--CFR0',          type=float, default=1.0/100,  help='case fatality rate for cases under ICU max')
+    parser.add_argument('--pICU',          type=float, default=1.25/100, help='proportion of cases requiring ICU')
     args = parser.parse_args()
     
     infections = []
     
-    for R0 in args.R0 if isinstance(args.R0, list) else [args.R0]:
-        beta    = R0/(args.epsilon/args.delta + 1/args.gamma)     # transmission coefficient, per diem   
-        
-        sol    = solve_ivp(model, 
+    for Rc in args.Rc if isinstance(args.Rc, list) else [args.Rc]:
+        sol    = solve_ivp(dy, 
                            (0,args.end),
                            [1-args.seed/args.N,args.seed/args.N,0,0,0,0,0],
-                           args=(args.N, args.c, args.alpha, beta, args.gamma, args.delta, 
-                                 args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
+                           args=(args.N, args.c, args.alpha, 
+                                 Rc/(args.epsilon/args.delta + 1/args.gamma),
+                                 args.gamma, args.delta, args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
         
         plt.figure(figsize=(20,6))
-        plot_detail(sol,N=args.N,R0=R0)
-        infections.append((R0,sol.t,aggregate((sol.y[3],sol.y[4]))))
-        
-    plt.figure(figsize=(20,6))  
-    for (R0,t,y) in infections:
-        plt.plot (t,y,label='{0:.2f}'.format(R0))
-    plt.title("Total Infections")
-    plt.legend(loc='best',title='R0')
-    plt.xlabel('Days')
-    plt.grid() 
+        plot_detail(t=sol.t,y=sol.y,N=args.N,Rc=Rc)
+        infections.append((Rc,sol.t,aggregate((sol.y[3],sol.y[4]))))
+    
+    plt.figure(figsize=(20,6))
+    plot_infections(infections)
     
     plt.show()
