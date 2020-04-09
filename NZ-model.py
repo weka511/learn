@@ -1,3 +1,20 @@
+# NZ-model.py
+
+# Copyright (C) 2020 Greenweaves Software Limited
+
+# This is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This software is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.GA
+
+# You should have received a copy of the GNU General Public License
+# along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
@@ -40,7 +57,7 @@ def model(t,y,
     
 
 def get_death(j,y):
-    return 1-sum([y[i][j] for i in range(0,7)])
+    return 1-sum([y[i][j] for i in range(7)])
 
 def scale(ys,N=1):
     return [N*y for y in ys]
@@ -49,7 +66,24 @@ def aggregate(ys):
     y0s,y1s = ys
     return [ y0s[i] + y1s[i] for i in range(len(y0s)) ]
 
-
+def plot_detail(sol,N=1,R0=1):
+    deaths         = [get_death(j,sol.y) for j in range(len(sol.y[1]))]
+    total_infected = aggregate((sol.y[ 3],sol.y[4]))
+    total_recovered = aggregate((sol.y[ 5],sol.y[6]))   
+    plt.plot(sol.t, scale(sol.y[1],N=N),        color='g',                 label='E (Exposed)')
+    plt.plot(sol.t, scale(sol.y[2],N=N),        color='r',                 label='P (Presymptomatic)')
+    plt.plot(sol.t, scale(sol.y[3],N=N),        color='c', linestyle=':',  label='I0 (Infectious, untested')
+    plt.plot(sol.t, scale(sol.y[4],N=N),        color='c', linestyle='--', label='I1 (Infectious, untested)')
+    plt.plot(sol.t, scale(total_infected,N=N),  color='c',                 label='I (Infectious)')
+    plt.plot(sol.t, scale(sol.y[5],N=N),        color='m', linestyle=':',  label='R0 (Recovered, untested)')
+    plt.plot(sol.t, scale(sol.y[6],N=N),        color='m', linestyle='--', label='R1 (Recovered, tested)')
+    plt.plot(sol.t, scale(total_recovered,N=N), color='m',                label='R (Recovered)')
+    #plt.plot(sol.t, scale(deaths, N=N),        color='k',                 label='Deaths')
+    plt.legend(loc='best')
+    plt.xlabel('t')
+    plt.title('Progression of COVID-19: R0 = {}'.format(R0))
+    plt.grid() 
+    
 if __name__=='__main__':
     import argparse
     
@@ -69,6 +103,8 @@ if __name__=='__main__':
     parser.add_argument('--pICU',         type=float,default=1.25/100,help='proportion of cases requiring ICU')
     args = parser.parse_args()
     
+    infections = []
+    
     for R0 in args.R0 if isinstance(args.R0, list) else [args.R0]:
         beta    = R0/(args.epsilon/args.delta + 1/args.gamma)     # transmission coefficient, per diem   
         
@@ -78,21 +114,16 @@ if __name__=='__main__':
                            args=(args.N, args.c, args.alpha, beta, args.gamma, args.delta, 
                                  args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
         
-        deaths         = scale([get_death(j,sol.y) for j in range(len(sol.y[1]))],N=args.N)
-        total_infected = scale(aggregate((sol.y[ 3],sol.y[4])),N=args.N)
-        
         plt.figure(figsize=(20,6))
-        plt.plot(sol.t, scale(sol.y[1]),  color='g',                 label='E (Exposed)')
-        plt.plot(sol.t, scale(sol.y[2]),  color='r',                 label='P (Presymptomatic)')
-        plt.plot(sol.t, scale(sol.y[ 3]), color='c', linestyle=':',  label='I0 (Infectious, untested')
-        plt.plot(sol.t, scale(sol.y[ 4]), color='c', linestyle='--', label='I1 (Infectious, untested)')
-        plt.plot(sol.t, total_infected,   color='c',                 label='I (Infectious)')
-        plt.plot(sol.t, scale(sol.y[ 5]), color='m', linestyle=':',  label='R0 (Recovered, untested)')
-        plt.plot(sol.t, scale(sol.y[ 6]), color='m', linestyle='--', label='R1 (Recovered, tested)')
-        plt.plot(sol.t, deaths,           color='k',                 label='Deaths')
-        plt.legend(loc='best')
-        plt.xlabel('t')
-        plt.title('Progression of COVID-19: R0 = {}'.format(R0))
-        plt.grid()
+        plot_detail(sol,N=args.N,R0=R0)
+        infections.append((R0,sol.t,aggregate((sol.y[3],sol.y[4]))))
+        
+    plt.figure(figsize=(20,6))  
+    for (R0,t,y) in infections:
+        plt.plot (t,y,label='{0:.2f}'.format(R0))
+    plt.title("Total Infections")
+    plt.legend(loc='best',title='R0')
+    plt.xlabel('Days')
+    plt.grid() 
     
     plt.show()
