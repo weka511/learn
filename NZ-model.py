@@ -61,20 +61,16 @@ def dy(t,y,
     S,E,P,I0,I1,R0,R1 = y
     I                 = I0 + I1
     CFR               = CFR1 - (nICU/(N*I* pICU)) * (CFR1 - CFR0) if I>0 else 0
+    new_exposed       = beta * S * (epsilon*P + I)
     return [
-        -beta*S*(epsilon*P + I),
-        +beta*S*(epsilon*P + I) - alpha*E,
+        -new_exposed,
+        +new_exposed - alpha*E,
         alpha*E - delta * P,
         delta*P -(gamma + c) *I0,
         c*I0 - gamma*I1,
         gamma*(1-CFR)*I0,
         gamma*(1-CFR)*I1
     ]
-    
-    
-
-def get_death(j,y):
-    return 1-sum([y[i][j] for i in range(7)])
 
 def scale(ys,N=1):
     return [N*y for y in ys]
@@ -83,29 +79,25 @@ def aggregate(ys):
     y0s,y1s = ys
     return [ y0s[i] + y1s[i] for i in range(len(y0s)) ]
 
-def plot_detail(t=[],y=[],N=1,Rc=1):
-    #deaths         = [get_death(j,y) for j in range(len(y[1]))]
-    total_infected = aggregate((y[ 3],y[4]))
-    total_recovered = aggregate((y[ 5],y[6]))   
-    plt.plot(t, scale(y[1],N=N),        color='g',                 label='E (Exposed)')
-    plt.plot(t, scale(y[2],N=N),        color='r',                 label='P (Presymptomatic)')
-    plt.plot(t, scale(y[3],N=N),        color='c', linestyle=':',  label='I0 (Infectious, untested')
-    plt.plot(t, scale(y[4],N=N),        color='c', linestyle='--', label='I1 (Infectious, untested)')
-    plt.plot(t, scale(total_infected,N=N),  color='c',                 label='I (Infectious)')
-    plt.plot(t, scale(y[5],N=N),        color='m', linestyle=':',  label='R0 (Recovered, untested)')
-    plt.plot(t, scale(y[6],N=N),        color='m', linestyle='--', label='R1 (Recovered, tested)')
-    plt.plot(t, scale(total_recovered,N=N), color='m',                label='R (Recovered)')
-    #plt.plot(t, scale(deaths, N=N),        color='k',                 label='Deaths')
+def plot_detail(t=[],y=[],N=1,Rc=1):  
+    plt.plot(t, scale(y[1],N=N),                   color='g',                 label='E (Exposed)')
+    plt.plot(t, scale(y[2],N=N),                   color='r',                 label='P (Presymptomatic)')
+    plt.plot(t, scale(y[3],N=N),                   color='c', linestyle=':',  label='I0 (Infectious, untested')
+    plt.plot(t, scale(y[4],N=N),                   color='c', linestyle='--', label='I1 (Infectious, untested)')
+    plt.plot(t, scale(aggregate((y[3],y[4])),N=N), color='c',                 label='I (Total Infectious)')
+    plt.plot(t, scale(y[5],N=N),                   color='m', linestyle=':',  label='R0 (Recovered, untested)')
+    plt.plot(t, scale(y[6],N=N),                   color='m', linestyle='--', label='R1 (Recovered, tested)')
+    plt.plot(t, scale(aggregate((y[5],y[6])),N=N), color='m',                 label='R (Total Recovered)')
     plt.legend(loc='best')
     plt.xlabel('t')
-    plt.title('Progression of COVID-19: Rc = {}'.format(Rc))
+    plt.title('Progression of COVID-19: Rc = {0:.2f}'.format(Rc))
     plt.grid() 
 
 def plot_infections(infections):
     for (Rc,t,y) in infections:
         plt.plot (t,y,label='{0:.2f}'.format(Rc))
     plt.title("Total Infections")
-    plt.legend(loc='best',title='Rc')
+    plt.legend(loc='best',title='Basic Reproduction number (Rc)')
     plt.xlabel('Days')
     plt.grid() 
     
@@ -117,7 +109,8 @@ if __name__=='__main__':
     parser.add_argument('--seed',          type=int,   default=20,       help='Number of exposed people at start')
     parser.add_argument('--N',             type=int,   default=5000000,  help='Population size')
     parser.add_argument('--nICU',          type=int,   default=300,      help='Number of ICU beds')
-    parser.add_argument('--end',           type=int,   default=365,      help='Number of days to be simulated')
+    parser.add_argument('--control',       type=int,   default=400,      help='Number of controlled days to be simulated')
+    parser.add_argument('--end',           type=int,   default=800,      help='Number of days to be simulated')
     parser.add_argument('--c',             type=float, default=0.1,      help='testing rate for symptomatic cases, per diem')
     parser.add_argument('--alpha',         type=float, default=0.25,     help='E to P transition rate, per diem')
     parser.add_argument('--gamma',         type=float, default=0.1,      help='I to R tranition, per diem')
@@ -132,15 +125,24 @@ if __name__=='__main__':
     
     for Rc in args.Rc if isinstance(args.Rc, list) else [args.Rc]:
         sol    = solve_ivp(dy, 
-                           (0,args.end),
-                           [1-args.seed/args.N,args.seed/args.N,0,0,0,0,0],
+                           (0,args.control),
+                           [1-args.seed/args.N, args.seed/args.N, 0, 0, 0, 0, 0],
                            args=(args.N, args.c, args.alpha, 
                                  Rc/(args.epsilon/args.delta + 1/args.gamma),
                                  args.gamma, args.delta, args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
-        
+        Rbasic = 2.5
         plt.figure(figsize=(20,6))
         plot_detail(t=sol.t,y=sol.y,N=args.N,Rc=Rc)
-        infections.append((Rc,sol.t,aggregate((sol.y[3],sol.y[4]))))
+        sol_extended  = solve_ivp(dy, 
+                           (sol.t[-1],args.end),
+                           [y[-1] for y in sol.y],
+                           args=(args.N, args.c, args.alpha,
+                                 Rbasic/(args.epsilon/args.delta + 1/args.gamma),
+                                 args.gamma, args.delta, args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
+        infections.append((Rc,
+                           np.concatenate((sol.t,sol_extended.t[1:])),
+                           aggregate((np.concatenate((sol.y[3],sol_extended.y[3][1:])),
+                                      np.concatenate((sol.y[4],sol_extended.y[4][1:]))))))
     
     plt.figure(figsize=(20,6))
     plot_infections(infections)
