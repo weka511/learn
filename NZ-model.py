@@ -15,6 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
+# This model is based on Suppression and Mitigation Strategies for Control of COVID-19 in New Zealand
+# 25 March 2020, Alex James, Shaun C. Hendy, Michael J. Plank, Nicholas Steyn
+
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
@@ -93,13 +96,15 @@ def plot_detail(t=[],y=[],N=1,Rc=1):
     plt.title('Progression of COVID-19: Rc = {0:.2f}'.format(Rc))
     plt.grid() 
 
-def plot_infections(infections):
+def plot_infections(infections,control=5):
     for (Rc,t,y) in infections:
         plt.plot (t,y,label='{0:.2f}'.format(Rc))
     plt.title("Total Infections")
     plt.legend(loc='best',title='Basic Reproduction number (Rc)')
     plt.xlabel('Days')
     plt.grid() 
+    plt.axvspan(0, control, facecolor='b', alpha=0.125)
+    plt.savefig('totals')
     
 if __name__=='__main__':
     import argparse
@@ -121,23 +126,22 @@ if __name__=='__main__':
     parser.add_argument('--pICU',          type=float, default=1.25/100, help='proportion of cases requiring ICU')
     args = parser.parse_args()
     
+    beta_divisor = args.epsilon/args.delta + 1/args.gamma
     infections = []
     
     for Rc in args.Rc if isinstance(args.Rc, list) else [args.Rc]:
         sol    = solve_ivp(dy, 
                            (0,args.control),
                            [1-args.seed/args.N, args.seed/args.N, 0, 0, 0, 0, 0],
-                           args=(args.N, args.c, args.alpha, 
-                                 Rc/(args.epsilon/args.delta + 1/args.gamma),
+                           args=(args.N, args.c, args.alpha, Rc/beta_divisor,
                                  args.gamma, args.delta, args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
-        Rbasic = 2.5
+        Rbasic = max(args.Rc)
         plt.figure(figsize=(20,6))
         plot_detail(t=sol.t,y=sol.y,N=args.N,Rc=Rc)
         sol_extended  = solve_ivp(dy, 
                            (sol.t[-1],args.end),
                            [y[-1] for y in sol.y],
-                           args=(args.N, args.c, args.alpha,
-                                 Rbasic/(args.epsilon/args.delta + 1/args.gamma),
+                           args=(args.N, args.c, args.alpha, Rbasic/beta_divisor,
                                  args.gamma, args.delta, args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
         infections.append((Rc,
                            np.concatenate((sol.t,sol_extended.t[1:])),
@@ -145,6 +149,6 @@ if __name__=='__main__':
                                       np.concatenate((sol.y[4],sol_extended.y[4][1:]))))))
     
     plt.figure(figsize=(20,6))
-    plot_infections(infections)
+    plot_infections(infections,control=args.control)
     
     plt.show()
