@@ -17,7 +17,9 @@
 
 # This program is based on the model used for Suppression and Mitigation 
 # Strategies for Control of COVID-19 in New Zealand (25 March 2020)
-# Alex James, Shaun C. Hendy, Michael J. Plank, and Nicholas Steyn
+# Alex James, Shaun C. Hendy, Michael J. Plank, and Nicholas Steyn.
+# However, the program has not been discussed with these authors; it is
+# unreviewed, and in no way endorsed by them.
 
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -100,7 +102,7 @@ def aggregate(ys):
 #     N     Population size (for scaling)
 #     Rc    Basic Reproduction number (for use in title)
 
-def plot_detail(t=[],y=[],N=1,Rc=1):  
+def plot_detail(t=[],y=[],N=1,Rc=1,control_days=400,R_uncontrolled=2.5):  
     plt.plot(t, scale(y[1],N=N),                   color='g',                 label='E (Exposed)')
     plt.plot(t, scale(y[2],N=N),                   color='r',                 label='P (Presymptomatic)')
     plt.plot(t, scale(y[3],N=N),                   color='c', linestyle=':',  label='I0 (Infectious, untested')
@@ -110,10 +112,12 @@ def plot_detail(t=[],y=[],N=1,Rc=1):
     plt.plot(t, scale(y[6],N=N),                   color='m', linestyle='--', label='R1 (Recovered, tested)')
     plt.plot(t, scale(aggregate((y[5],y[6])),N=N), color='m',                 label='R (Total Recovered)')
     plt.legend(loc='best')
-    plt.xlabel('t')
-    plt.title('Progression of COVID-19: Rc = {0:.2f}'.format(Rc))
-    plt.grid() 
+    plt.xlabel('Days')
+    plt.title('Progression of COVID-19: Rc = {0:.2f} for {1} days, then {2:.2f}'.format(Rc,control_days,R_uncontrolled))
+    plt.grid()
+    plt.axvspan(0, control_days, facecolor='b', alpha=0.125)
     plt.savefig('{0}.png'.format(Rc))
+    
 # plot_infections
 #
 # Compare infection rates for a range of Rc
@@ -125,8 +129,8 @@ def plot_detail(t=[],y=[],N=1,Rc=1):
 def plot_infections(infections,control_days=400):
     for (Rc,t,y) in infections:
         plt.plot (t,y,label='{0:.2f}'.format(Rc))
-    plt.title("Total Infections")
-    plt.legend(loc='best',title='Basic Reproduction number (Rc)')
+    plt.title('Total Infections: {0} days before control lifted.'.format(control_days))
+    plt.legend(loc='best',title='Rc during control')
     plt.xlabel('Days')
     plt.grid() 
     plt.axvspan(0, control_days, facecolor='b', alpha=0.125)
@@ -170,8 +174,6 @@ if __name__=='__main__':
                                  get_beta(R0=Rc,gamma=args.gamma,delta=args.delta,epsilon=args.epsilon),
                                  args.gamma, args.delta, args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
         R_uncontrolled = max(args.Rc) if isinstance(args.Rc, list) else args.Rc
-        plt.figure(figsize=(20,6))
-        plot_detail(t=sol.t,y=sol.y,N=args.N,Rc=Rc)
         sol_extended  = solve_ivp(dy, 
                            (sol.t[-1],args.end),
                            [y[-1] for y in sol.y],
@@ -182,6 +184,14 @@ if __name__=='__main__':
                            np.concatenate((sol.t,sol_extended.t[1:])),
                            aggregate((np.concatenate((sol.y[3],sol_extended.y[3][1:])),
                                       np.concatenate((sol.y[4],sol_extended.y[4][1:]))))))
+ 
+        plt.figure(figsize=(20,6))
+        plot_detail(t=np.concatenate((sol.t,sol_extended.t[1:])),
+                    y=[np.concatenate((sol.y[i],sol_extended.y[i][1:])) for i in range(len(sol.y))],
+                    N=args.N,
+                    Rc=Rc,
+                    control_days=args.control,
+                    R_uncontrolled=R_uncontrolled)        
     
     if isinstance(args.Rc, list):
         plt.figure(figsize=(20,6))
