@@ -15,8 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
-# This model is based on Suppression and Mitigation Strategies for Control of COVID-19 in New Zealand
-# 25 March 2020, Alex James, Shaun C. Hendy, Michael J. Plank, Nicholas Steyn
+# This program is based on the model used for Suppression and Mitigation 
+# Strategies for Control of COVID-19 in New Zealand (25 March 2020)
+# Alex James, Shaun C. Hendy, Michael J. Plank, and Nicholas Steyn
 
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -24,11 +25,11 @@ import matplotlib.pyplot as plt
 
 # dy
 #
-# Computer derivative of state vector
+# Compute derivative of state vector
 #
 # Parameters:
 #    t
-#    y       State vector
+#    y       State vector. All components are fraction of the population
 #       S      0: Susceptible
 #       E      1: Exposed
 #       P      2: pre-symptomatic
@@ -75,12 +76,29 @@ def dy(t,y,
         gamma*(1-CFR)*I1
     ]
 
+# scale
+#
+# Scale values for display
 def scale(ys,N=1):
     return [N*y for y in ys]
+
+# aggregate
+#
+# Used to add two realted components together for display, e.g. tested and untested.
 
 def aggregate(ys):
     y0s,y1s = ys
     return [ y0s[i] + y1s[i] for i in range(len(y0s)) ]
+
+# plot_detail
+#
+# Plot state vector for one value of Basic Reproduction number
+#
+# Parameters:
+#     t     time
+#     y     state vector
+#     N     Population size (for scaling)
+#     Rc    Basic Reproduction number (for use in title)
 
 def plot_detail(t=[],y=[],N=1,Rc=1):  
     plt.plot(t, scale(y[1],N=N),                   color='g',                 label='E (Exposed)')
@@ -95,60 +113,79 @@ def plot_detail(t=[],y=[],N=1,Rc=1):
     plt.xlabel('t')
     plt.title('Progression of COVID-19: Rc = {0:.2f}'.format(Rc))
     plt.grid() 
+    plt.savefig('{0}.png'.format(Rc))
+# plot_infections
+#
+# Compare infection rates for a range of Rc
+#
+# Parameters:
+#       infections
+#       control_days    Number of days controled (for display only)
 
-def plot_infections(infections,control=5):
+def plot_infections(infections,control_days=400):
     for (Rc,t,y) in infections:
         plt.plot (t,y,label='{0:.2f}'.format(Rc))
     plt.title("Total Infections")
     plt.legend(loc='best',title='Basic Reproduction number (Rc)')
     plt.xlabel('Days')
     plt.grid() 
-    plt.axvspan(0, control, facecolor='b', alpha=0.125)
+    plt.axvspan(0, control_days, facecolor='b', alpha=0.125)
     plt.savefig('totals')
-    
+
+# get_beta
+#
+# Compute transmission coefficient
+
+def get_beta(R0=2.5,gamma=0.1,delta=1.0,epsilon=0.15):
+    return R0/(epsilon/delta + 1/gamma)
+
 if __name__=='__main__':
     import argparse
     
     parser = argparse.ArgumentParser('Model COVID19 evolution')
-    parser.add_argument('--Rc', nargs='+', type=float, default=2.5,      help='Basic Reproduction number')
-    parser.add_argument('--seed',          type=int,   default=20,       help='Number of exposed people at start')
-    parser.add_argument('--N',             type=int,   default=5000000,  help='Population size')
-    parser.add_argument('--nICU',          type=int,   default=300,      help='Number of ICU beds')
-    parser.add_argument('--control',       type=int,   default=400,      help='Number of controlled days to be simulated')
-    parser.add_argument('--end',           type=int,   default=800,      help='Number of days to be simulated')
-    parser.add_argument('--c',             type=float, default=0.1,      help='testing rate for symptomatic cases, per diem')
-    parser.add_argument('--alpha',         type=float, default=0.25,     help='E to P transition rate, per diem')
-    parser.add_argument('--gamma',         type=float, default=0.1,      help='I to R tranition, per diem')
-    parser.add_argument('--delta',         type=float, default=1.0,      help='P to I, per diem')
-    parser.add_argument('--epsilon',       type=float, default=0.15,     help='relative infectiousness')
-    parser.add_argument('--CFR1',          type=float, default=2.0/100,  help='case fatality rate with cases exceeding ICU max')
-    parser.add_argument('--CFR0',          type=float, default=1.0/100,  help='case fatality rate for cases under ICU max')
-    parser.add_argument('--pICU',          type=float, default=1.25/100, help='proportion of cases requiring ICU')
+    parser.add_argument('--Rc',      type=float, default=2.5,      help='Basic Reproduction number', nargs='+')
+    parser.add_argument('--seed',    type=int,   default=20,       help='Number of exposed people at start')
+    parser.add_argument('--N',       type=int,   default=5000000,  help='Population size')
+    parser.add_argument('--nICU',    type=int,   default=300,      help='Number of ICU beds')
+    parser.add_argument('--control', type=int,   default=400,      help='Number of controlled days to be simulated')
+    parser.add_argument('--end',     type=int,   default=800,      help='Number of days to be simulated')
+    parser.add_argument('--c',       type=float, default=0.1,      help='testing rate for symptomatic cases, per diem')
+    parser.add_argument('--alpha',   type=float, default=0.25,     help='E to P transition rate, per diem')
+    parser.add_argument('--gamma',   type=float, default=0.1,      help='I to R tranition, per diem')
+    parser.add_argument('--delta',   type=float, default=1.0,      help='P to I, per diem')
+    parser.add_argument('--epsilon', type=float, default=0.15,     help='relative infectiousness')
+    parser.add_argument('--CFR1',    type=float, default=2.0/100,  help='case fatality rate with cases exceeding ICU max')
+    parser.add_argument('--CFR0',    type=float, default=1.0/100,  help='case fatality rate for cases under ICU max')
+    parser.add_argument('--pICU',    type=float, default=1.25/100, help='proportion of cases requiring ICU')
+    parser.add_argument('--show',                default=False,    help='Show plots at end of run', action='store_true')
     args = parser.parse_args()
     
-    beta_divisor = args.epsilon/args.delta + 1/args.gamma
     infections = []
-    
+     
     for Rc in args.Rc if isinstance(args.Rc, list) else [args.Rc]:
         sol    = solve_ivp(dy, 
                            (0,args.control),
                            [1-args.seed/args.N, args.seed/args.N, 0, 0, 0, 0, 0],
-                           args=(args.N, args.c, args.alpha, Rc/beta_divisor,
+                           args=(args.N, args.c, args.alpha,
+                                 get_beta(R0=Rc,gamma=args.gamma,delta=args.delta,epsilon=args.epsilon),
                                  args.gamma, args.delta, args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
-        Rbasic = max(args.Rc)
+        R_uncontrolled = max(args.Rc) if isinstance(args.Rc, list) else args.Rc
         plt.figure(figsize=(20,6))
         plot_detail(t=sol.t,y=sol.y,N=args.N,Rc=Rc)
         sol_extended  = solve_ivp(dy, 
                            (sol.t[-1],args.end),
                            [y[-1] for y in sol.y],
-                           args=(args.N, args.c, args.alpha, Rbasic/beta_divisor,
+                           args=(args.N, args.c, args.alpha,
+                                 get_beta(R0=R_uncontrolled,gamma=args.gamma,delta=args.delta,epsilon=args.epsilon),
                                  args.gamma, args.delta, args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
         infections.append((Rc,
                            np.concatenate((sol.t,sol_extended.t[1:])),
                            aggregate((np.concatenate((sol.y[3],sol_extended.y[3][1:])),
                                       np.concatenate((sol.y[4],sol_extended.y[4][1:]))))))
     
-    plt.figure(figsize=(20,6))
-    plot_infections(infections,control=args.control)
+    if isinstance(args.Rc, list):
+        plt.figure(figsize=(20,6))
+        plot_infections(infections,control_days=args.control)
     
-    plt.show()
+    if args.show:
+        plt.show()
