@@ -15,10 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
-# This program is based on the model used for Suppression and Mitigation 
-# Strategies for Control of COVID-19 in New Zealand (25 March 2020)
-# Alex James, Shaun C. Hendy, Michael J. Plank, and Nicholas Steyn.
-# However, the program has not been discussed with these authors; it is
+# This program is based on my reading of the model used for 
+# Suppression and Mitigation Strategies for Control of COVID-19 in New Zealand 
+# Alex James, Shaun C. Hendy, Michael J. Plank, and Nicholas Steyn (25 March 2020).
+# Disclaimer: the program has not been discussed with these authors; it is
 # unreviewed, and in no way endorsed by them.
 
 import numpy as np
@@ -67,10 +67,9 @@ def dy(t,y,
     S,E,P,I0,I1,R0,R1 = y
     I                 = I0 + I1
     CFR               = CFR1 - (nICU/(N*I* pICU)) * (CFR1 - CFR0) if I>0 else 0
-    new_exposed       = beta * S * (epsilon*P + I)
     return [
-        -new_exposed,
-        +new_exposed - alpha*E,
+        -beta * S * (epsilon*P + I),
+        +beta * S * (epsilon*P + I) - alpha*E,
         alpha*E - delta * P,
         delta*P -(gamma + c) *I0,
         c*I0 - gamma*I1,
@@ -86,11 +85,14 @@ def scale(ys,N=1):
 
 # aggregate
 #
-# Used to add two realted components together for display, e.g. tested and untested.
+# Used to add related components together for display, e.g. tested and untested.
+#
+# Parameters:
+#     y
+#     selector
 
-def aggregate(ys):
-    y0s,y1s = ys
-    return [ y0s[i] + y1s[i] for i in range(len(y0s)) ]
+def aggregate(y,selector=range(7)):
+    return [sum([y[i][j] for i in selector]) for j in range(len(y[0]))]
 
 # plot_detail
 #
@@ -102,15 +104,17 @@ def aggregate(ys):
 #     N     Population size (for scaling)
 #     Rc    Basic Reproduction number (for use in title)
 
-def plot_detail(t=[],y=[],N=1,Rc=1,control_days=400,R_uncontrolled=2.5):  
-    plt.plot(t, scale(y[1],N=N),                   color='g',                 label='E (Exposed)')
-    plt.plot(t, scale(y[2],N=N),                   color='r',                 label='P (Presymptomatic)')
-    plt.plot(t, scale(y[3],N=N),                   color='c', linestyle=':',  label='I0 (Infectious, untested')
-    plt.plot(t, scale(y[4],N=N),                   color='c', linestyle='--', label='I1 (Infectious, untested)')
-    plt.plot(t, scale(aggregate((y[3],y[4])),N=N), color='c',                 label='I (Total Infectious)')
-    plt.plot(t, scale(y[5],N=N),                   color='m', linestyle=':',  label='R0 (Recovered, untested)')
-    plt.plot(t, scale(y[6],N=N),                   color='m', linestyle='--', label='R1 (Recovered, tested)')
-    plt.plot(t, scale(aggregate((y[5],y[6])),N=N), color='m',                 label='R (Total Recovered)')
+def plot_detail(t=[],y=[],N=1,Rc=1,control_days=400,R_uncontrolled=2.5): 
+    plt.plot(t, scale(y[0],N=N),                             color='b',                 label='S (Susceptible)')
+    plt.plot(t, scale(y[1],N=N),                             color='g',                 label='E (Exposed)')
+    plt.plot(t, scale(y[2],N=N),                             color='r',                 label='P (Presymptomatic)')
+    plt.plot(t, scale(y[3],N=N),                             color='c', linestyle=':',  label='I0 (Infectious, untested')
+    plt.plot(t, scale(y[4],N=N),                             color='c', linestyle='--', label='I1 (Infectious, untested)')
+    plt.plot(t, scale(aggregate(y,selector=range(3,5)),N=N), color='c',                 label='I (Total Infectious)')
+    plt.plot(t, scale(y[5],N=N),                             color='m', linestyle=':',  label='R0 (Recovered, untested)')
+    plt.plot(t, scale(y[6],N=N),                             color='m', linestyle='--', label='R1 (Recovered, tested)')
+    plt.plot(t, scale(aggregate(y,selector=range(5,6)),N=N), color='m',                 label='R (Total Recovered)')
+    plt.plot(t, scale([1-d for d in aggregate(y)],N=N),      color='k',                 label='Deaths')
     plt.legend(loc='best')
     plt.xlabel('Days')
     plt.title('Progression of COVID-19: Rc = {0:.2f} for {1} days, then {2:.2f}'.format(Rc,control_days,R_uncontrolled))
@@ -182,8 +186,9 @@ if __name__=='__main__':
                                  args.gamma, args.delta, args.epsilon, args.CFR1, args.CFR0, args.nICU, args.pICU))
         infections.append((Rc,
                            np.concatenate((sol.t,sol_extended.t[1:])),
-                           aggregate((np.concatenate((sol.y[3],sol_extended.y[3][1:])),
-                                      np.concatenate((sol.y[4],sol_extended.y[4][1:]))))))
+                           np.concatenate((aggregate(sol.y,selector=range(3,5)),
+                                           aggregate(sol_extended.y,selector=range(3,5))[1:]))
+                           ))
  
         plt.figure(figsize=(20,6))
         plot_detail(t=np.concatenate((sol.t,sol_extended.t[1:])),
