@@ -1,12 +1,17 @@
 
 # coded snarfed from https://towardsdatascience.com/estimating-probabilities-with-bayesian-modeling-in-python-7144be007815
 
-import pymc3 as pm
-import numpy as np
-import matplotlib.pyplot as plt
+
 
 if __name__ == '__main__':
-
+    import os,sys
+    if 'WINGDB_ACTIVE' in os.environ:
+        print ('Cannot execute under IDE')
+        sys.exit()
+    import pymc3 as pm
+    import numpy as np
+    import matplotlib.pyplot as plt 
+    
     alphas = np.array([1, 1, 1])
     c = np.array([3, 2, 1])
     
@@ -22,6 +27,7 @@ if __name__ == '__main__':
             # Sample from the posterior
             trace = pm.sample(draws=1000, chains=2, tune=500, 
                               discard_tuned_samples=True)
-            
+ 
             pm.plots.traceplot(trace)
-            plt.show()
+ 
+    plt.show()
