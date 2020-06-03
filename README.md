@@ -6,7 +6,7 @@ Experiments in machine learning
 | File  | Remarks |
 |---------------|--------------------------------------------|
 | backprop.py | Train neural network using Backpropagation |
-| foo.py |Simple TensorFlow demo|
+| bayes1.py |Simple  demo for pymc3|
 | learn.wpr | Project file for Wing IDE |
 | mnist-test.py | Tests based on MNIST training set |
 | test.py  | Test network against MNIST test dataset |
