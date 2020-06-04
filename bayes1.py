@@ -29,5 +29,5 @@ if __name__ == '__main__':
                               discard_tuned_samples=True)
  
             pm.plots.traceplot(trace)
- 
+            
     plt.show()
