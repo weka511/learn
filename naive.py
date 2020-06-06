@@ -1,4 +1,7 @@
 # example of preparing and making a prediction with a naive bayes model
+#
+# snarfed from https://machinelearningmastery.com/classification-as-conditional-probability-and-the-naive-bayes-algorithm/
+
 from sklearn.datasets import make_blobs
 from scipy.stats import norm
 from numpy import mean, std
@@ -47,8 +50,6 @@ print('P(y=1 | %s) = %.3f' % (Xsample, py1*100))
 print('Truth: y=%d' % ysample)
 
 plt.figure()
-
-
 
 for cluster in [0,1]:
     xs=[]
