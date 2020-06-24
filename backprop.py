@@ -74,12 +74,7 @@ def error(target,output):
     return 0.5*sum([(t-o)*(t-o) for t,o in zip(target,output)])
 
 def get_rms_error(xs,ys,Thetas=None):
-    sum_sq = 0
-    for x,y in zip(xs,ys):
-        z,_,_=predict(Thetas,x)
-        sum_sq+=sum((y[i]-z[i])*(y[i]-z[i]) for i in range(len(y)))
-    return math.sqrt(sum_sq/len(ys))
-
+    return math.sqrt(sum(error(y,predict(Thetas,x)[0]) for x,y in zip(xs,ys))/len(ys))
 
 def delta_weights(target,output,activations,Xs,Thetas):
     '''
