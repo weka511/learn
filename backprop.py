@@ -1,4 +1,4 @@
-# Copyright (C) 2017 Greenweaves Software Pty Ltd
+# Copyright (C) 2017-2020 Greenweaves Software Limited
 
 # This is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,13 +40,13 @@ def predict(Thetas, Inputs,fn=np.vectorize(sigmoid)):
             Inputs    Input to network
             fn        Activation function
     '''
-    X=Inputs
-    activations=[]
-    Xs=[]
+    X           = Inputs
+    activations = []
+    Xs          = []
     for Theta in Thetas:
-        X_with_bias=np.append(X,[1],axis=0)  #Apply bias
+        X_with_bias = np.append(X,[1],axis=0)  #Apply bias
         Xs.append(X_with_bias)
-        X=fn(np.dot(X_with_bias,Theta))
+        X           = fn(np.dot(X_with_bias,Theta))
         activations.append(X)    
     return (X,activations,Xs)
 
@@ -58,21 +58,29 @@ def create_thetas(layer_spec):
             layer_spec  Number of noded in each layer
     '''
     def create_theta(a,b):
-        eps=math.sqrt(6)/math.sqrt(a+b+1)
-        theta=np.random.rand(a+1,b)
+        eps   = math.sqrt(6)/math.sqrt(a+b+1)
+        theta = np.random.rand(a+1,b)
         return np.subtract(np.multiply(theta,2*eps),eps)
     return [create_theta(a,b) for a,b in zip(layer_spec[:-1],layer_spec[1:])]
 
 def error(target,output):
     '''
-    Calculate mean squared error
+    Calculate squared error for one data point
     
     Parameters:
         target   Target value
         output    Output from network
     '''
     return 0.5*sum([(t-o)*(t-o) for t,o in zip(target,output)])
-    
+
+def get_rms_error(xs,ys,Thetas=None):
+    sum_sq = 0
+    for x,y in zip(xs,ys):
+        z,_,_=predict(Thetas,x)
+        sum_sq+=sum((y[i]-z[i])*(y[i]-z[i]) for i in range(len(y)))
+    return math.sqrt(sum_sq/len(ys))
+
+
 def delta_weights(target,output,activations,Xs,Thetas):
     '''
     Compute change in weights to reduce error
@@ -91,9 +99,9 @@ def delta_weights(target,output,activations,Xs,Thetas):
                          np.multiply(np.multiply(g,
                                                  np.subtract(1,g)),errors))
         deltas.append(delta)
-        g2=np.multiply(g,np.subtract(1,g))
+        g2    = np.multiply(g,np.subtract(1,g))
         partialEPartialNet=np.multiply(g2,errors)
-        errors=np.sum(np.multiply(partialEPartialNet,theta),axis=1)[:-1]
+        errors = np.sum(np.multiply(partialEPartialNet,theta),axis=1)[:-1]
 
     return deltas
 
@@ -104,7 +112,8 @@ def gradient_descent(Thetas,
                      eta=0.5,
                      alpha=0.5,
                      print_interval=100,
-                     output=lambda i,maximum_error,average_error,Thetas: print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))):
+                     output=lambda i,maximum_error,average_error,Thetas: None#print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))
+                     ):
 
     '''
     Minimize errors using gradient descent
@@ -117,37 +126,38 @@ def gradient_descent(Thetas,
             print_interval Uses to invoke 'output' function every 'print_interval' passes through dataset
             output         Function to output data, with parameters_iteration number,maximum_error,average_error,Thetas
     '''
-    total_error=0
-    maximum_error=0
-    overall_error=0
-    overall_maximum_error=0
-    i=0
-    m=0
-    ii=0
-    previous_deltas=[np.multiply(0,Theta) for Theta in Thetas] # All zeros
+    total_error           = 0
+    maximum_error         = 0
+    overall_error         = 0
+    overall_maximum_error = 0
+    i                     = 0
+    m                     = 0
+    ii                    = 0
+    previous_deltas       = [np.multiply(0,Theta) for Theta in Thetas] # All zeros
     for target,Input in data_source:
-        z,activations,Xs=predict(Thetas,Input)
-        err=error(target,z)
-        total_error+=err
+        z,activations,Xs = predict(Thetas,Input)
+        err              = error(target,z)
+        total_error     += err
         if err>maximum_error:
             maximum_error=err
         m+=1
-        deltas_same_sequence_thetas=delta_weights(target,z,activations,Xs,Thetas)[::-1] #NB - reversed!
+        deltas_same_sequence_thetas = delta_weights(target,z,activations,Xs,Thetas)[::-1] #NB - reversed!
         
-        Deltas=[np.subtract(np.multiply(alpha,previous),
-                            np.multiply(eta,delta))  for (delta,previous) in zip(deltas_same_sequence_thetas,previous_deltas)]
-        Thetas[:]=[np.add(Theta,Delta) for (Theta,Delta) in zip(Thetas,Deltas)]
-        previous_deltas[:]=Deltas
+        Deltas                      = [np.subtract(np.multiply(alpha,previous),
+                                                   np.multiply(eta,delta))
+                                       for (delta,previous) in zip(deltas_same_sequence_thetas,previous_deltas)]
+        Thetas[:]                   = [np.add(Theta,Delta) for (Theta,Delta) in zip(Thetas,Deltas)]
+        previous_deltas[:]          = Deltas
         
         if i>0 and i%print_interval==0:
             output(i,maximum_error,total_error/m,Thetas)
             overall_error+=total_error/m
             if maximum_error>overall_maximum_error:
-                overall_maximum_error=maximum_error
-            total_error=0
-            maximum_error=0
-            m=0
-            ii+=1
+                overall_maximum_error = maximum_error
+            total_error   = 0
+            maximum_error = 0
+            m             = 0
+            ii           += 1
         i+=1
     output('-----',overall_maximum_error,overall_error/ii,Thetas)
     return (Thetas,err)
@@ -223,7 +233,9 @@ def save(Thetas,run='nn',ext='npy',path='./weights',max_files=3):
         matches.sort()
         for file in matches[:-max_files]:
             os.remove(file)
-    
+
+
+        
 if __name__=='__main__':
     import unittest
     
@@ -272,14 +284,12 @@ if __name__=='__main__':
                         yield np.array([0.99,0.01]),[0.1+r, 0.05-r]
                     i+=1
 
-            print ("new")
-            Theta1=np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]])
-            Theta2=np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])
-            Thetas=[Theta1,Theta2]
-            Thetas,_=gradient_descent(Thetas,data_source=ggen(20000))
-            z,_,_=predict(Thetas,[0.05,0.1])
+            Thetas   = [np.array([[0.15,0.25],[0.2,0.3],[0.35,0.35]]),
+                        np.array([[0.4,0.50],[0.45,0.55],[0.6,0.6]])]
+            Thetas,_ = gradient_descent(Thetas,data_source=ggen(20000))
+            z,_,_    = predict(Thetas,[0.05,0.1])
             print (z)
-            z,_,_=predict(Thetas,[0.1,0.05])
+            z,_,_    = predict(Thetas,[0.1,0.05])
             print (z)            
     
      
@@ -302,16 +312,14 @@ if __name__=='__main__':
                         yield np.array([0,1]),[1+r1,1+r2]
                     i+=1
             
-            Thetas=create_thetas([2,5,2])
-            Thetas,_=gradient_descent(Thetas,data_source=ggen(400000),print_interval=1000)
-            z,_,_=predict(Thetas,[0,0])
-            print (z)
-            z,_,_=predict(Thetas,[1,0])
-            print (z) 
-            z,_,_=predict(Thetas,[0,1])
-            print (z)
-            z,_,_=predict(Thetas,[1,1])
-            print (z) 
+            Thetas   = create_thetas([2,5,2])
+            Thetas,_ = gradient_descent(Thetas,data_source=ggen(400000),print_interval=1000)
+   
+            self.assertAlmostEqual(0.0,get_rms_error([[0,0], [1,0], [0,1], [1,1]],
+                                                      [[0,1], [1,0], [1,0], [0,1]],
+                                                      Thetas=Thetas),
+                                   delta=0.01)
+  
             
     class  TestFiles(unittest.TestCase):
         def test1(self):
