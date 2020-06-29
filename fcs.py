@@ -15,6 +15,7 @@
 
 import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats
 
+
 def get_bounds(df,channel,nsigma=3):
     mean   = np.mean(df[channel])
     std    = np.std(df[channel])
@@ -31,34 +32,52 @@ def gate_data(df,nsigma=3,nw=2):
               (df['SSC-H']     < ssc_max)     & \
               (df['FSC-Width'] < fsc_width_max)]
 
-def purge_outliers(df,nsigma=3,nw=2):
+def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
     nr0,_ = df.shape
     df1   = gate_data(df,nsigma=nsigma)
     nr1,_ = df1.shape
-    
-    while nr1<nr0:
+    i     = 0
+    while nr1<nr0 and i<max_iterations:
         nr0    = nr1
         df1    = gate_data(df1,nsigma=nsigma,nw=nw)
         nr1,_  = df1.shape
-        
+        i     += 1
     return df1
 
 def get_well_name(tbnm):
     return tbnm[-3:]
 
-def plot_norm(ax=None,df=None,channel='SSC-H',bins=None):
-    ax_twin = ax.twinx()
-    h       = sorted(df[channel])
-    hmean   = np.mean(h)
-    hstd    = np.std(h)
-    h       = [(0.5*(a+b) - 0) for (a,b) in zip(bins[:-1],bins[1:])]
-    h_n     = [(0.5*(a+b) - hmean) / hstd for (a,b) in zip(bins[:-1],bins[1:])]
-    pdf     = stats.norm.pdf( h_n )
-    ax_twin.plot(h, pdf, c='r',lw=1)
-    return pdf
+def chi_sq(n,bins=[],df=None, channel='FSC-H'):
+    assert len(n)+1==len(bins)
+    mu    = np.mean(df[channel])
+    sigma = np.std(df[channel])
+    cdf   = stats.norm.cdf( bins, loc=mu, scale=sigma ) 
+    nn    = sum(n)
+    freqs = [nn*(b-a) for (a,b) in zip(cdf[:-1],cdf[1:]) ]
+    statistic,pvalue = stats.chisquare(n,freqs)
+    return statistic,pvalue,freqs
+
+def consolidate(n,bins,minimum=5):
+    n1    = []
+    bins1 = [bins[0]]
+    assert len(n)+1== len(bins), f'{len(n)} {len(bins)}'
+    total = 0
+    for n0,b in zip(n,bins[1:]):
+        total+=n0
+        if total>=minimum:
+            n1.append(total)
+            total = 0
+            bins1.append(b)
+    if 0 < total and total<minimum:
+        n1[-1]+=total
+        bins1[-1]=bins[-1] 
+    return n1,bins1
 
 if __name__=='__main__':
     import os, re, argparse
+    from matplotlib import rc
+    rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+    rc('text', usetex=True)
     
     parser = argparse.ArgumentParser('Plot GCP wells')
     parser.add_argument('-r','--root',default=r'\data\cytoflex\Melbourne')
@@ -88,27 +107,24 @@ if __name__=='__main__':
                         plt.suptitle(f'{plate} {get_well_name(tbnm)}.png')
                         
                         ax1=plt.subplot(2,2,1)
-                        n,bins,_ = ax1.hist(df1['FSC-H'],facecolor='g',bins=25)
+                        n,bins,_ = ax1.hist(df1['FSC-H'],facecolor='g',bins=25,label='Observed')
+                        n,bins   = consolidate(n,bins)
                         ax1.set_xlabel('FSC-H')
-                        nn               = sum(n)
-                        pdf              = plot_norm(ax=ax1, df=df1, channel='FSC-H',bins=bins)
-                        npdf             = sum(pdf)
-                        freqs            = [(nn/npdf)*p for p in pdf]                 
-                        nf               = sum(freqs)
-                        statistic,pvalue = stats.chisquare(n,freqs)
-                        ax1.set_title(f'{statistic:.2f},{pvalue:.2f}')
+
+                        statistic,pvalue,freqs = chi_sq(n,bins=bins,df=df1, channel='FSC-H')
+                        ax1.plot([0.5*(a+b) for (a,b) in zip(bins[:-1],bins[1:])],freqs, c='r',lw=1,label='Gaussian')
+                        ax1.set_title(r'$\chi^2=${0:.2f}, p={1:.2f}'.format(statistic,pvalue))
+                        ax1.legend()
                         
                         ax2    =plt.subplot(2,2,2)
-                        n,bins,_ = ax2.hist(df1['SSC-H'],facecolor='g')
+                        n,bins,_ = ax2.hist(df1['SSC-H'],facecolor='g',label='Observed')
+                        n,bins   = consolidate(n,bins)
                         ax2.set_xlabel('SSC-H')
                         
-                        nn               = sum(n)
-                        pdf              = plot_norm(ax=ax2, df=df1, channel='SSC-H',bins=bins)
-                        npdf             = sum(pdf)
-                        freqs            = [(nn/npdf)*p for p in pdf]                 
-                        nf               = sum(freqs)
-                        statistic,pvalue = stats.chisquare(n,freqs)
-                        ax2.set_title(f'{statistic:.2f},{pvalue:.2f}')
+                        statistic,pvalue,freqs = chi_sq(n,bins=bins, df=df1, channel='SSC-H')
+                        ax2.plot([0.5*(a+b) for (a,b) in zip(bins[:-1],bins[1:])],freqs, c='r',lw=1,label='Gaussian')
+                        ax2.set_title(r'$\chi^2=${0:.2f}, p={1:.2f}'.format(statistic,pvalue))
+                        ax2.legend()
                         
                         ax3=plt.subplot(2,2,3)
                         ax3.scatter(df1['FSC-H'],df1['SSC-H'],s=1,c='g')
