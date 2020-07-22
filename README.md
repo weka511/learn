@@ -29,3 +29,9 @@ Experiments in machine learning
 | COVID19.wpr | Project file for Wing IDE |
 | explore.py | Read data files--snarfed from [Ivan Ega Pratama's Notebook: COVID19 initial exploration tool](https://www.kaggle.com/ivanegapratama/covid-eda-initial-exploration-tool)|
 | json-test.py| Earier program to read data files|
+
+## Keras and Tensorflow explorations
+
+| File  | Remarks |
+|---------------|--------------------------------------------|
+|tf1|[Tensorflow Tutorial](https://www.tensorflow.org/tutorials/quickstart/beginner)|
