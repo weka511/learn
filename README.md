@@ -35,3 +35,4 @@ Experiments in machine learning
 | File  | Remarks |
 |---------------|--------------------------------------------|
 |tf1|[Tensorflow Tutorial](https://www.tensorflow.org/tutorials/quickstart/beginner)|
+|tf2|Modification of tf1 to use Convolutional layer| 
