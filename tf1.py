@@ -37,7 +37,7 @@ model.compile(optimizer='adam',
               loss=loss_fn,
               metrics=['accuracy'])
 
-# T rain the model by slicing the data into "batches" of size "batch_size", and repeatedly iterating
+# Train the model by slicing the data into "batches" of size "batch_size", and repeatedly iterating
 # over the entire dataset for a given number of "epochs".
 model.fit(x_train, y_train, epochs=5)
 
