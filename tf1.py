@@ -2,7 +2,8 @@
 
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import sys,os, re
+import sys
+from pathlib import Path
  
 # Load and prepare the MNIST dataset. Convert the samples from integers to floating-point numbers:
 mnist = tf.keras.datasets.mnist
@@ -66,6 +67,6 @@ plt.legend(loc='lower right')
 
 test_loss, test_acc = model.evaluate(x_test,  y_test, verbose=2)
 
-plt.title (f'Loss={test_loss:.4f},Accuracy={test_acc:.4f}')
-plt.savefig(os.path.splitext(os.path.basename(sys.argv[0]))[0])
+plt.title (f'Loss={test_loss:.4f}, Accuracy={test_acc:.4f}')
+plt.savefig(Path(sys.argv[0]).stem)
 plt.show()
