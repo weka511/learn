@@ -2,7 +2,8 @@
 
 import tensorflow as tf
 import matplotlib.pyplot as plt
-
+import sys,os, re
+ 
 # Load and prepare the MNIST dataset. Convert the samples from integers to floating-point numbers:
 mnist = tf.keras.datasets.mnist
 
@@ -39,7 +40,9 @@ model.compile(optimizer='adam',
 
 # Train the model by slicing the data into "batches" of size "batch_size", and repeatedly iterating
 # over the entire dataset for a given number of "epochs".
-model.fit(x_train, y_train, epochs=5)
+history = model.fit(x_train, y_train,
+                    epochs=25, 
+                    validation_data=(x_test,y_test))
 
 #  check the models performance
 
@@ -51,8 +54,18 @@ probability_model = tf.keras.Sequential([
   tf.keras.layers.Softmax()
 ])
 
-print (probability_model(x_test[:5]))
-for i in range(5):
-    plt.figure()
-    plt.imshow(x_test[i])
+plt.plot(history.history['accuracy'], label='accuracy')
+plt.plot(history.history['val_accuracy'], label = 'val_accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.ylim([min(min(history.history['accuracy']),
+              min(history.history['val_accuracy'])), 
+          max(max(history.history['accuracy']),
+              max(history.history['val_accuracy']))          ])
+plt.legend(loc='lower right')
+
+test_loss, test_acc = model.evaluate(x_test,  y_test, verbose=2)
+
+plt.title (f'Loss={test_loss:.4f},Accuracy={test_acc:.4f}')
+plt.savefig(os.path.splitext(os.path.basename(sys.argv[0]))[0])
 plt.show()
