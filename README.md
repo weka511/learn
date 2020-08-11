@@ -35,4 +35,11 @@ Experiments in machine learning
 | File  | Remarks |
 |---------------|--------------------------------------------|
 |tf1|[Tensorflow Tutorial](https://www.tensorflow.org/tutorials/quickstart/beginner)|
-|tf2|Modification of tf1 to use Convolutional layer| 
+|tf2|Modification of tf1 to use Convolutional layer|
+
+## Variational Inference
+
+Programs baed on [ David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)
+| File  | Remarks |
+|---------------|--------------------------------------------|
+|cavi3.pi|The example from Section 3|
