@@ -39,7 +39,9 @@ Experiments in machine learning
 
 ## Variational Inference
 
-Programs baed on [ David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)
+Programs written to understand Variational Inference, based on the following references:
+ * [David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)
+ 
 | File  | Remarks |
 |---------------|--------------------------------------------|
-|cavi3.pi|The example from Section 3|
+|cavi3.py|The example from Section 3 of Blei et al|
