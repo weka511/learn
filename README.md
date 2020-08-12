@@ -15,7 +15,7 @@ Experiments in machine learning
 ## Imported from elsewhere
 
 | File  | Remarks |
-|------------------------|------------------------------------------------------------------------------------|
+|-------------------------|------------------------------------------------------------------------------------|
 | bayes1.py |Simple  demo for pymc3-Code from [Estimating Probabilities with Bayesian Modeling in Python](https://towardsdatascience.com/estimating-probabilities-with-bayesian-modeling-in-python-7144be007815)|
 | estimating.py| Some calcs from [Estimating Probabilities with Bayesian Modeling in Python](https://towardsdatascience.com/estimating-probabilities-with-bayesian-modeling-in-python-7144be007815)|
 | gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html) |
