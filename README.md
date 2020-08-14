@@ -44,4 +44,5 @@ Programs written to understand Variational Inference, based on the following ref
  
 | File  | Remarks |
 |---------------|-------------------------------------------------------------------------------------------|
+|cavi1.py|CAVI for Univariate Gaussian|
 |cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al|
