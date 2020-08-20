@@ -77,11 +77,12 @@ if __name__=='__main__':
      
     script = os.path.basename(__file__).split('.')[0]
     parser = argparse.ArgumentParser('Plot GCP wells')
-    parser.add_argument('-r','--root',default=r'\data\cytoflex\Melbourne')
-    parser.add_argument('-p','--plate',nargs='+',default='all')
-    parser.add_argument('-w','--well',nargs='+',default=['G12','H12'])
+    parser.add_argument('-r','--root',             default=r'\data\cytoflex\Melbourne')
+    parser.add_argument('-p','--plate', nargs='+', default='all')
+    parser.add_argument('-w','--well',  nargs='+', default=['G12','H12'])
+    parser.add_argument('-s', '--show',            default=False, action='store_true')
     args   = parser.parse_args()
-    
+    show   = args.show or args.plate!='all'
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+)',path[-1])
@@ -121,13 +122,18 @@ if __name__=='__main__':
                             mu1,sigma1,_,y1 = get_gaussian(segment1,n=max(n[i] for i in range(i1,i2)),bins=bins)
                             mu2,sigma2,_,y2 = get_gaussian(segment2,n=max(n[i] for i in range(i2,len(n))),bins=bins)
                             ax2.plot(bins, y0, c='c', label='GMM')
+                            ax2.fill_between(bins, y0, color='c', alpha=0.5)
                             ax2.plot(bins, y1, c='c')
+                            ax2.fill_between(bins, y1, color='c', alpha=0.5)
                             ax2.plot(bins, y2, c='c')
-                            ax2.axvline(bins[i1],label='separator')
-                            ax2.axvline(bins[i2])                            
+                            ax2.fill_between(bins, y2, color='c', alpha=0.5)
+                            ax2.set_title('Initialization')
                             ax2.set_xlabel('log(Red-H)')
+                            ax2.set_ylabel('N')
                             ax2.legend()
                             plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
-                        
-    if args.plate!='all':
+        if not show:
+            plt.close()
+                       
+    if show:
         plt.show()    
