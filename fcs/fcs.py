@@ -84,10 +84,10 @@ if __name__=='__main__':
     args   = parser.parse_args()
     
     for root, dirs, files in os.walk(args.root):
-        path = root.split(os.sep)
+        path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+)',path[-1])
         if match:
-            plate=match.group(1)
+            plate = match.group(1)
             if args.plate=='all' or plate in args.plate:
                 for file in files:
                     if re.match('.*[GH]12.fcs',file):
