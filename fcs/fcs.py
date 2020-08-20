@@ -76,7 +76,6 @@ def consolidate(n,bins,minimum=5):
 if __name__=='__main__':
     import os, re, argparse
     from matplotlib import rc
-    rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
     rc('text', usetex=True)
     
     parser = argparse.ArgumentParser('Plot GCP wells')
