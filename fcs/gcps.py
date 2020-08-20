@@ -62,11 +62,13 @@ def get_boundaries(bins,n):
     i2        = segments.index(2)
     return (i1,i2)
 
-def get_norm(segment):
-    mu     = np.mean(segment)
-    sigma  = np.std(segment)
-    rv     = stats.norm(loc = mu, scale = sigma)
-    return mu,sigma,rv,100*rv.pdf(segment)
+def get_gaussian(segment,n=100,bins=[]):
+    mu      = np.mean(segment)
+    sigma   = np.std(segment)
+    rv      = stats.norm(loc = mu, scale = sigma)
+    pdf     = rv.pdf(bins)
+    max_pdf = max(pdf)
+    return mu,sigma,rv,[y*n/max_pdf for y in pdf]
 
 if __name__=='__main__':
     import os, re, argparse
@@ -108,30 +110,19 @@ if __name__=='__main__':
                             ax1.set_xlabel('FSC-H')
                             ax1.set_ylabel('SSC-H')
                             
-                            ax2       = plt.subplot(2,2,2)
-                            intensity = np.log(df1['Red-H']).values
-                            n,bins,_  = ax2.hist(intensity,facecolor='g',bins=100,label='From FCS')
-                            i1,i2     = get_boundaries(bins,n)
-                            segment0  = [r for r in intensity if r < bins[i1]]
-                            segment1  = [r for r in intensity if bins[i1]<r and r<bins[i2]]
-                            segment2  = [r for r in intensity if  bins[i2]<r]
-                            mu0,sigma0,_,y0 = get_norm(segment0)
-                            mu1,sigma1,_,y1 = get_norm(segment1)
-                            mu2,sigma2,_,y2 = get_norm(segment2)
-                            #mu0       = np.mean(segment0)
-                            #mu1       = np.mean(segment1)
-                            #mu2       = np.mean(segment2)
-                            #sigma0    = np.std(segment0)
-                            #sigma1    = np.std(segment1)
-                            #sigma2    = np.std(segment2)
-                            #rv0 = stats.norm(loc = mu0, scale = sigma0)
-                            #plt.plot(segment0,100*rv0.pdf(segment0))
-                            plt.scatter(segment0,y0,s=1)
-                            plt.scatter(segment1,y1,s=1)
-                            plt.scatter(segment2,y2,s=1)
-                            ax2.axvline(mu0,c='r',label=r'$\mu$')
-                            ax2.axvline(mu1,c='r')
-                            ax2.axvline(mu2,c='r')
+                            ax2             = plt.subplot(2,2,2)
+                            intensity       = np.log(df1['Red-H']).values
+                            n,bins,_        = ax2.hist(intensity,facecolor='g',bins=100,label='From FCS')
+                            i1,i2           = get_boundaries(bins,n)
+                            segment0        = [r for r in intensity if r < bins[i1]]
+                            segment1        = [r for r in intensity if bins[i1]<r and r<bins[i2]]
+                            segment2        = [r for r in intensity if  bins[i2]<r]
+                            mu0,sigma0,_,y0 = get_gaussian(segment0,n=max(n[i] for i in range(i1)),bins=bins)
+                            mu1,sigma1,_,y1 = get_gaussian(segment1,n=max(n[i] for i in range(i1,i2)),bins=bins)
+                            mu2,sigma2,_,y2 = get_gaussian(segment2,n=max(n[i] for i in range(i2,len(n))),bins=bins)
+                            ax2.plot(bins, y0, c='c', label='GMM')
+                            ax2.plot(bins, y1, c='c')
+                            ax2.plot(bins, y2, c='c')
                             ax2.axvline(bins[i1],label='separator')
                             ax2.axvline(bins[i2])                            
                             ax2.set_xlabel('log(Red-H)')
