@@ -46,11 +46,34 @@ def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
         i     += 1
     return df1
 
+def get_boundaries(bins,n):
+    def get_segment(c):
+        if c<1/3:
+            return 0
+        elif c<2/3:
+            return 1
+        else:
+            return 2
+    
+    freqs     = [c/sum(n) for c in n]
+    counts    = [sum(freqs[0:i]) for i in range(len(freqs))]   
+    segments  = [get_segment(c) for c in counts] 
+    i1        = segments.index(1)
+    i2        = segments.index(2)
+    return (i1,i2)
+
+def get_norm(segment):
+    mu     = np.mean(segment)
+    sigma  = np.std(segment)
+    rv     = stats.norm(loc = mu, scale = sigma)
+    return mu,sigma,rv,100*rv.pdf(segment)
+
 if __name__=='__main__':
     import os, re, argparse
     from matplotlib import rc
     rc('text', usetex=True)
-    
+     
+    script = os.path.basename(__file__).split('.')[0]
     parser = argparse.ArgumentParser('Plot GCP wells')
     parser.add_argument('-r','--root',default=r'\data\cytoflex\Melbourne')
     parser.add_argument('-p','--plate',nargs='+',default='all')
@@ -58,10 +81,10 @@ if __name__=='__main__':
     args   = parser.parse_args()
     
     for root, dirs, files in os.walk(args.root):
-        path = root.split(os.sep)
+        path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+)',path[-1])
         if match:
-            plate=match.group(1)
+            plate = match.group(1)
             if args.plate=='all' or plate in args.plate:
                 for file in files:
                     if re.match('.*[GH]12.fcs',file):
@@ -78,18 +101,42 @@ if __name__=='__main__':
                         
                         if well in args.well:
                             plt.figure(figsize=(10,10))
-                            plt.suptitle(f'{plate} {well}.png')
+                            plt.suptitle(f'{plate} {well}')
                             
                             ax1 = plt.subplot(2,2,1)
                             ax1.scatter(df1['FSC-H'],df1['SSC-H'],s=1,c='g')
                             ax1.set_xlabel('FSC-H')
                             ax1.set_ylabel('SSC-H')
                             
-                            ax2 = plt.subplot(2,2,2)
-                            n,bins,_ = ax2.hist(df1['Red-H'],facecolor='g',label='Observed',bins=100)
-                            ax2.set_xlabel('Red-H')                        
-                            
-                            
+                            ax2       = plt.subplot(2,2,2)
+                            intensity = np.log(df1['Red-H']).values
+                            n,bins,_  = ax2.hist(intensity,facecolor='g',bins=100,label='From FCS')
+                            i1,i2     = get_boundaries(bins,n)
+                            segment0  = [r for r in intensity if r < bins[i1]]
+                            segment1  = [r for r in intensity if bins[i1]<r and r<bins[i2]]
+                            segment2  = [r for r in intensity if  bins[i2]<r]
+                            mu0,sigma0,_,y0 = get_norm(segment0)
+                            mu1,sigma1,_,y1 = get_norm(segment1)
+                            mu2,sigma2,_,y2 = get_norm(segment2)
+                            #mu0       = np.mean(segment0)
+                            #mu1       = np.mean(segment1)
+                            #mu2       = np.mean(segment2)
+                            #sigma0    = np.std(segment0)
+                            #sigma1    = np.std(segment1)
+                            #sigma2    = np.std(segment2)
+                            #rv0 = stats.norm(loc = mu0, scale = sigma0)
+                            #plt.plot(segment0,100*rv0.pdf(segment0))
+                            plt.scatter(segment0,y0,s=1)
+                            plt.scatter(segment1,y1,s=1)
+                            plt.scatter(segment2,y2,s=1)
+                            ax2.axvline(mu0,c='r',label=r'$\mu$')
+                            ax2.axvline(mu1,c='r')
+                            ax2.axvline(mu2,c='r')
+                            ax2.axvline(bins[i1],label='separator')
+                            ax2.axvline(bins[i2])                            
+                            ax2.set_xlabel('log(Red-H)')
+                            ax2.legend()
+                            plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
                         
     if args.plate!='all':
         plt.show()    
