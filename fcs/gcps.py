@@ -72,6 +72,8 @@ def get_gaussian(segment,n=100,bins=[]):
 
 # https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
 def e_step(mus,sigmas,xs):
+    print (mus)
+    print (sigmas)
     def get_p(x,mu,sigma):
         return (math.exp(-0.5*(x-mu)**2)/sigma)/(math.sqrt(2*math.pi)*math.sqrt(sigma))
     cs = [[get_p(x,mus[i],sigmas[i]) for x in xs] for i in range(3)]
@@ -80,8 +82,15 @@ def e_step(mus,sigmas,xs):
     Zs = [sum([ws[i][j] for i in range(3)]) for j in range(len(xs))]
     return [[ws[i][j]/Zs[i] for j in range(len(xs))] for i in range(3)]
     
-def m_step(ws):
-    pass
+def m_step(ws,xs):
+    N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(3)]
+    alphas  = [Nk/sum(N) for Nk in N]
+    mus     = [sum([ws[k][i]*xs[i] for i in range(len(xs))] )/N[k] for k in range(3)]
+    sigmas  = [sum([ws[k][i]*(xs[i]-mus[k])**2 for i in range(len(xs))] )/N[k] for k in range(3)]
+    print (mus)
+    print (sigmas)
+    print (alphas)
+    return (alphas,mus,sigmas)
 
 def get_c(i,mu0,mu1,mu2):
     if i<0.5*(mu0+mu1):
@@ -162,12 +171,18 @@ if __name__=='__main__':
                             ax2.set_xlabel('log(Red-H)')
                             ax2.set_ylabel('N')
                             ax2.legend()
-                            plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
                             
+                            ax3             = plt.subplot(2,2,3)
                             ws = e_step([mu0,mu1,mu2],
                                         [sigma0,sigma1,sigma2],
                                         intensities)
-                            m_step(ws)
+                            ax3.scatter(range(len(ws[1])),ws[0],s=1)
+                            ax3.scatter(range(len(ws[1])),ws[1],s=1)
+                            ax3.scatter(range(len(ws[1])),ws[2],s=1)
+                            alphas,mus,sigmas = m_step(ws,intensities)
+                            
+                            plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
+                            
                             if not show:
                                 plt.close()
                        
