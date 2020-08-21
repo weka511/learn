@@ -13,6 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+# Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning 
+# Padhraic Smyth 
+# https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
+
 import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,math
 
 def get_well_name(tbnm):
@@ -70,26 +74,24 @@ def get_gaussian(segment,n=100,bins=[]):
     max_pdf = max(pdf)
     return mu,sigma,rv,[y*n/max_pdf for y in pdf]
 
-# https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
-def e_step(mus,sigmas,xs):
-    print (mus)
-    print (sigmas)
-    def get_p(x,mu,sigma):
-        return (math.exp(-0.5*(x-mu)**2)/sigma)/(math.sqrt(2*math.pi)*math.sqrt(sigma))
-    cs = [[get_p(x,mus[i],sigmas[i]) for x in xs] for i in range(3)]
 
-    ws = [[get_p(xs[j],mus[i],sigmas[i])*cs[i][j] for j in range(len(xs))] for i in range(3)] 
-    Zs = [sum([ws[i][j] for i in range(3)]) for j in range(len(xs))]
-    return [[ws[i][j]/Zs[i] for j in range(len(xs))] for i in range(3)]
-    
-def m_step(ws,xs):
-    N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(3)]
-    alphas  = [Nk/sum(N) for Nk in N]
-    mus     = [sum([ws[k][i]*xs[i] for i in range(len(xs))] )/N[k] for k in range(3)]
-    sigmas  = [sum([ws[k][i]*(xs[i]-mus[k])**2 for i in range(len(xs))] )/N[k] for k in range(3)]
-    print (mus)
-    print (sigmas)
-    print (alphas)
+def get_p(x,mu=0,sigma=1):
+    return (math.exp(-0.5*(x-mu)**2)/sigma) / (math.sqrt(2*math.pi)*math.sqrt(sigma))
+
+def e_step(xs,mus=[],sigmas=[],alphas=[],K=3,tol=1.0e-6):
+    assert abs(sum(alphas)-1)<tol
+    ws      = [[get_p(xs[i],mus[k],sigmas[k])*alphas[k] for i in range(len(xs))] for k in range(K)] 
+    Zs      = [sum([ws[k][i] for k in range(K)]) for i in range(len(xs))]
+    ws_norm = [[ws[k][i]/Zs[i] for i in range(len(xs))] for k in range(K)]
+    for i in range(len(xs)):
+        assert(abs(sum([ws_norm[k][i] for k in range(K)])-1)<tol)
+    return ws_norm
+
+def m_step(xs,ws=[],K=3):
+    N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
+    alphas  = [n/sum(N) for n in N]
+    mus     = [sum([ws[k][i]*xs[i] for i in range(len(xs))] )/N[k] for k in range(K)]
+    sigmas  = [sum([ws[k][i]*(xs[i]-mus[k])**2 for i in range(len(xs))] )/N[k] for k in range(K)]
     return (alphas,mus,sigmas)
 
 def get_c(i,mu0,mu1,mu2):
@@ -104,13 +106,15 @@ if __name__=='__main__':
     import os, re, argparse
     from matplotlib import rc
     rc('text', usetex=True)
-     
-    script = os.path.basename(__file__).split('.')[0]
-    parser = argparse.ArgumentParser('Plot GCP wells')
-    parser.add_argument('-r','--root',             default=r'\data\cytoflex\Melbourne')
-    parser.add_argument('-p','--plate', nargs='+', default='all')
-    parser.add_argument('-w','--well',  nargs='+', default=['G12','H12'])
-    parser.add_argument('-s', '--show',            default=False, action='store_true')
+  
+    script   = os.path.basename(__file__).split('.')[0]
+    parser   = argparse.ArgumentParser('Plot GCP wells')
+    parser.add_argument('-r','--root',    default=r'\data\cytoflex\Melbourne')
+    parser.add_argument('-p','--plate',   default='all',          nargs='+')
+    parser.add_argument('-w','--well',    default=['G12','H12'],  nargs='+')
+    parser.add_argument('-m','--rows',    default=3,              type=int)
+    parser.add_argument('-n','--columns', default=3,              type=int)
+    parser.add_argument('-s', '--show',   default=False,          action='store_true')
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'
     for root, dirs, files in os.walk(args.root):
@@ -131,17 +135,17 @@ if __name__=='__main__':
                         cyt      = meta['$CYT']
                         df1      = purge_outliers(df)
                         well     = get_well_name(tbnm)
-                        
+ 
                         if well in args.well:
                             plt.figure(figsize=(10,10))
                             plt.suptitle(f'{plate} {well}')
                             
-                            ax1 = plt.subplot(2,2,1)
+                            ax1 = plt.subplot(args.rows,args.columns,1)
                             ax1.scatter(df1['FSC-H'],df1['SSC-H'],s=1,c='g')
                             ax1.set_xlabel('FSC-H')
                             ax1.set_ylabel('SSC-H')
                             
-                            ax2             = plt.subplot(2,2,2)
+                            ax2             = plt.subplot(args.rows,args.columns,2)
                             intensities     = np.log(df1['Red-H']).values
                             n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
                             i1,i2           = get_boundaries(bins,n)
@@ -172,14 +176,34 @@ if __name__=='__main__':
                             ax2.set_ylabel('N')
                             ax2.legend()
                             
-                            ax3             = plt.subplot(2,2,3)
-                            ws = e_step([mu0,mu1,mu2],
-                                        [sigma0,sigma1,sigma2],
-                                        intensities)
-                            ax3.scatter(range(len(ws[1])),ws[0],s=1)
-                            ax3.scatter(range(len(ws[1])),ws[1],s=1)
-                            ax3.scatter(range(len(ws[1])),ws[2],s=1)
-                            alphas,mus,sigmas = m_step(ws,intensities)
+                            ax3 = plt.subplot(args.rows,args.columns,3)
+                            ws  = e_step(intensities,
+                                         mus=[mu0,mu1,mu2],
+                                         sigmas=[sigma0,sigma1,sigma2],
+                                         alphas=[len(segment0)/(len(segment0)+len(segment1)+len(segment2)),
+                                                 len(segment1)/(len(segment0)+len(segment1)+len(segment2)),
+                                                 len(segment2)/(len(segment0)+len(segment1)+len(segment2))]
+                                        )
+                            alphas,mus,sigmas = m_step(intensities,ws=ws)
+                            n,bins,_          = ax3.hist(intensities,facecolor='g',bins=100,label='From FCS')
+                            ax3.plot(bins,[100*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins])
+                            ax3.plot(bins,[100*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins])
+                            ax3.plot(bins,[100*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins])
+                            
+                            subfig_number = 3
+                            while subfig_number<args.rows*args.columns:
+                                subfig_number += 1
+                                ax4 = plt.subplot(args.rows,args.columns,subfig_number)
+                                ws  = e_step(intensities,
+                                             mus=mus,
+                                             sigmas=sigmas,
+                                             alphas=alphas)
+                                                        
+                                alphas,mus,sigmas = m_step(intensities,ws=ws)
+                                n,bins,_          = ax4.hist(intensities,facecolor='g',bins=100,label='From FCS')
+                                ax4.plot(bins,[100*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins])
+                                ax4.plot(bins,[100*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins])
+                                ax4.plot(bins,[100*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins])
                             
                             plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
                             
