@@ -76,7 +76,7 @@ def get_gaussian(segment,n=100,bins=[]):
 
 
 def get_p(x,mu=0,sigma=1):
-    return (math.exp(-0.5*(x-mu)**2)/sigma) / (math.sqrt(2*math.pi)*math.sqrt(sigma))
+    return (math.exp(-0.5*((x-mu)/sigma)**2)) / (math.sqrt(2*math.pi)*sigma)
 
 def e_step(xs,mus=[],sigmas=[],alphas=[],K=3,tol=1.0e-6):
     assert abs(sum(alphas)-1)<tol
@@ -91,7 +91,7 @@ def m_step(xs,ws=[],K=3):
     N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
     alphas  = [n/sum(N) for n in N]
     mus     = [sum([ws[k][i]*xs[i] for i in range(len(xs))] )/N[k] for k in range(K)]
-    sigmas  = [sum([ws[k][i]*(xs[i]-mus[k])**2 for i in range(len(xs))] )/N[k] for k in range(K)]
+    sigmas  = [math.sqrt(sum([ws[k][i]*(xs[i]-mus[k])**2 for i in range(len(xs))] )/N[k]) for k in range(K)]
     return (alphas,mus,sigmas)
 
 def get_c(i,mu0,mu1,mu2):
@@ -204,7 +204,7 @@ if __name__=='__main__':
                                 ax4.plot(bins,[100*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins])
                                 ax4.plot(bins,[100*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins])
                                 ax4.plot(bins,[100*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins])
-                            
+
                             plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
                             
                             if not show:
