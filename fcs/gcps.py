@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats
+import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,math
 
 def get_well_name(tbnm):
     return tbnm[-3:]
@@ -70,6 +70,27 @@ def get_gaussian(segment,n=100,bins=[]):
     max_pdf = max(pdf)
     return mu,sigma,rv,[y*n/max_pdf for y in pdf]
 
+# https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
+def e_step(mus,sigmas,xs):
+    def get_p(x,mu,sigma):
+        return (math.exp(-0.5*(x-mu)**2)/sigma)/(math.sqrt(2*math.pi)*math.sqrt(sigma))
+    cs = [[get_p(x,mus[i],sigmas[i]) for x in xs] for i in range(3)]
+
+    ws = [[get_p(xs[j],mus[i],sigmas[i])*cs[i][j] for j in range(len(xs))] for i in range(3)] 
+    Zs = [sum([ws[i][j] for i in range(3)]) for j in range(len(xs))]
+    return [[ws[i][j]/Zs[i] for j in range(len(xs))] for i in range(3)]
+    
+def m_step(ws):
+    pass
+
+def get_c(i,mu0,mu1,mu2):
+    if i<0.5*(mu0+mu1):
+        return 0
+    elif i<0.5*(mu1+mu2):
+        return 1
+    else:
+        return 2
+    
 if __name__=='__main__':
     import os, re, argparse
     from matplotlib import rc
@@ -112,12 +133,12 @@ if __name__=='__main__':
                             ax1.set_ylabel('SSC-H')
                             
                             ax2             = plt.subplot(2,2,2)
-                            intensity       = np.log(df1['Red-H']).values
-                            n,bins,_        = ax2.hist(intensity,facecolor='g',bins=100,label='From FCS')
+                            intensities     = np.log(df1['Red-H']).values
+                            n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
                             i1,i2           = get_boundaries(bins,n)
-                            segment0        = [r for r in intensity if r < bins[i1]]
-                            segment1        = [r for r in intensity if bins[i1]<r and r<bins[i2]]
-                            segment2        = [r for r in intensity if  bins[i2]<r]
+                            segment0        = [r for r in intensities if r < bins[i1]]
+                            segment1        = [r for r in intensities if bins[i1]<r and r<bins[i2]]
+                            segment2        = [r for r in intensities if  bins[i2]<r]
                             mu0,sigma0,_,y0 = get_gaussian(segment0,n=max(n[i] for i in range(i1)),bins=bins)
                             mu1,sigma1,_,y1 = get_gaussian(segment1,n=max(n[i] for i in range(i1,i2)),bins=bins)
                             mu2,sigma2,_,y2 = get_gaussian(segment2,n=max(n[i] for i in range(i2,len(n))),bins=bins)
@@ -127,13 +148,28 @@ if __name__=='__main__':
                             ax2.fill_between(bins, y1, color='c', alpha=0.5)
                             ax2.plot(bins, y2, c='c')
                             ax2.fill_between(bins, y2, color='c', alpha=0.5)
+                            zz  = zip(y0,y1,y2)
+                            zs  = [z0 +z1 + z2 for (z0,z1,z2) in zip(y0,y1,y2)]
+                            a,b = ax2.get_ylim()
+                            cn  = 0.5*(a+b)
+                            c0  = [y/z for (y,z) in zip(y0,zs)]
+                            c1  = [y/z for (y,z) in zip(y1,zs)]
+                            c2  = [y/z for (y,z) in zip(y2,zs)]
+                            ax2.plot(bins, [cn*c for c in c0], c='m', label='c0')
+                            ax2.plot(bins, [cn*c for c in c1], c='y', label='c1')
+                            ax2.plot(bins, [cn*c for c in c2], c='b', label='c2')                            
                             ax2.set_title('Initialization')
                             ax2.set_xlabel('log(Red-H)')
                             ax2.set_ylabel('N')
                             ax2.legend()
                             plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
-        if not show:
-            plt.close()
+                            
+                            ws = e_step([mu0,mu1,mu2],
+                                        [sigma0,sigma1,sigma2],
+                                        intensities)
+                            m_step(ws)
+                            if not show:
+                                plt.close()
                        
     if show:
         plt.show()    
