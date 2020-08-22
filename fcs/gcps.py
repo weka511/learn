@@ -19,13 +19,25 @@
 
 import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,math
 
+# get_well_name
+#
+# Extract well name from tube name
+
 def get_well_name(tbnm):
     return tbnm[-3:]
+
+#  get_bounds
+#
+# Used to clip data into band near to mean
 
 def get_bounds(df,channel,nsigma=3):
     mean   = np.mean(df[channel])
     std    = np.std(df[channel])
     return (mean-nsigma*std,mean+nsigma*std)
+
+# gate_data
+#
+# Used to clip data
 
 def gate_data(df,nsigma=3,nw=2):
     fsc_min,fsc_max = get_bounds(df,'FSC-H',nsigma=nsigma)
@@ -38,6 +50,9 @@ def gate_data(df,nsigma=3,nw=2):
               (df['SSC-H']     < ssc_max)     & \
               (df['FSC-Width'] < fsc_width_max)]
 
+# purge_outliers
+#
+
 def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
     nr0,_ = df.shape
     df1   = gate_data(df,nsigma=nsigma)
@@ -49,6 +64,8 @@ def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
         nr1,_  = df1.shape
         i     += 1
     return df1
+
+# get_boundaries
 
 def get_boundaries(bins,n):
     def get_segment(c):
@@ -78,42 +95,39 @@ def get_gaussian(segment,n=100,bins=[]):
 def get_p(x,mu=0,sigma=1):
     return (math.exp(-0.5*((x-mu)/sigma)**2)) / (math.sqrt(2*math.pi)*sigma)
 
-def e_step(xs,mus=[],sigmas=[],alphas=[],K=3,tol=1.0e-6):
-    ws      = [[get_p(xs[i],mus[k],sigmas[k])*alphas[k] for i in range(len(xs))] for k in range(K)] 
-    Zs      = [sum([ws[k][i] for k in range(K)]) for i in range(len(xs))]
-    return [[ws[k][i]/Zs[i] for i in range(len(xs))] for k in range(K)]
 
-def m_step(xs,ws=[],K=3):
-    N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
-    alphas  = [n/sum(N) for n in N]
-    mus     = [sum([ws[k][i]*xs[i] for i in range(len(xs))] )/N[k] for k in range(K)]
-    sigmas  = [math.sqrt(sum([ws[k][i]*(xs[i]-mus[k])**2 for i in range(len(xs))] )/N[k]) for k in range(K)]
-    return (alphas,mus,sigmas)
-
-def get_log_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3):
-    return sum([math.log(sum([alphas[k]*get_p(xs[i],mus[k],sigmas[k]) for k in range(K)])) for i in range(len(xs))])
-
-def get_c(i,mu0,mu1,mu2):
-    if i<0.5*(mu0+mu1):
-        return 0
-    elif i<0.5*(mu1+mu2):
-        return 1
-    else:
-        return 2
- 
+# maximize_likelihood
+#
+# Get best GMM fit, using 
+# Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning 
+# Padhraic Smyth 
+# https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
 def maximize_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3,N=25,limit=1.0e-6):
 
     def has_converged():
         return len(likelihoods)>1 and abs(likelihoods[-1]/likelihoods[-2]-1)<limit
+    
+    def get_log_likelihood(mus=[],sigmas=[],alphas=[]):
+        return sum([math.log(sum([alphas[k]*get_p(xs[i],mus[k],sigmas[k]) for k in range(K)])) for i in range(len(xs))])
+ 
+    def e_step(mus=[],sigmas=[],alphas=[]):
+        ws      = [[get_p(xs[i],mus[k],sigmas[k])*alphas[k] for i in range(len(xs))] for k in range(K)] 
+        Zs      = [sum([ws[k][i] for k in range(K)]) for i in range(len(xs))]
+        return [[ws[k][i]/Zs[i] for i in range(len(xs))] for k in range(K)]
+    
+    def m_step(ws):
+        N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
+        alphas  = [n/sum(N) for n in N]
+        mus     = [sum([ws[k][i]*xs[i] for i in range(len(xs))] )/N[k] for k in range(K)]
+        sigmas  = [math.sqrt(sum([ws[k][i]*(xs[i]-mus[k])**2 for i in range(len(xs))] )/N[k]) for k in range(K)]
+        return (alphas,mus,sigmas)
+    
     likelihoods=[]
     
     while len(likelihoods)<N and not has_converged():
-        alphas,mus,sigmas = m_step(xs,
-                                   ws= e_step(xs,
-                                              mus=mus,
-                                              sigmas=sigmas,
-                                              alphas=alphas))
-        likelihoods.append(get_log_likelihood(xs,mus=mus,sigmas=sigmas,alphas=alphas))
+        alphas,mus,sigmas = m_step(e_step(mus=mus,sigmas=sigmas,alphas=alphas))
+        likelihoods.append(get_log_likelihood(mus=mus,sigmas=sigmas,alphas=alphas))
+        
     return likelihoods,alphas,mus,sigmas
         
 if __name__=='__main__':
