@@ -141,13 +141,14 @@ if __name__=='__main__':
     parser.add_argument('-p','--plate',      default='all',          nargs='+', help='Name of plate to be processed')
     parser.add_argument('-w','--well',       default=['G12','H12'],  nargs='+', help='Names of wells to be processed')
     parser.add_argument('-N','--N',          default=25,             type=int, help='Number of attempts for iteration')
-    parser.add_argument('-K','--K',          default=3,              type=int, help='Number of peaks to search for')
+    parser.add_argument('-K','--K',          default=[3,4],          nargs='+', type=int, help='Number of peaargs.K to search for')
     parser.add_argument('-t', '--tolerance', default=1.0e-6,         type=float, 
                         help='Iteration stops when ratio between likelihoods is this close to 1.')
     parser.add_argument('-s', '--show',      default=False,          action='store_true', help='Display graphs')
     
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'
+    
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
@@ -168,87 +169,90 @@ if __name__=='__main__':
                         well     = get_well_name(tbnm)
  
                         if well in args.well:
-                            plt.figure(figsize=(10,10))
-                            plt.suptitle(f'{plate} {well}')
-                            
-                            ax1 = plt.subplot(2,2,1)
-                            ax1.scatter(df1['FSC-H'],df1['SSC-H'],s=1,c='g')
-                            ax1.set_xlabel('FSC-H')
-                            ax1.set_ylabel('SSC-H')
-                            
-                            ax2             = plt.subplot(2,2,2)
-                            intensities     = np.log(df1['Red-H']).values
-                            n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                            indices         = get_boundaries(bins,n,K=args.K)
-                            indices.append(len(n))
-                            segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
-                                        for k in range(args.K)]
-                            mus      = []
-                            sigmas   = []
-                            ys       = []
-                            for k in range(args.K):
-                                mu,sigma,_,y = get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
-                                mus.append(mu)
-                                sigmas.append(sigma)
-                                ys.append(y)
-                            
-                            for k in range(args.K):    
-                                if k==0:
-                                    ax2.plot(bins, ys[k], c='c', label='GMM')
-                                else:
-                                    ax2.plot(bins, ys[k], c='c')
-                                ax2.fill_between(bins, ys[k], color='c', alpha=0.5)
-   
-                            zs  = [sum(zz) for zz in zip(*ys)] 
-                            a,b = ax2.get_ylim()
-                            cn  = 0.5*(a+b)
-                            for k in range(args.K):
-                                ax2.plot(bins, [cn*c for c in [y/z for (y,z) in zip(ys[k],zs)]],  label=f'c{k}')
-                             
-                            ax2.set_title('Initialization')
-                            ax2.set_xlabel('log(Red-H)')
-                            ax2.set_ylabel('N')
-                            ax2.legend()
-                            
-                            alphas = [len(segments[k]) for k in range(args.K)]
-                            alpha_norm = sum(alphas)
-                            for k in range(args.K):
-                                alphas[k] /= alpha_norm
-                            likelihoods,alphas,mus,sigmas =\
-                                maximize_likelihood(
-                                    intensities,
-                                    mus    = mus,
-                                    sigmas = sigmas,
-                                    alphas = alphas,
-                                    N      = args.N,
-                                    limit  = args.tolerance,
-                                    K      = args.K)
-                            
-                            ax3 = plt.subplot(2,2,3)
-                            
-                            ax3.plot(range(len(likelihoods)),likelihoods)
-                            ax3.set_xlabel('Iteration')
-                            ax3.set_ylabel('Log Likelihood')
-                            
-                            ax4 = plt.subplot(2,2,4)
-                            
-                            n,bins,_          = ax4.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                            for k in range(args.K):
-                                ax4.plot(bins,[max(n)*alphas[k]*get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
-                                         #c='c',
-                                         label=fr'$\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
-                            
-                            ax4.legend(framealpha=0.5)
-                            
-                            plt.savefig(
-                                get_image_name(
-                                    script = os.path.basename(__file__).split('.')[0],
-                                    plate  = plate,
-                                    well   = well,
-                                    K      = args.K))
-                            
-                            if not show:
-                                plt.close()
+                            print (f'{plate},{well}')
+                            for K in args.K:
+                                plt.figure(figsize=(10,10))
+                                plt.suptitle(f'{plate} {well}')
+                                
+                                ax1 = plt.subplot(2,2,1)
+                                ax1.scatter(df1['FSC-H'],df1['SSC-H'],s=1,c='g')
+                                ax1.set_xlabel('FSC-H')
+                                ax1.set_ylabel('SSC-H')
+                                
+                                ax2             = plt.subplot(2,2,2)
+                                intensities     = np.log(df1['Red-H']).values
+                                n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
+                                indices         = get_boundaries(bins,n,K=K)
+                                indices.append(len(n))
+                                segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
+                                            for k in range(K)]
+                                mus      = []
+                                sigmas   = []
+                                ys       = []
+                                for k in range(K):
+                                    mu,sigma,_,y = get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
+                                    mus.append(mu)
+                                    sigmas.append(sigma)
+                                    ys.append(y)
+                                
+                                for k in range(K):    
+                                    if k==0:
+                                        ax2.plot(bins, ys[k], c='c', label='GMM')
+                                    else:
+                                        ax2.plot(bins, ys[k], c='c')
+                                    ax2.fill_between(bins, ys[k], color='c', alpha=0.5)
+       
+                                zs  = [sum(zz) for zz in zip(*ys)] 
+                                a,b = ax2.get_ylim()
+                                cn  = 0.5*(a+b)
+                                for k in range(K):
+                                    ax2.plot(bins, [cn*c for c in [y/z for (y,z) in zip(ys[k],zs)]],  label=f'c{k}')
+                                 
+                                ax2.set_title('Initialization')
+                                ax2.set_xlabel('log(Red-H)')
+                                ax2.set_ylabel('N')
+                                ax2.legend()
+                                
+                                alphas = [len(segments[k]) for k in range(K)]
+                                alpha_norm = sum(alphas)
+                                for k in range(K):
+                                    alphas[k] /= alpha_norm
+                                likelihoods,alphas,mus,sigmas =\
+                                    maximize_likelihood(
+                                        intensities,
+                                        mus    = mus,
+                                        sigmas = sigmas,
+                                        alphas = alphas,
+                                        N      = args.N,
+                                        limit  = args.tolerance,
+                                        K      = K)
+                                
+                                ax3 = plt.subplot(2,2,3)
+                                
+                                ax3.plot(range(len(likelihoods)),likelihoods)
+                                ax3.set_xlabel('Iteration')
+                                ax3.set_ylabel('Log Likelihood')
+                                
+                                ax4 = plt.subplot(2,2,4)
+                                
+                                n,bins,_          = ax4.hist(intensities,facecolor='g',bins=100,label='From FCS')
+                                for k in range(K):
+                                    ax4.plot(bins,[max(n)*alphas[k]*get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
+                                             #c='c',
+                                             label=fr'$\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
+                                
+                                ax4.legend(framealpha=0.5)
+                                
+                                plt.savefig(
+                                    get_image_name(
+                                        script = os.path.basename(__file__).split('.')[0],
+                                        plate  = plate,
+                                        well   = well,
+                                        K      = K))
+ 
+                                print (f'K={K}, max sigma={max(sigmas)}, min dist={min([b-a for (a,b) in zip(mus[:-1],mus[1:])])}')
+                                if not show:
+                                    plt.close()
                        
     if show:
         plt.show()    
