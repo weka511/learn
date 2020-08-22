@@ -126,13 +126,16 @@ def maximize_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3,N=25,limit=1.0e-6):
         likelihoods.append(get_log_likelihood(mus=mus,sigmas=sigmas,alphas=alphas))
         
     return likelihoods,alphas,mus,sigmas
-        
+ 
+def get_image_name(script=None,plate=None,well=None,K=None):
+    return os.path.join('figs',
+                        f'{script}-{plate}-{well}' if K==None else f'{script}-{plate}-{well}-{K}')
+
 if __name__=='__main__':
     import os, re, argparse
     from matplotlib import rc
     rc('text', usetex=True)
-  
-    script   = os.path.basename(__file__).split('.')[0]
+
     parser   = argparse.ArgumentParser('Fit Gaussian mixture model to GCP wells')
     parser.add_argument('-r','--root',       default=r'\data\cytoflex\Melbourne', help='Root for fcs files')
     parser.add_argument('-p','--plate',      default='all',          nargs='+', help='Name of plate to be processed')
@@ -237,7 +240,12 @@ if __name__=='__main__':
                             
                             ax4.legend(framealpha=0.5)
                             
-                            plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
+                            plt.savefig(
+                                get_image_name(
+                                    script = os.path.basename(__file__).split('.')[0],
+                                    plate  = plate,
+                                    well   = well,
+                                    K      = args.K))
                             
                             if not show:
                                 plt.close()
