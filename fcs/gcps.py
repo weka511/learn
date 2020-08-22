@@ -67,21 +67,18 @@ def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
 
 # get_boundaries
 
-def get_boundaries(bins,n):
+def get_boundaries(bins,n,K=3):
     def get_segment(c):
-        if c<1/3:
-            return 0
-        elif c<2/3:
-            return 1
-        else:
-            return 2
+        for numerator in range(1,K):
+            if c<numerator/K:
+                return numerator-1
+        return K-1
     
-    freqs     = [c/sum(n) for c in n]
-    counts    = [sum(freqs[0:i]) for i in range(len(freqs))]   
-    segments  = [get_segment(c) for c in counts] 
-    i1        = segments.index(1)
-    i2        = segments.index(2)
-    return (i1,i2)
+    total      = sum(n)
+    freqs      = [c/total for c in n]
+    cumulative = [sum(freqs[0:i]) for i in range(len(freqs))]   
+    segments   = [get_segment(c) for c in cumulative] 
+    return [segments.index(k) for k in range(K)]
 
 def get_gaussian(segment,n=100,bins=[]):
     mu      = np.mean(segment)
@@ -137,12 +134,13 @@ if __name__=='__main__':
   
     script   = os.path.basename(__file__).split('.')[0]
     parser   = argparse.ArgumentParser('Plot GCP wells')
-    parser.add_argument('-r','--root',       default=r'\data\cytoflex\Melbourne')
-    parser.add_argument('-p','--plate',      default='all',          nargs='+')
-    parser.add_argument('-w','--well',       default=['G12','H12'],  nargs='+')
-    parser.add_argument('-N','--N',          default=25,             type=int)
-    parser.add_argument('-t', '--tolerance', default=1.0e-6,         type=float)
-    parser.add_argument('-s', '--show',      default=False,          action='store_true')
+    parser.add_argument('-r','--root',       default=r'\data\cytoflex\Melbourne', help='Root for fcs files')
+    parser.add_argument('-p','--plate',      default='all',          nargs='+', help='Name of plate to be processed')
+    parser.add_argument('-w','--well',       default=['G12','H12'],  nargs='+', help='Names of wells to be processed')
+    parser.add_argument('-N','--N',          default=25,             type=int, help='Number of attempts for iteration')
+    parser.add_argument('-K','--K',          default=3,              type=int, help='Number of peaks to search for')
+    parser.add_argument('-t', '--tolerance', default=1.0e-6,         type=float, help='Accuracy of iteration')
+    parser.add_argument('-s', '--show',      default=False,          action='store_true', help='Display graphs')
     
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'
@@ -177,44 +175,49 @@ if __name__=='__main__':
                             ax2             = plt.subplot(2,2,2)
                             intensities     = np.log(df1['Red-H']).values
                             n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                            i1,i2           = get_boundaries(bins,n)
-                            segment0        = [r for r in intensities if r < bins[i1]]
-                            segment1        = [r for r in intensities if bins[i1]<r and r<bins[i2]]
-                            segment2        = [r for r in intensities if  bins[i2]<r]
-                            mu0,sigma0,_,y0 = get_gaussian(segment0,n=max(n[i] for i in range(i1)),bins=bins)
-                            mu1,sigma1,_,y1 = get_gaussian(segment1,n=max(n[i] for i in range(i1,i2)),bins=bins)
-                            mu2,sigma2,_,y2 = get_gaussian(segment2,n=max(n[i] for i in range(i2,len(n))),bins=bins)
-                            ax2.plot(bins, y0, c='c', label='GMM')
-                            ax2.fill_between(bins, y0, color='c', alpha=0.5)
-                            ax2.plot(bins, y1, c='c')
-                            ax2.fill_between(bins, y1, color='c', alpha=0.5)
-                            ax2.plot(bins, y2, c='c')
-                            ax2.fill_between(bins, y2, color='c', alpha=0.5)
-                            zz  = zip(y0,y1,y2)
-                            zs  = [z0 +z1 + z2 for (z0,z1,z2) in zip(y0,y1,y2)]
+                            indices         = get_boundaries(bins,n,K=args.K)
+                            indices.append(len(n))
+                            segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] for k in range(args.K)]
+                            mus             = []
+                            sigmas          = []
+                            ys              = []
+                            for k in range(args.K):
+                                mu,sigma,_,y = get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
+                                mus.append(mu)
+                                sigmas.append(sigma)
+                                ys.append(y)
+                            
+                            for k in range(args.K):    
+                                if k==0:
+                                    ax2.plot(bins, ys[k], c='c', label='GMM')
+                                else:
+                                    ax2.plot(bins, ys[k], c='c')
+                                ax2.fill_between(bins, ys[k], color='c', alpha=0.5)
+   
+                            zs  = [sum(zz) for zz in zip(*ys)] 
                             a,b = ax2.get_ylim()
                             cn  = 0.5*(a+b)
-                            c0  = [y/z for (y,z) in zip(y0,zs)]
-                            c1  = [y/z for (y,z) in zip(y1,zs)]
-                            c2  = [y/z for (y,z) in zip(y2,zs)]
-                            ax2.plot(bins, [cn*c for c in c0], c='m', label='c0')
-                            ax2.plot(bins, [cn*c for c in c1], c='y', label='c1')
-                            ax2.plot(bins, [cn*c for c in c2], c='b', label='c2')                            
+                            for k in range(args.K):
+                                ax2.plot(bins, [cn*c for c in [y/z for (y,z) in zip(ys[k],zs)]],  label=f'c{k}')
+                             
                             ax2.set_title('Initialization')
                             ax2.set_xlabel('log(Red-H)')
                             ax2.set_ylabel('N')
                             ax2.legend()
                             
+                            alphas = [len(segments[k]) for k in range(args.K)]
+                            alpha_norm = sum(alphas)
+                            for k in range(args.K):
+                                alphas[k] /= alpha_norm
                             likelihoods,alphas,mus,sigmas =\
                                 maximize_likelihood(
                                     intensities,
-                                    mus    = [mu0,mu1,mu2],
-                                    sigmas = [sigma0,sigma1,sigma2],
-                                    alphas = [len(segment0)/(len(segment0)+len(segment1)+len(segment2)),
-                                              len(segment1)/(len(segment0)+len(segment1)+len(segment2)),
-                                              len(segment2)/(len(segment0)+len(segment1)+len(segment2))],
+                                    mus    = mus,
+                                    sigmas = sigmas,
+                                    alphas = alphas,
                                     N      = args.N,
-                                    limit  = args.tolerance)
+                                    limit  = args.tolerance,
+                                    K      = args.K)
                             
                             ax3 = plt.subplot(2,2,3)
                             
@@ -225,15 +228,10 @@ if __name__=='__main__':
                             ax4 = plt.subplot(2,2,4)
                             
                             n,bins,_          = ax4.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                            ax4.plot(bins,[max(n)*alphas[0]*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins],
-                                     c='c',
-                                     label=fr'$\mu=${mus[0]:.3f}, $\sigma=${sigmas[0]:.3f}')
-                            ax4.plot(bins,[max(n)*alphas[1]*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins],
-                                     c='m',
-                                     label=fr'$\mu=${mus[1]:.3f}, $\sigma=${sigmas[1]:.3f}')
-                            ax4.plot(bins,[max(n)*alphas[2]*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins],
-                                     c='y',
-                                     label=fr'$\mu=${mus[2]:.3f}, $\sigma=${sigmas[2]:.3f}')
+                            for k in range(args.K):
+                                ax4.plot(bins,[max(n)*alphas[k]*get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
+                                         #c='c',
+                                         label=fr'$\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
                             
                             ax4.legend(framealpha=0.5)
                             
