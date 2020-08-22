@@ -94,6 +94,9 @@ def m_step(xs,ws=[],K=3):
     sigmas  = [math.sqrt(sum([ws[k][i]*(xs[i]-mus[k])**2 for i in range(len(xs))] )/N[k]) for k in range(K)]
     return (alphas,mus,sigmas)
 
+def get_log_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3):
+    return sum([math.log(sum([alphas[k]*get_p(xs[i],mus[k],sigmas[k]) for k in range(K)])) for i in range(len(xs))])
+
 def get_c(i,mu0,mu1,mu2):
     if i<0.5*(mu0+mu1):
         return 0
@@ -137,6 +140,8 @@ if __name__=='__main__':
                         well     = get_well_name(tbnm)
  
                         if well in args.well:
+                            log_likelihoods=[]
+                            
                             plt.figure(figsize=(10,10))
                             plt.suptitle(f'{plate} {well}')
                             
@@ -177,34 +182,38 @@ if __name__=='__main__':
                             ax2.legend()
                             
                             ax3 = plt.subplot(args.rows,args.columns,3)
-                            ws  = e_step(intensities,
-                                         mus=[mu0,mu1,mu2],
-                                         sigmas=[sigma0,sigma1,sigma2],
-                                         alphas=[len(segment0)/(len(segment0)+len(segment1)+len(segment2)),
-                                                 len(segment1)/(len(segment0)+len(segment1)+len(segment2)),
-                                                 len(segment2)/(len(segment0)+len(segment1)+len(segment2))]
-                                        )
-                            alphas,mus,sigmas = m_step(intensities,ws=ws)
+                            
+                            alphas,mus,sigmas = m_step(intensities,
+                                                       ws= e_step(intensities,
+                                                                  mus=[mu0,mu1,mu2],
+                                                                  sigmas=[sigma0,sigma1,sigma2],
+                                                                  alphas=[len(segment0)/(len(segment0)+len(segment1)+len(segment2)),
+                                                                          len(segment1)/(len(segment0)+len(segment1)+len(segment2)),
+                                                                          len(segment2)/(len(segment0)+len(segment1)+len(segment2))]
+                                        ))
                             n,bins,_          = ax3.hist(intensities,facecolor='g',bins=100,label='From FCS')
                             ax3.plot(bins,[100*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins])
                             ax3.plot(bins,[100*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins])
                             ax3.plot(bins,[100*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins])
-                            
+                            log_likelihoods.append(get_log_likelihood(intensities,mus=mus,sigmas=sigmas,alphas=alphas))
                             subfig_number = 3
-                            while subfig_number<args.rows*args.columns:
+                            while subfig_number<args.rows*args.columns-1:
                                 subfig_number += 1
                                 ax4 = plt.subplot(args.rows,args.columns,subfig_number)
-                                ws  = e_step(intensities,
-                                             mus=mus,
-                                             sigmas=sigmas,
-                                             alphas=alphas)
                                                         
-                                alphas,mus,sigmas = m_step(intensities,ws=ws)
+                                alphas,mus,sigmas = m_step(intensities,
+                                                           ws= e_step(intensities,
+                                                                       mus=mus,
+                                                                       sigmas=sigmas,
+                                                                       alphas=alphas))
+                                log_likelihoods.append(get_log_likelihood(intensities,mus=mus,sigmas=sigmas,alphas=alphas))
                                 n,bins,_          = ax4.hist(intensities,facecolor='g',bins=100,label='From FCS')
                                 ax4.plot(bins,[100*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins])
                                 ax4.plot(bins,[100*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins])
                                 ax4.plot(bins,[100*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins])
 
+                            axn = plt.subplot(args.rows,args.columns,args.rows*args.columns)
+                            axn.plot(range(len(log_likelihoods)),log_likelihoods)
                             plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
                             
                             if not show:
