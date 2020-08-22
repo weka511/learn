@@ -79,13 +79,9 @@ def get_p(x,mu=0,sigma=1):
     return (math.exp(-0.5*((x-mu)/sigma)**2)) / (math.sqrt(2*math.pi)*sigma)
 
 def e_step(xs,mus=[],sigmas=[],alphas=[],K=3,tol=1.0e-6):
-    assert abs(sum(alphas)-1)<tol
     ws      = [[get_p(xs[i],mus[k],sigmas[k])*alphas[k] for i in range(len(xs))] for k in range(K)] 
     Zs      = [sum([ws[k][i] for k in range(K)]) for i in range(len(xs))]
-    ws_norm = [[ws[k][i]/Zs[i] for i in range(len(xs))] for k in range(K)]
-    for i in range(len(xs)):
-        assert(abs(sum([ws_norm[k][i] for k in range(K)])-1)<tol)
-    return ws_norm
+    return [[ws[k][i]/Zs[i] for i in range(len(xs))] for k in range(K)]
 
 def m_step(xs,ws=[],K=3):
     N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
@@ -127,10 +123,13 @@ if __name__=='__main__':
   
     script   = os.path.basename(__file__).split('.')[0]
     parser   = argparse.ArgumentParser('Plot GCP wells')
-    parser.add_argument('-r','--root',    default=r'\data\cytoflex\Melbourne')
-    parser.add_argument('-p','--plate',   default='all',          nargs='+')
-    parser.add_argument('-w','--well',    default=['G12','H12'],  nargs='+')
-    parser.add_argument('-s', '--show',   default=False,          action='store_true')
+    parser.add_argument('-r','--root',       default=r'\data\cytoflex\Melbourne')
+    parser.add_argument('-p','--plate',      default='all',          nargs='+')
+    parser.add_argument('-w','--well',       default=['G12','H12'],  nargs='+')
+    parser.add_argument('-N','--N',          default=25,             type=int)
+    parser.add_argument('-t', '--tolerance', default=1.0e-6,         type=float)
+    parser.add_argument('-s', '--show',      default=False,          action='store_true')
+    
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'
     for root, dirs, files in os.walk(args.root):
@@ -153,8 +152,6 @@ if __name__=='__main__':
                         well     = get_well_name(tbnm)
  
                         if well in args.well:
-                            #log_likelihoods=[]
-                            
                             plt.figure(figsize=(10,10))
                             plt.suptitle(f'{plate} {well}')
                             
@@ -194,59 +191,39 @@ if __name__=='__main__':
                             ax2.set_ylabel('N')
                             ax2.legend()
                             
-                            likelihoods,alphas,mus,sigmas = maximize_likelihood(
-                                intensities,
-                                mus=[mu0,mu1,mu2],
-                                sigmas=[sigma0,sigma1,sigma2],
-                                alphas=[len(segment0)/(len(segment0)+len(segment1)+len(segment2)),
-                                        len(segment1)/(len(segment0)+len(segment1)+len(segment2)),
-                                        len(segment2)/(len(segment0)+len(segment1)+len(segment2))]
-                            )
+                            likelihoods,alphas,mus,sigmas =\
+                                maximize_likelihood(
+                                    intensities,
+                                    mus    = [mu0,mu1,mu2],
+                                    sigmas = [sigma0,sigma1,sigma2],
+                                    alphas = [len(segment0)/(len(segment0)+len(segment1)+len(segment2)),
+                                              len(segment1)/(len(segment0)+len(segment1)+len(segment2)),
+                                              len(segment2)/(len(segment0)+len(segment1)+len(segment2))],
+                                    N      = args.N,
+                                    limit  = args.tolerance)
                             
-                            #alphas,mus,sigmas = m_step(intensities,
-                                                       #ws= e_step(intensities,
-                                                                  #mus=[mu0,mu1,mu2],
-                                                                  #sigmas=[sigma0,sigma1,sigma2],
-                                                                  #alphas=[len(segment0)/(len(segment0)+len(segment1)+len(segment2)),
-                                                                          #len(segment1)/(len(segment0)+len(segment1)+len(segment2)),
-                                                                          #len(segment2)/(len(segment0)+len(segment1)+len(segment2))]
-                                        #))
-                            #n,bins,_          = ax3.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                            #ax3.plot(bins,[100*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins])
-                            #ax3.plot(bins,[100*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins])
-                            #ax3.plot(bins,[100*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins])
-                            #log_likelihoods.append(get_log_likelihood(intensities,mus=mus,sigmas=sigmas,alphas=alphas))
-                            
-                            #subfig_number = 3
-                            #while subfig_number<args.rows*args.columns-1:
-                                #subfig_number += 1
-                                #ax4 = plt.subplot(args.rows,args.columns,subfig_number)
-                                                        
-                                #alphas,mus,sigmas = m_step(intensities,
-                                                           #ws= e_step(intensities,
-                                                                       #mus=mus,
-                                                                       #sigmas=sigmas,
-                                                                       #alphas=alphas))
-                                #log_likelihoods.append(get_log_likelihood(intensities,mus=mus,sigmas=sigmas,alphas=alphas))
-                                #n,bins,_          = ax4.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                                #ax4.plot(bins,[100*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins])
-                                #ax4.plot(bins,[100*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins])
-                                #ax4.plot(bins,[100*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins])
-
                             ax3 = plt.subplot(2,2,3)
                             
-                            #axn = plt.subplot(args.rows,args.columns,args.rows*args.columns)
                             ax3.plot(range(len(likelihoods)),likelihoods)
                             ax3.set_xlabel('Iteration')
                             ax3.set_ylabel('Log Likelihood')
-                            plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
                             
                             ax4 = plt.subplot(2,2,4)
                             
                             n,bins,_          = ax4.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                            ax4.plot(bins,[100*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins])
-                            ax4.plot(bins,[100*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins])
-                            ax4.plot(bins,[100*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins])
+                            ax4.plot(bins,[max(n)*alphas[0]*get_p(x,mu=mus[0],sigma=sigmas[0]) for x in bins],
+                                     c='c',
+                                     label=fr'$\mu=${mus[0]:.3f}, $\sigma=${sigmas[0]:.3f}')
+                            ax4.plot(bins,[max(n)*alphas[1]*get_p(x,mu=mus[1],sigma=sigmas[1]) for x in bins],
+                                     c='m',
+                                     label=fr'$\mu=${mus[1]:.3f}, $\sigma=${sigmas[1]:.3f}')
+                            ax4.plot(bins,[max(n)*alphas[2]*get_p(x,mu=mus[2],sigma=sigmas[2]) for x in bins],
+                                     c='y',
+                                     label=fr'$\mu=${mus[2]:.3f}, $\sigma=${sigmas[2]:.3f}')
+                            
+                            ax4.legend(framealpha=0.5)
+                            
+                            plt.savefig(os.path.join('figs',f'{script}-{plate}-{well}'))
                             
                             if not show:
                                 plt.close()
