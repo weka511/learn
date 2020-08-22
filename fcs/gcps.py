@@ -133,20 +133,21 @@ if __name__=='__main__':
     rc('text', usetex=True)
   
     script   = os.path.basename(__file__).split('.')[0]
-    parser   = argparse.ArgumentParser('Plot GCP wells')
+    parser   = argparse.ArgumentParser('Fit Gaussian mixture model to GCP wells')
     parser.add_argument('-r','--root',       default=r'\data\cytoflex\Melbourne', help='Root for fcs files')
     parser.add_argument('-p','--plate',      default='all',          nargs='+', help='Name of plate to be processed')
     parser.add_argument('-w','--well',       default=['G12','H12'],  nargs='+', help='Names of wells to be processed')
     parser.add_argument('-N','--N',          default=25,             type=int, help='Number of attempts for iteration')
     parser.add_argument('-K','--K',          default=3,              type=int, help='Number of peaks to search for')
-    parser.add_argument('-t', '--tolerance', default=1.0e-6,         type=float, help='Accuracy of iteration')
+    parser.add_argument('-t', '--tolerance', default=1.0e-6,         type=float, 
+                        help='Iteration stops when ratio between likelihoods is this close to 1.')
     parser.add_argument('-s', '--show',      default=False,          action='store_true', help='Display graphs')
     
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
-        match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+)',path[-1])
+        match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
         if match:
             plate = match.group(1)
             if args.plate=='all' or plate in args.plate:
@@ -177,10 +178,11 @@ if __name__=='__main__':
                             n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
                             indices         = get_boundaries(bins,n,K=args.K)
                             indices.append(len(n))
-                            segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] for k in range(args.K)]
-                            mus             = []
-                            sigmas          = []
-                            ys              = []
+                            segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
+                                        for k in range(args.K)]
+                            mus      = []
+                            sigmas   = []
+                            ys       = []
                             for k in range(args.K):
                                 mu,sigma,_,y = get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
                                 mus.append(mu)
