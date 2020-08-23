@@ -132,7 +132,7 @@ def get_image_name(script=None,plate=None,well=None,K=None):
                         f'{script}-{plate}-{well}' if K==None else f'{script}-{plate}-{well}-{K}')
 
 if __name__=='__main__':
-    import os, re, argparse
+    import os, re, argparse,sys
     from matplotlib import rc
     rc('text', usetex=True)
 
@@ -145,6 +145,7 @@ if __name__=='__main__':
     parser.add_argument('-t', '--tolerance', default=1.0e-6,         type=float, 
                         help='Iteration stops when ratio between likelihoods is this close to 1.')
     parser.add_argument('-s', '--show',      default=False,          action='store_true', help='Display graphs')
+    parser.add_argument('-f', '--fixup',     default=False,           action='store_true', help='Decide whther to keep K=3 or 4')
     
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'
@@ -170,6 +171,7 @@ if __name__=='__main__':
  
                         if well in args.well:
                             print (f'{plate},{well}')
+                            kstats = []         # Store statistics for each K so we can tune hyperparameter
                             for K in args.K:
                                 plt.figure(figsize=(10,10))
                                 plt.suptitle(f'{plate} {well}')
@@ -243,6 +245,7 @@ if __name__=='__main__':
                                 
                                 ax4.legend(framealpha=0.5)
                                 
+                                kstats.append((K,mus,sigmas))
                                 plt.savefig(
                                     get_image_name(
                                         script = os.path.basename(__file__).split('.')[0],
@@ -253,6 +256,37 @@ if __name__=='__main__':
                                 print (f'K={K}, max sigma={max(sigmas)}, min dist={min([b-a for (a,b) in zip(mus[:-1],mus[1:])])}')
                                 if not show:
                                     plt.close()
+                                    
+                            if args.fixup:   # Find optimum K
+                                K_preferred      = None
+                                sigmas_preferred = sys.float_info.max
+                                for K,_,sigmas in kstats:
+                                    ms = max(sigmas)
+                                    if ms<sigmas_preferred:
+                                        K_preferred      = K
+                                        sigmas_preferred = ms
+                                for K,_,_ in kstats:
+                                    file_name =  get_image_name(
+                                                     script = os.path.basename(__file__).split('.')[0],
+                                                     plate  = plate,
+                                                     well   = well,
+                                                     K      = K)
+                                    if K==K_preferred:
+                                        if os.path.exists(get_image_name(
+                                                      script = os.path.basename(__file__).split('.')[0],
+                                                      plate  = plate,
+                                                      well   = well) + '.png'):
+                                            os.remove(get_image_name(
+                                                      script = os.path.basename(__file__).split('.')[0],
+                                                      plate  = plate,
+                                                      well   = well) + '.png')
+                                        os.rename(file_name + '.png',
+                                                  get_image_name(
+                                                      script = os.path.basename(__file__).split('.')[0],
+                                                      plate  = plate,
+                                                      well   = well) + '.png')
+                                    else:
+                                        os.remove(file_name + '.png')
                        
     if show:
         plt.show()    
