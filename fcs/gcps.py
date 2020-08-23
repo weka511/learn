@@ -136,19 +136,43 @@ if __name__=='__main__':
     from matplotlib import rc
     rc('text', usetex=True)
 
-    parser   = argparse.ArgumentParser('Fit Gaussian mixture model to GCP wells')
-    parser.add_argument('-r','--root',       default=r'\data\cytoflex\Melbourne', help='Root for fcs files')
-    parser.add_argument('-p','--plate',      default='all',          nargs='+', help='Name of plate to be processed')
-    parser.add_argument('-w','--well',       default=['G12','H12'],  nargs='+', help='Names of wells to be processed')
-    parser.add_argument('-N','--N',          default=25,             type=int, help='Number of attempts for iteration')
-    parser.add_argument('-K','--K',          default=[3,4],          nargs='+', type=int, help='Number of peaargs.K to search for')
-    parser.add_argument('-t', '--tolerance', default=1.0e-6,         type=float, 
+    parser   = argparse.ArgumentParser('Fit Gaussian Mixture Model to GCP wells')
+    parser.add_argument('-r','--root',
+                        default=r'\data\cytoflex\Melbourne',
+                        help='Root for fcs files')
+    parser.add_argument('-p','--plate',
+                        default='all',
+                        nargs='+',
+                        help='Name of plate to be processed (omit for all)')
+    parser.add_argument('-w','--well', 
+                        default=['G12','H12'],
+                        nargs='+',
+                        help='Names of wells to be processed (omit for all)')
+    parser.add_argument('-N','--N',
+                        default=25, 
+                        type=int, 
+                        help='Number of attempts for iteration')
+    parser.add_argument('-K','--K', 
+                        default=[3,4],
+                        nargs='+', type=int, 
+                        help='Number of peaks to search for')
+    parser.add_argument('-t', '--tolerance',
+                        default=1.0e-6,
+                        type=float, 
                         help='Iteration stops when ratio between likelihoods is this close to 1.')
-    parser.add_argument('-s', '--show',      default=False,          action='store_true', help='Display graphs')
-    parser.add_argument('-f', '--fixup',     default=False,           action='store_true', help='Decide whther to keep K=3 or 4')
+    parser.add_argument('-s', '--show',
+                        default=False,
+                        action='store_true',
+                        help='Display graphs')
+    parser.add_argument('-f', '--fixup',
+                        default=False,
+                        action='store_true',
+                        help='Decide whether to keep K=3 or 4')
     
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'
+    
+    Konfusion = []
     
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
@@ -170,7 +194,7 @@ if __name__=='__main__':
                         well     = get_well_name(tbnm)
  
                         if well in args.well:
-                            print (f'{plate},{well}')
+                            print (f'{plate} {well}')
                             kstats = []         # Store statistics for each K so we can tune hyperparameter
                             for K in args.K:
                                 plt.figure(figsize=(10,10))
@@ -202,6 +226,7 @@ if __name__=='__main__':
                                         ax2.plot(bins, ys[k], c='c', label='GMM')
                                     else:
                                         ax2.plot(bins, ys[k], c='c')
+                                        
                                     ax2.fill_between(bins, ys[k], color='c', alpha=0.5)
        
                                 zs  = [sum(zz) for zz in zip(*ys)] 
@@ -260,11 +285,24 @@ if __name__=='__main__':
                             if args.fixup:   # Find optimum K
                                 K_preferred      = None
                                 sigmas_preferred = sys.float_info.max
-                                for K,_,sigmas in kstats:
-                                    ms = max(sigmas)
-                                    if ms<sigmas_preferred:
+                                diffs_preferred = -1
+                                K_preferred_diffs = None
+                                for K,mus,sigmas in kstats:
+                                    indices = np.argsort(mus)
+                                    mus     = [mus[i] for i in indices]
+                                    diffs   = [b-a for (a,b) in zip(mus[:-1],mus[1:])]
+                                    sigmas = [sigmas[i] for i in indices]
+  
+                                    if max(sigmas)<sigmas_preferred:
                                         K_preferred      = K
-                                        sigmas_preferred = ms
+                                        sigmas_preferred = max(sigmas)
+                                    if min(diffs)>diffs_preferred:
+                                        diffs_preferred = min(diffs)
+                                        K_preferred_diffs = K
+                                if K_preferred != K_preferred_diffs:
+                                    Konfusion.append((plate,well))
+                                    break
+                                
                                 for K,_,_ in kstats:
                                     file_name =  get_image_name(
                                                      script = os.path.basename(__file__).split('.')[0],
@@ -272,21 +310,19 @@ if __name__=='__main__':
                                                      well   = well,
                                                      K      = K)
                                     if K==K_preferred:
-                                        if os.path.exists(get_image_name(
+                                        new_file_name = get_image_name(
                                                       script = os.path.basename(__file__).split('.')[0],
                                                       plate  = plate,
-                                                      well   = well) ):
-                                            os.remove(get_image_name(
-                                                      script = os.path.basename(__file__).split('.')[0],
-                                                      plate  = plate,
-                                                      well   = well) )
-                                        os.rename(file_name ,
-                                                  get_image_name(
-                                                      script = os.path.basename(__file__).split('.')[0],
-                                                      plate  = plate,
-                                                      well   = well) )
+                                                      well   = well)
+                                        if os.path.exists(new_file_name  ):
+                                            os.remove(new_file_name  )
+                                        os.rename(file_name, new_file_name  )
                                     else:
                                         os.remove(file_name )
-                       
+    
+    if len(Konfusion)>0:
+        print ('Could not set hyperparameter K for the following wells')
+        for plate,well in Konfusion:
+            print (f'\t{plate} {well}')
     if show:
         plt.show()    
