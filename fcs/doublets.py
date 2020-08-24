@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import gcps,fcsparser
+import fcsparser,fcs,gcps
 
 if __name__=='__main__':
     import os, re, argparse,sys,matplotlib.pyplot as plt
@@ -64,7 +64,7 @@ if __name__=='__main__':
                                       (df['SSC-H']     < 1000000)     & \
                                       (df['FSC-Width'] < 2000000)]
                         
-                        well     = gcps.get_well_name(tbnm)
+                        well     = fcs.get_well_name(tbnm)
  
                         if well in args.well:
                             print (f'{plate} {well}')

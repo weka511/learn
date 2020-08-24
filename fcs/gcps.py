@@ -17,53 +17,8 @@
 # Padhraic Smyth 
 # https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
 
-import os,fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,math
+import fcs,os,fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,math
 
-# get_well_name
-#
-# Extract well name from tube name
-
-def get_well_name(tbnm):
-    return tbnm[-3:]
-
-#  get_bounds
-#
-# Used to clip data into band near to mean
-
-def get_bounds(df,channel,nsigma=3):
-    mean   = np.mean(df[channel])
-    std    = np.std(df[channel])
-    return (mean-nsigma*std,mean+nsigma*std)
-
-# gate_data
-#
-# Used to clip data
-
-def gate_data(df,nsigma=3,nw=2):
-    fsc_min,fsc_max = get_bounds(df,'FSC-H',nsigma=nsigma)
-    ssc_min,ssc_max = get_bounds(df,'SSC-H',nsigma=nsigma)
-    _,fsc_width_max = get_bounds(df,'FSC-Width',nsigma=nw)
-    
-    return df[(fsc_min         < df['FSC-H']) & \
-              (df['FSC-H']     < fsc_max)     & \
-              (ssc_min         < df['SSC-H']) & \
-              (df['SSC-H']     < ssc_max)     & \
-              (df['FSC-Width'] < fsc_width_max)]
-
-# purge_outliers
-#
-
-def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
-    nr0,_ = df.shape
-    df1   = gate_data(df,nsigma=nsigma)
-    nr1,_ = df1.shape
-    i     = 0
-    while nr1<nr0 and i<max_iterations:
-        nr0    = nr1
-        df1    = gate_data(df1,nsigma=nsigma,nw=nw)
-        nr1,_  = df1.shape
-        i     += 1
-    return df1
 
 # get_boundaries
 
@@ -190,8 +145,8 @@ if __name__=='__main__':
                         btim     = meta['$BTIM']
                         etim     = meta['$ETIM']
                         cyt      = meta['$CYT']
-                        df1      = purge_outliers(df)
-                        well     = get_well_name(tbnm)
+                        df1      = fcs.purge_outliers(df)
+                        well     = fcs.get_well_name(tbnm)
  
                         if well in args.well:
                             print (f'{plate} {well}')

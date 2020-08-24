@@ -16,10 +16,18 @@
 import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats
 
 
+#  get_bounds
+#
+# Used to clip data into band near to mean
+
 def get_bounds(df,channel,nsigma=3):
     mean   = np.mean(df[channel])
     std    = np.std(df[channel])
     return (mean-nsigma*std,mean+nsigma*std)
+
+# gate_data
+#
+# Used to clip data
 
 def gate_data(df,nsigma=3,nw=2):
     fsc_min,fsc_max = get_bounds(df,'FSC-H',nsigma=nsigma)
@@ -32,6 +40,9 @@ def gate_data(df,nsigma=3,nw=2):
               (df['SSC-H']     < ssc_max)     & \
               (df['FSC-Width'] < fsc_width_max)]
 
+# purge_outliers
+#
+
 def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
     nr0,_ = df.shape
     df1   = gate_data(df,nsigma=nsigma)
@@ -43,6 +54,10 @@ def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
         nr1,_  = df1.shape
         i     += 1
     return df1
+
+# get_well_name
+#
+# Extract well name from tube name
 
 def get_well_name(tbnm):
     return tbnm[-3:]

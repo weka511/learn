@@ -5,5 +5,6 @@ Apply machine learning to FCS data
 
 | File  | Remarks |
 |---------------|--------------------------------------------|
-| fcs.py | Investigate fitting normal curves to scattering |
+| doublets.py |Remove doublets from GCPs and denoise data|
+| fcs.py | Investigate fitting normal curves to scattering. Also serves as a repositiory for common code |
 | gcps | Model GCPs with Gaussian Mixture Model using [Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning, Padhraic Smyth ](https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf)|
