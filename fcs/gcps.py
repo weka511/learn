@@ -17,7 +17,7 @@
 # Padhraic Smyth 
 # https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
 
-import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,math
+import os,fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,math
 
 # get_well_name
 #
@@ -132,7 +132,7 @@ def get_image_name(script=None,plate=None,well=None,K=None,file_type='png'):
                         f'{script}-{plate}-{well}.{file_type}' if K==None else f'{script}-{plate}-{well}-{K}.{file_type}')
 
 if __name__=='__main__':
-    import os, re, argparse,sys
+    import  re, argparse,sys
     from matplotlib import rc
     rc('text', usetex=True)
 

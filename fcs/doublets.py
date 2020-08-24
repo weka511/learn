@@ -18,6 +18,8 @@ import gcps,fcsparser
 if __name__=='__main__':
     import os, re, argparse,sys,matplotlib.pyplot as plt
     from matplotlib import rc
+    from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib import cm
     rc('text', usetex=True)
     
     parser   = argparse.ArgumentParser('Fit Gaussian Mixture Model to GCP wells')
@@ -56,7 +58,12 @@ if __name__=='__main__':
                         btim     = meta['$BTIM']
                         etim     = meta['$ETIM']
                         cyt      = meta['$CYT']
-                        df1      = gcps.purge_outliers(df)
+                        df1      = df[(0               < df['FSC-H']) & \
+                                      (df['FSC-H']     < 1000000  )   & \
+                                      (0               < df['SSC-H']) & \
+                                      (df['SSC-H']     < 1000000)     & \
+                                      (df['FSC-Width'] < 2000000)]
+                        
                         well     = gcps.get_well_name(tbnm)
  
                         if well in args.well:
@@ -64,11 +71,18 @@ if __name__=='__main__':
   
                             plt.figure(figsize=(10,10))
                             plt.suptitle(f'{plate} {well}')
-                            
-                            ax1 = plt.subplot(2,2,1)
-                            ax1.scatter(df1['FSC-H'],df1['SSC-H'],s=1,c='g')
+                            ax1 = plt.subplot(1,1,1, projection='3d') #FIXME
+                           
+                            ax1.scatter(df1['FSC-H'],df1['SSC-H'] ,df1['FSC-Width'],s=1,c=df1['FSC-Width'])                            
                             ax1.set_xlabel('FSC-H')
                             ax1.set_ylabel('SSC-H')
+                            ax1.set_zlabel('FSC-Width')
+                            
+                            plt.savefig(
+                                gcps.get_image_name(
+                                    script = os.path.basename(__file__).split('.')[0],
+                                    plate  = plate,
+                                    well   = well))                            
     
     if show:
         plt.show()  
