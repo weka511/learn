@@ -73,46 +73,37 @@ if __name__=='__main__':
   
                             plt.figure(figsize=(10,10))
                             plt.suptitle(f'{plate} {well}')
-                            ax1 = plt.subplot(3,3,1, projection='3d') #FIXME
-                           
-                            ax1.scatter(df1['FSC-H'],df1['SSC-H'] ,df1['FSC-Width'],s=1,c=df1['FSC-Width'])                            
+                             
+                            n_f,bins_f = np.histogram(df1['FSC-H'],bins =100)
+                              
+                            n_s,bins_s = np.histogram(df1['SSC-H'],bins =100)                        
+ 
+                            n_w,bins_w = np.histogram(df1['FSC-Width'],bins =100)
+                            
+                            K     = 1
+                            xs    = df1['FSC-H'].values
+                            ys    = df1['SSC-H'].values
+                            zs    = df1['FSC-Width'].values
+                            mu    = [np.mean(xs),np.mean(ys),np.mean(zs)]
+                            sigma = np.cov([xs,ys,zs],rowvar=True)                                                    
+                            var   = multivariate_normal(mean=mu, cov=sigma)
+                            ps    = [var.pdf([xs[i],ys[i],zs[i]]) for i in range(len(df1['FSC-H']))]  
+                            ax1   = plt.subplot(2,2,1, projection='3d')
+                            ax1.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=ps)                            
                             ax1.set_xlabel('FSC-H')
                             ax1.set_ylabel('SSC-H')
                             ax1.set_zlabel('FSC-Width')
                             
-                            n_f,bins_f = np.histogram(df1['FSC-H'],bins =100)
-                            ax2 = plt.subplot(3,3,2)
-                            ax2.scatter(bins_f[1:],n_f,s=1)
-                            ax2.set_xlabel('FSC-H')
-                            
-                            n_s,bins_s = np.histogram(df1['SSC-H'],bins =100)                        
-                            ax3 = plt.subplot(3,3,3)
-                            ax3.scatter(bins_s[1:],n_s,s=1)
-                            ax3.set_xlabel('SSC-H')
-
-                            n_w,bins_w = np.histogram(df1['FSC-Width'],bins =100)
-                            ax4 = plt.subplot(3,3,4)
-                            ax4.scatter(bins_w[1:],n_w,s=1)
-                            ax4.set_xlabel('FSC-Width')
-                            
-                            K=1
-                            mu = [np.mean(df1['FSC-H']),np.mean(df1['SSC-H']),np.mean(df1['FSC-Width'])]
-                            sigma = [
-                                [np.std(df1['FSC-H'])**2, 0,                       0],
-                                [0,                       np.std(df1['SSC-H'])**2, 0],
-                                [0,                       0,                       np.std(df1['FSC-Width'])**2]]
-                            var = multivariate_normal(mean=mu, cov=sigma)
-                            xs = df1['FSC-H'].values
-                            ys = df1['SSC-H'].values
-                            zs = df1['FSC-Width'].values
-                            ps = [var.pdf([xs[i],ys[i],zs[i]])
-                                  for i in range(len(df1['FSC-H']))]                            
-                            ax5 = plt.subplot(3,3,5, projection='3d')
-                           
-                            ax5.scatter(df1['FSC-H'],df1['SSC-H'] ,df1['FSC-Width'],s=1,c=ps)                            
-                            ax5.set_xlabel('FSC-H')
-                            ax5.set_ylabel('SSC-H')
-                            ax5.set_zlabel('FSC-Width')
+                            for i in range(3):
+                                mu    = [np.average(xs,weights=ps),np.average(ys,weights=ps),np.average(zs,weights=ps)]
+                                sigma = np.cov([xs,ys,zs],rowvar=True,aweights=ps)                                                    
+                                var   = multivariate_normal(mean=mu, cov=sigma)                            
+                                ps    = [var.pdf([xs[i],ys[i],zs[i]]) for i in range(len(df1['FSC-H']))] 
+                                ax2   = plt.subplot(2,2,2+i, projection='3d')
+                                ax2.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=ps)                            
+                                ax2.set_xlabel('FSC-H')
+                                ax2.set_ylabel('SSC-H')
+                                ax2.set_zlabel('FSC-Width')                            
                             
                             K=2
                             
