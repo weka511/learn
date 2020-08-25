@@ -128,13 +128,16 @@ if __name__=='__main__':
                         help='Display graphs')
     parser.add_argument('--init',
                         choices=['randomize','sigma'],
-                        default='sigma')
+                        default='sigma',
+                        help='Initialize means by offsetting from true mean using stndard deviation (sigma) or at random (randomize)')
     parser.add_argument('--mult',
                         default = 0.25,
-                        type=float)
+                        type=float,
+                        help='If INIT is sigma, this is the offset from the mean')
     parser.add_argument('--separation',
                         default=1000000,
-                        type=float)
+                        type=float,
+                        help='If INIT is randomize, this is minimum squared separation')
     args     = parser.parse_args()
     show     = args.show or args.plate!='all'
     failures = []
