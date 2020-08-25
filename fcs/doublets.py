@@ -19,30 +19,35 @@ from scipy.stats import multivariate_normal
 def sqdist(p1,p2,d=3):
     return sum ([(p1[i]-p2[i])**2 for i in range(d)])
 
-def e_step(xs,ys,zs,mus=[],Sigmas=[],alphas=[],K=2):
-    var = [multivariate_normal(mean=mus[k], cov=Sigmas[k]) for k in range(K)]
-    ps  = [[var[k].pdf([xs[i],ys[i],zs[i]]) for i in range(len(xs))] for k in range(K)] 
-    ws  = [[ps[k][i] for i in range(len(xs))] for k in range(K)] 
-    Zs  = [sum([ws[k][i] for k in range(K)]) for i in range(len(xs))]
-    return [[ws[k][i]/Zs[i] for i in range(len(xs))] for k in range(K)],ps
 
-def m_step(xs,ys,zs,ws,K=2):
-    N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
-    alphas  = [n/sum(N) for n in N]
-    mus    = [[np.average(xs,weights=ws[k]),np.average(ys,weights=ws[k]),np.average(zs,weights=ws[k])] for k in range(K)]
-    Sigmas = [np.cov([xs,ys,zs],rowvar=True,aweights=ws[k]) for k in range(K)]      
-    return (alphas,mus,Sigmas)
 
-def get_log_likelihood(ps,mus=[],Sigmas=[],alphas=[],K=2):
-    return sum([math.log(sum([alphas[k]*ps[k][i] for k in range(K)])) for i in range(len(xs))])
+
 
 def maximize_likelihood(xs,ys,zs,mus=[],Sigmas=[],alphas=[],K=2,N=25,limit=1.0e-6):
+    def has_converged():
+        return len(likelihoods)>1 and abs(likelihoods[-1]/likelihoods[-2]-1)<limit  
+    def get_log_likelihood(ps):
+        return sum([math.log(sum([alphas[k]*ps[k][i] for k in range(K)])) for i in range(len(xs))])
+    def e_step():
+        var = [multivariate_normal(mean=mus[k], cov=Sigmas[k]) for k in range(K)]
+        ps  = [[var[k].pdf([xs[i],ys[i],zs[i]]) for i in range(len(xs))] for k in range(K)] 
+        ws  = [[ps[k][i] * alphas[k] for i in range(len(xs))] for k in range(K)] 
+        Zs  = [sum([ws[k][i] for k in range(K)]) for i in range(len(xs))]
+        return [[ws[k][i]/Zs[i] for i in range(len(xs))] for k in range(K)],ps
+    
+    def m_step(ws):
+        N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
+        alphas  = [n/sum(N) for n in N]
+        mus    = [[np.average(xs,weights=ws[k]),np.average(ys,weights=ws[k]),np.average(zs,weights=ws[k])] for k in range(K)]
+        Sigmas = [np.cov([xs,ys,zs],rowvar=True,aweights=ws[k]) for k in range(K)]      
+        return (alphas,mus,Sigmas)    
+    
     likelihoods=[]
-    for i in range(N):
-        ws,ps = e_step(xs,ys,zs,mus=mus,Sigmas=Sigmas,alphas=alphas)
-        alphas,mus,Sigmas = m_step(xs,ys,zs,ws)
-        likelihoods.append(get_log_likelihood(ps,mus=mus,Sigmas=Sigmas,alphas=alphas))
-    return likelihoods,ws
+    while len(likelihoods)<N and not has_converged():
+        ws,ps = e_step()
+        alphas,mus,Sigmas = m_step(ws)
+        likelihoods.append(get_log_likelihood(ps))
+    return likelihoods,ws,alphas,mus,Sigmas
 
 if __name__=='__main__':
     import os, re, argparse,sys,matplotlib.pyplot as plt
@@ -101,10 +106,7 @@ if __name__=='__main__':
   
                             plt.figure(figsize=(10,10))
                             plt.suptitle(f'{plate} {well}')
-                             
-                            #n_f,bins_f = np.histogram(df1['FSC-H'],bins =100)                            
-                            #n_s,bins_s = np.histogram(df1['SSC-H'],bins =100)                        
-                            #n_w,bins_w = np.histogram(df1['FSC-Width'],bins =100)                   
+                                          
  
                             K      = 2
                             d      = 3
@@ -119,33 +121,24 @@ if __name__=='__main__':
                             alphas = [[1,0] if a==0 else [0,1] for a in clust]
                             Sigmas = [np.cov([xs,ys,zs],rowvar=True,aweights=[a[0] for a in alphas]),
                                       np.cov([xs,ys,zs],rowvar=True,aweights=[a[1] for a in alphas])]
+                            alphas=[0.5,0.5]
+                            likelihoods,ws,alphas,mus,Sigmas=maximize_likelihood(xs,ys,zs,mus=mus,Sigmas=Sigmas,alphas=alphas)                       
                             
-                            #ax1    = plt.subplot(2,2,1, projection='3d')
-                            #ax1.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=[a[0] for a in alphas],alpha=0.5)                            
-                            #ax1.scatter(mus[0][0],mus[0][1],mus[0][2],c='r',alpha=0.5) 
-                            #ax1.scatter(mus[1][0],mus[1][1],mus[1][2],c='b',alpha=0.5)
-                            
-                            likelihoods,ws=maximize_likelihood(xs,ys,zs,mus=mus,Sigmas=Sigmas,alphas=alphas)
-                            
-                            #ws,ps = e_step(xs,ys,zs,mus=mus,Sigmas=Sigmas,alphas=alphas)
                             ax1    = plt.subplot(2,2,1, projection='3d')
-                            sc1=ax1.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=[ws[0]], cmap=cm)
+                            sc1    = ax1.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=[ws[0]], cmap=cm)
+                            ax1.set_xlabel('FSC-H')
+                            ax1.set_ylabel('SSC-H')
+                            ax1.set_zlabel('FSC-Width')
                             ax2    = plt.subplot(2,2,2, projection='3d')
-                            sc2 = ax2.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=[ws[1]], cmap=cm) 
+                            sc2    = ax2.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=[ws[1]], cmap=cm) 
+                            ax2.set_xlabel('FSC-H')
+                            ax2.set_ylabel('SSC-H')
+                            ax2.set_zlabel('FSC-Width')                            
                             plt.colorbar(sc1)
-                            
-                            #alphas,mus,Sigmas = m_step(xs,ys,zs,ws)
-                            
-                            #print (get_log_likelihood(ps,mus=mus,Sigmas=Sigmas,alphas=alphas))
-                            #ws,ps = e_step(xs,ys,zs,mus=mus,Sigmas=Sigmas,alphas=alphas)
-                            #ax3    = plt.subplot(2,2,3, projection='3d')
-                            #ax3.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=[ws[0]])
-                            #ax4    = plt.subplot(2,2,4, projection='3d')
-                            #ax4.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=[ws[1]])
-                            #alphas,mus,Sigmas = m_step(xs,ys,zs,ws)
-                            
-                            #print (get_log_likelihood(ps,mus=mus,Sigmas=Sigmas,alphas=alphas))                            
-                            
+                            ax3    = plt.subplot(2,2,3)
+                            ax3.plot(range(len(likelihoods)),likelihoods)
+                            ax3.set_ylabel('log(likelihood)')
+                         
                             plt.savefig(
                                 gcps.get_image_name(
                                     script = os.path.basename(__file__).split('.')[0],
@@ -155,27 +148,4 @@ if __name__=='__main__':
     if show:
         plt.show()  
         
-    #K     = 1
-    #xs    = df1['FSC-H'].values
-    #ys    = df1['SSC-H'].values
-    #zs    = df1['FSC-Width'].values
-    #mu    = [np.mean(xs),np.mean(ys),np.mean(zs)]
-    #sigma = np.cov([xs,ys,zs],rowvar=True)                                                    
-    #var   = multivariate_normal(mean=mu, cov=sigma)
-    #ps    = [var.pdf([xs[i],ys[i],zs[i]]) for i in range(len(df1['FSC-H']))]  
-    #ax1   = plt.subplot(2,2,1, projection='3d')
-    #ax1.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=ps)                            
-    #ax1.set_xlabel('FSC-H')
-    #ax1.set_ylabel('SSC-H')
-    #ax1.set_zlabel('FSC-Width')
-    
-    #for i in range(3):
-        #mu    = [np.average(xs,weights=ps),np.average(ys,weights=ps),np.average(zs,weights=ps)]
-        #sigma = np.cov([xs,ys,zs],rowvar=True,aweights=ps)                                                    
-        #var   = multivariate_normal(mean=mu, cov=sigma)                            
-        #ps    = [var.pdf([xs[i],ys[i],zs[i]]) for i in range(len(df1['FSC-H']))] 
-        #ax2   = plt.subplot(2,2,2+i, projection='3d')
-        #ax2.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=ps)                            
-        #ax2.set_xlabel('FSC-H')
-        #ax2.set_ylabel('SSC-H')
-        #ax2.set_zlabel('FSC-Width')                            
+           
