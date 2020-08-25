@@ -234,7 +234,9 @@ if __name__=='__main__':
                                 gcps.get_image_name(
                                     script = os.path.basename(__file__).split('.')[0],
                                     plate  = plate,
-                                    well   = well))                            
+                                    well   = well)) 
+                            if not show:
+                                plt.close()                            
  
     if len(failures)>0:
         print ('Failures')
