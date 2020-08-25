@@ -16,28 +16,80 @@
 import fcsparser,fcs,gcps,numpy as np,math
 from scipy.stats import multivariate_normal
 
+# sqdist
+#
+# Calculate the squared distance between two points
+#
+#    Parameters:
+#        p1 One point
+#        p2 The other point
+#        d  Number of dimesnions for space
+
 def sqdist(p1,p2,d=3):
     return sum ([(p1[i]-p2[i])**2 for i in range(d)])
 
-
-
-
+# maximize_likelihood
+#
+# Get best GMM fit, using 
+# Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning 
+# Padhraic Smyth 
+# https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
+#
+# Parameters:
+#     xs      x coordinates for all points (FSC-H)
+#     ys      y coordinates for all points (SSC-H)
+#     zs      z coordinates for all points (FSC-Width)
+#     mus     Means--one triplet (x,y,z) for each  component in GMM
+#     Sigmas  Covaraince--one matrix  for each  component in GMM
+#     alphas  Proportion of points assigned  to each  component in GMM
+#     K       Number of components in GMM
+#     N       Max number of iterations
+#     limit   Used to decide whether we have converged (ratio between the last two likelihoods is this close to 1). 
 
 def maximize_likelihood(xs,ys,zs,mus=[],Sigmas=[],alphas=[],K=2,N=25,limit=1.0e-6):
+    
+    # has_converged
+    #
+    # Verify that the ratio between the last two likelihoods is close to 1
     def has_converged():
-        return len(likelihoods)>1 and abs(likelihoods[-1]/likelihoods[-2]-1)<limit  
+        return len(likelihoods)>1 and abs(likelihoods[-1]/likelihoods[-2]-1)<limit 
+    
+    # get_log_likelihood
+    #
+    # Calculate log likelihood
+    #
+    # Parameters:
+    #     ps     matrix of Probabilies ps[k][i]--the proability of point (xs[i],ys[i],zs[i]) given cluster k
+    
     def get_log_likelihood(ps):
         return sum([math.log(sum([alphas[k]*ps[k][i] for k in range(K)])) for i in range(len(xs))])
+    
+    # e_step
+    #
+    # Calculate ws for the E-step 
+    #
+    # Returns:
+    #     ws    weights
+    #     ps    For use in get_log_likelihood(...)
     def e_step():
         var = [multivariate_normal(mean=mus[k], cov=Sigmas[k]) for k in range(K)]
         ps  = [[var[k].pdf([xs[i],ys[i],zs[i]]) for i in range(len(xs))] for k in range(K)] 
-        ws  = [[ps[k][i] * alphas[k] for i in range(len(xs))] for k in range(K)] 
+        ws  = [[ps[k][i] * alphas[k] for i in range(len(xs))] for k in range(K)] # Not normalized
         Zs  = [sum([ws[k][i] for k in range(K)]) for i in range(len(xs))]
         return [[ws[k][i]/Zs[i] for i in range(len(xs))] for k in range(K)],ps
     
+    # m_step
+    #
+    # Peform M-step
+    #
+    # Parameters:
+    #     ws       weights
+    #
+    # Returns:  alphas,mus,Sigmas
+    
     def m_step(ws):
-        N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
-        alphas  = [n/sum(N) for n in N]
+        N      = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
+        alphas = [n/sum(N) for n in N]
         mus    = [[np.average(xs,weights=ws[k]),np.average(ys,weights=ws[k]),np.average(zs,weights=ws[k])] for k in range(K)]
         Sigmas = [np.cov([xs,ys,zs],rowvar=True,aweights=ws[k]) for k in range(K)]      
         return (alphas,mus,Sigmas)    
@@ -45,7 +97,7 @@ def maximize_likelihood(xs,ys,zs,mus=[],Sigmas=[],alphas=[],K=2,N=25,limit=1.0e-
     likelihoods=[]
     try:
         while len(likelihoods)<N and not has_converged():
-            ws,ps = e_step()
+            ws,ps             = e_step()
             alphas,mus,Sigmas = m_step(ws)
             likelihoods.append(get_log_likelihood(ps))
         return True,likelihoods,ws,alphas,mus,Sigmas
@@ -56,8 +108,6 @@ if __name__=='__main__':
     import os, re, argparse,sys,matplotlib.pyplot as plt
     from matplotlib import rc
     from mpl_toolkits.mplot3d import Axes3D
-    #from matplotlib import cm
-    cm = plt.cm.get_cmap('RdYlBu')
     rc('text', usetex=True)
     
     parser   = argparse.ArgumentParser('Fit Gaussian Mixture Model to GCP wells')
@@ -77,10 +127,13 @@ if __name__=='__main__':
                         action='store_true',
                         help='Display graphs')
     
-    args   = parser.parse_args()
-    show   = args.show or args.plate!='all'
+    args     = parser.parse_args()
+    show     = args.show or args.plate!='all'
     failures = []
+    cm       = plt.cm.get_cmap('RdYlBu')
+    
     for root, dirs, files in os.walk(args.root):
+        
         path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
        
@@ -111,25 +164,23 @@ if __name__=='__main__':
                             plt.figure(figsize=(10,10))
                             plt.suptitle(f'{plate} {well}')
                                           
- 
-                            K      = 2
                             d      = 3
-                            mult   = 0.25
+                            mult   = 0.25 # Hyperparameter
                             xs     = df1['FSC-H'].values
                             ys     = df1['SSC-H'].values
                             zs     = df1['FSC-Width'].values
                             mu     = [np.mean(xs),np.mean(ys),np.mean(zs)]
                             sigma  = [np.std(xs),np.std(ys),np.std(zs)]
                             mus    = [[mu[i]+ direction*mult*sigma[i] for i in range(d)] for direction in [-1,+1]]
-                            clust  = [0 if sqdist(p,mus[0]) < sqdist(p,mus[1]) else 1 for p in zip(xs,ys,zs)]
-                            alphas = [[1,0] if a==0 else [0,1] for a in clust]
-                            Sigmas = [np.cov([xs,ys,zs],rowvar=True,aweights=[a[0] for a in alphas]),
-                                      np.cov([xs,ys,zs],rowvar=True,aweights=[a[1] for a in alphas])]
-                            alphas=[0.5,0.5]
-                            outcome,likelihoods,ws,alphas,mus,Sigmas=maximize_likelihood(xs,ys,zs,
-                                                                                         mus=mus,
-                                                                                         Sigmas=Sigmas,
-                                                                                         alphas=alphas)                       
+                            alphas = [0.5,0.5]
+                            Sigmas = [np.cov([xs,ys,zs],rowvar=True),
+                                      np.cov([xs,ys,zs],rowvar=True)]
+  
+                            outcome,likelihoods,ws,alphas,mus,Sigmas = maximize_likelihood(
+                                                                           xs,ys,zs,
+                                                                           mus=mus,
+                                                                           Sigmas=Sigmas,
+                                                                           alphas=alphas)                       
                             if outcome:
                                 ax1    = plt.subplot(2,2,1, projection='3d')
                                 sc1    = ax1.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=[ws[0]], cmap=cm)
