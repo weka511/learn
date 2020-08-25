@@ -105,7 +105,7 @@ def maximize_likelihood(xs,ys,zs,mus=[],Sigmas=[],alphas=[],K=2,N=25,limit=1.0e-
         return False, likelihoods,ws,alphas,mus,Sigmas
     
 if __name__=='__main__':
-    import os, re, argparse,sys,matplotlib.pyplot as plt
+    import os, re, argparse,sys,matplotlib.pyplot as plt,random
     from matplotlib import rc
     from mpl_toolkits.mplot3d import Axes3D
     rc('text', usetex=True)
@@ -126,7 +126,15 @@ if __name__=='__main__':
                         default=False,
                         action='store_true',
                         help='Display graphs')
-    
+    parser.add_argument('--init',
+                        choices=['randomize','sigma'],
+                        default='sigma')
+    parser.add_argument('--mult',
+                        default = 0.25,
+                        type=float)
+    parser.add_argument('--separation',
+                        default=1000000,
+                        type=float)
     args     = parser.parse_args()
     show     = args.show or args.plate!='all'
     failures = []
@@ -165,13 +173,27 @@ if __name__=='__main__':
                             plt.suptitle(f'{plate} {well}')
                                           
                             d      = 3
-                            mult   = 0.25 # Hyperparameter
+  
                             xs     = df1['FSC-H'].values
                             ys     = df1['SSC-H'].values
-                            zs     = df1['FSC-Width'].values
-                            mu     = [np.mean(xs),np.mean(ys),np.mean(zs)]
-                            sigma  = [np.std(xs),np.std(ys),np.std(zs)]
-                            mus    = [[mu[i]+ direction*mult*sigma[i] for i in range(d)] for direction in [-1,+1]]
+                            zs     = df1['FSC-Width'].values 
+                            
+                            mus       = []
+                            init_text = []
+                            if args.init=='sigma':
+                                mu     = [np.mean(xs),np.mean(ys),np.mean(zs)]
+                                sigma  = [np.std(xs),np.std(ys),np.std(zs)]
+                                mus    = [[mu[i]+ direction*args.mult*sigma[i] for i in range(d)] for direction in [-1,+1]]
+                                init_text = f'Sigma: mult={args.mult}'
+                            else:
+                                i      = random.choice(range(len(xs)))
+                                j      = random.choice(range(len(xs)))
+                                while sqdist([xs[i],ys[i],zs[i]],[xs[j],ys[j],zs[j]])<args.separation:
+                                    i      = random.choice(range(len(xs)))
+                                    j      = random.choice(range(len(xs)))                                
+                                mus = [[xs[i],ys[i],zs[i]],[xs[j],ys[j],zs[j]]]
+                                init_text = f'Random: separation={args.separation}'
+  
                             alphas = [0.5,0.5]
                             Sigmas = [np.cov([xs,ys,zs],rowvar=True),
                                       np.cov([xs,ys,zs],rowvar=True)]
@@ -187,6 +209,7 @@ if __name__=='__main__':
                                 ax1.set_xlabel('FSC-H')
                                 ax1.set_ylabel('SSC-H')
                                 ax1.set_zlabel('FSC-Width')
+                                ax1.set_title(init_text)
                                 ax2    = plt.subplot(2,2,2, projection='3d')
                                 sc2    = ax2.scatter(df1['FSC-H'], df1['SSC-H'], df1['FSC-Width'],s=1,c=[ws[1]], cmap=cm) 
                                 ax2.set_xlabel('FSC-H')
