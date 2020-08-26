@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,os
+import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,os,re
 
 
 #  get_bounds
@@ -60,7 +60,9 @@ def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
 # Extract well name from tube name
 
 def get_well_name(tbnm):
-    return tbnm[-3:]
+    m = re.match('.?([A-H][1-9][012]?)',tbnm[-3:])
+    if m:
+        return m.group(1)
 
 # get_image_name
 #
