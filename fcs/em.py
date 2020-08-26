@@ -17,7 +17,7 @@
 # Padhraic Smyth 
 # https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
 
-import math,numpy as np
+import math,numpy as np,random,sys
 from scipy.stats import multivariate_normal
 
 # sqdist
@@ -107,6 +107,27 @@ def maximize_likelihood(xs,ys,zs,mus=[],Sigmas=[],alphas=[],K=2,N=25,limit=1.0e-
         return True,likelihoods,ws,alphas,mus,Sigmas
     except(ValueError):
         return False, likelihoods,ws,alphas,mus,Sigmas
+
+# get_mus
+#
+# Start iteration with a set of centroids
+#
+# Parameters:
+#     xs
+#     ys
+#     zs
+#     K
+#     min_separation
+
+def get_mus(xs,ys,zs,K=6,min_separation=100000,N=25):
+    for n in range(N):
+        ks   = random.sample(range(len(xs)),k=K)
+        dist = min(sqdist((xs[ks[i]],ys[ks[i]],zs[ks[i]]),
+                          (xs[ks[j]],ys[ks[j]],zs[ks[j]])) for i in range(K) for j in range(i))
+        if dist>min_separation:
+            return [(xs[k],ys[k],zs[k]) for k in ks]   
+    
+
     
 if __name__=='__main__':
     pass
