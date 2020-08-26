@@ -85,8 +85,11 @@ def maximize_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3,N=25,limit=1.0e-6):
 
 
 if __name__=='__main__':
-    import  re, argparse,sys
+    import  re, argparse,sys,doublets
     from matplotlib import rc
+    from mpl_toolkits.mplot3d import Axes3D
+    #from scipy.stats import multivariate_normal
+    
     rc('text', usetex=True)
 
     parser   = argparse.ArgumentParser('Fit Gaussian Mixture Model to GCP wells')
@@ -122,6 +125,11 @@ if __name__=='__main__':
                         action='store_true',
                         help='Decide whether to keep K=3 or 4')
     
+    parser.add_argument('-d','--doublets',
+                        default=False,
+                        action='store_true',
+                        help='Strip doublets')
+    
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'
     
@@ -149,17 +157,44 @@ if __name__=='__main__':
                         if well in args.well:
                             print (f'{plate} {well}')
                             kstats = []         # Store statistics for each K so we can tune hyperparameter
+                            xs     = df1['FSC-H'].values
+                            ys     = df1['SSC-H'].values
+                            zs     = df1['FSC-Width'].values                             
                             for K in args.K:
                                 plt.figure(figsize=(10,10))
                                 plt.suptitle(f'{plate} {well}')
+                                singlet = [True for i in range(len(xs))]
+                                ax1 = plt.subplot(2,2,1,projection='3d')
+                                if args.doublets:
+                                    mult = 0.25
+                                    mu     = [np.mean(xs),np.mean(ys),np.mean(zs)]
+                                    sigma  = [np.std(xs),np.std(ys),np.std(zs)]
+                                    mus    = [[mu[i]+ direction*mult*sigma[i] for i in range(len(mu))] for direction in [-1,+1]]
+                                    alphas = [0.5,0.5]
+                                    Sigmas = [np.cov([xs,ys,zs],rowvar=True),
+                                              np.cov([xs,ys,zs],rowvar=True)]
                                 
-                                ax1 = plt.subplot(2,2,1)
-                                ax1.scatter(df1['FSC-H'],df1['SSC-H'],s=1,c='g')
+                                    outcome,likelihoods,ws,alphas,mus,Sigmas = \
+                                        doublets.maximize_likelihood(
+                                            xs,ys,zs,
+                                            mus=mus,
+                                            Sigmas=Sigmas,
+                                            alphas=alphas)                                     
+                                    
+                                    cm  = plt.cm.get_cmap('RdYlBu')
+                                    sc1 = ax1.scatter(xs,ys,zs,s=1,c=ws[0],cmap=cm)
+                                    plt.colorbar(sc1)
+                                    q = np.quantile(ws[0], 0.5)
+                                    singlet = [ws[0][i]>q for i in range(len(xs))]
+                                else:
+                                    ax1.scatter(xs,ys,zs,s=1,c='g')
+                                
                                 ax1.set_xlabel('FSC-H')
                                 ax1.set_ylabel('SSC-H')
+                                ax1.set_zlabel('FSC-Width')  
                                 
                                 ax2             = plt.subplot(2,2,2)
-                                intensities     = np.log(df1['Red-H']).values
+                                intensities     = np.log(df1['Red-H'][singlet]).values
                                 n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
                                 indices         = get_boundaries(bins,n,K=K)
                                 indices.append(len(n))
@@ -167,26 +202,26 @@ if __name__=='__main__':
                                             for k in range(K)]
                                 mus      = []
                                 sigmas   = []
-                                ys       = []
+                                heights      = []
                                 for k in range(K):
                                     mu,sigma,_,y = get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
                                     mus.append(mu)
                                     sigmas.append(sigma)
-                                    ys.append(y)
+                                    heights.append(y)
                                 
                                 for k in range(K):    
                                     if k==0:
-                                        ax2.plot(bins, ys[k], c='c', label='GMM')
+                                        ax2.plot(bins, heights[k], c='c', label='GMM')
                                     else:
-                                        ax2.plot(bins, ys[k], c='c')
+                                        ax2.plot(bins, heights[k], c='c')
                                         
-                                    ax2.fill_between(bins, ys[k], color='c', alpha=0.5)
+                                    ax2.fill_between(bins, heights[k], color='c', alpha=0.5)
        
-                                zs  = [sum(zz) for zz in zip(*ys)] 
+                                sums  = [sum(zz) for zz in zip(*heights)] 
                                 a,b = ax2.get_ylim()
                                 cn  = 0.5*(a+b)
                                 for k in range(K):
-                                    ax2.plot(bins, [cn*c for c in [y/z for (y,z) in zip(ys[k],zs)]],  label=f'c{k}')
+                                    ax2.plot(bins, [cn*c for c in [y/z for (y,z) in zip(heights[k],sums)]],  label=f'c{k}')
                                  
                                 ax2.set_title('Initialization')
                                 ax2.set_xlabel('log(Red-H)')
