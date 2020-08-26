@@ -81,14 +81,19 @@ def maximize_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3,N=25,limit=1.0e-6):
         likelihoods.append(get_log_likelihood(mus=mus,sigmas=sigmas,alphas=alphas))
         
     return likelihoods,alphas,mus,sigmas
- 
 
+# get_selector
+#
+# Used to select weightiest data 
+
+def get_selector(ws,q=0.5,K=0): # hyperparameter
+    quantile = np.quantile(ws[K], q) # hyperparameter
+    return [w>quantile for w in ws[K]]    
 
 if __name__=='__main__':
     import  re, argparse,sys,doublets
     from matplotlib import rc
     from mpl_toolkits.mplot3d import Axes3D
-    #from scipy.stats import multivariate_normal
     
     rc('text', usetex=True)
 
@@ -151,9 +156,14 @@ if __name__=='__main__':
                         btim     = meta['$BTIM']
                         etim     = meta['$ETIM']
                         cyt      = meta['$CYT']
-                        df1      = fcs.purge_outliers(df)
+                        #df1      = fcs.purge_outliers(df)
                         well     = fcs.get_well_name(tbnm)
- 
+                        df1      = df[(0               < df['FSC-H']) & \
+                                      (df['FSC-H']     < 1000000  )   & \
+                                      (0               < df['SSC-H']) & \
+                                      (df['SSC-H']     < 1000000)     & \
+                                      (df['FSC-Width'] < 2000000)]
+                        
                         if well in args.well:
                             print (f'{plate} {well}')
                             kstats = []         # Store statistics for each K so we can tune hyperparameter
@@ -166,7 +176,7 @@ if __name__=='__main__':
                                 singlet = [True for i in range(len(xs))]
                                 ax1 = plt.subplot(2,2,1,projection='3d')
                                 if args.doublets:
-                                    mult = 0.25
+                                    mult   = 0.25 # hyperparameter
                                     mu     = [np.mean(xs),np.mean(ys),np.mean(zs)]
                                     sigma  = [np.std(xs),np.std(ys),np.std(zs)]
                                     mus    = [[mu[i]+ direction*mult*sigma[i] for i in range(len(mu))] for direction in [-1,+1]]
@@ -174,18 +184,21 @@ if __name__=='__main__':
                                     Sigmas = [np.cov([xs,ys,zs],rowvar=True),
                                               np.cov([xs,ys,zs],rowvar=True)]
                                 
-                                    outcome,likelihoods,ws,alphas,mus,Sigmas = \
+                                    maximized,likelihoods,ws,alphas,mus,Sigmas = \
                                         doublets.maximize_likelihood(
                                             xs,ys,zs,
                                             mus=mus,
                                             Sigmas=Sigmas,
                                             alphas=alphas)                                     
                                     
-                                    cm  = plt.cm.get_cmap('RdYlBu')
-                                    sc1 = ax1.scatter(xs,ys,zs,s=1,c=ws[0],cmap=cm)
-                                    plt.colorbar(sc1)
-                                    q = np.quantile(ws[0], 0.5)
-                                    singlet = [ws[0][i]>q for i in range(len(xs))]
+                                    if maximized:
+                                        plt.colorbar(ax1.scatter(xs,ys,zs,
+                                                             s=1,
+                                                             c=ws[0],
+                                                             cmap=plt.cm.get_cmap('RdYlBu') ))
+                                        singlet = get_selector(ws)
+                                    else:
+                                        ax1.scatter(xs,ys,zs,s=1,c='m')
                                 else:
                                     ax1.scatter(xs,ys,zs,s=1,c='g')
                                 
