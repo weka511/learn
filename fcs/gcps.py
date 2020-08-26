@@ -82,9 +82,7 @@ def maximize_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3,N=25,limit=1.0e-6):
         
     return likelihoods,alphas,mus,sigmas
  
-def get_image_name(script=None,plate=None,well=None,K=None,file_type='png'):
-    return os.path.join('figs',
-                        f'{script}-{plate}-{well}.{file_type}' if K==None else f'{script}-{plate}-{well}-{K}.{file_type}')
+
 
 if __name__=='__main__':
     import  re, argparse,sys
@@ -227,7 +225,7 @@ if __name__=='__main__':
                                 
                                 kstats.append((K,mus,sigmas))
                                 plt.savefig(
-                                    get_image_name(
+                                    fcs.get_image_name(
                                         script = os.path.basename(__file__).split('.')[0],
                                         plate  = plate,
                                         well   = well,
@@ -259,13 +257,13 @@ if __name__=='__main__':
                                     break
                                 
                                 for K,_,_ in kstats:
-                                    file_name =  get_image_name(
+                                    file_name =  fcs.get_image_name(
                                                      script = os.path.basename(__file__).split('.')[0],
                                                      plate  = plate,
                                                      well   = well,
                                                      K      = K)
                                     if K==K_preferred:
-                                        new_file_name = get_image_name(
+                                        new_file_name = fcs.get_image_name(
                                                       script = os.path.basename(__file__).split('.')[0],
                                                       plate  = plate,
                                                       well   = well)

@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats
+import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,os
 
 
 #  get_bounds
@@ -61,6 +61,22 @@ def purge_outliers(df,nsigma=3,nw=2,max_iterations=float('inf')):
 
 def get_well_name(tbnm):
     return tbnm[-3:]
+
+# get_image_name
+#
+# Function used to name image files
+#
+# Parameters:
+#
+#     script
+#     plate
+#     well
+#     K
+#     file_type
+
+def get_image_name(script=None,plate=None,well=None,K=None,file_type='png'):
+    return os.path.join('figs',
+                        f'{script}-{plate}-{well}.{file_type}' if K==None else f'{script}-{plate}-{well}-{K}.{file_type}')
 
 def chi_sq(n,bins=[],df=None, channel='FSC-H'):
     assert len(n)+1==len(bins)

@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import fcsparser,fcs,gcps,numpy as np,math
+import fcsparser,fcs,numpy as np,math
 from scipy.stats import multivariate_normal
 
 # sqdist
@@ -231,7 +231,7 @@ if __name__=='__main__':
                                 ax1.set_title('Failed')
                                 failures.append(f'{plate} {well}')
                             plt.savefig(
-                                gcps.get_image_name(
+                                fcs.get_image_name(
                                     script = os.path.basename(__file__).split('.')[0],
                                     plate  = plate,
                                     well   = well)) 
