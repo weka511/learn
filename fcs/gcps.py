@@ -91,7 +91,7 @@ def get_selector(ws,q=0.5,K=0): # hyperparameter
     return [w>quantile for w in ws[K]]    
 
 if __name__=='__main__':
-    import  re, argparse,sys,doublets
+    import  re, argparse,sys,em
     from matplotlib import rc
     from mpl_toolkits.mplot3d import Axes3D
     
@@ -185,7 +185,7 @@ if __name__=='__main__':
                                               np.cov([xs,ys,zs],rowvar=True)]
                                 
                                     maximized,likelihoods,ws,alphas,mus,Sigmas = \
-                                        doublets.maximize_likelihood(
+                                        em.maximize_likelihood(
                                             xs,ys,zs,
                                             mus=mus,
                                             Sigmas=Sigmas,
