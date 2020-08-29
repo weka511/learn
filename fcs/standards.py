@@ -41,11 +41,15 @@ def create_standards():
     return product
 
 def lookup(key,standards):
-    candidates = sorted([(k,v) for (k,v) in standards if key[:3]==k[:3] and k<=key])
-    if len(candidates)>0:
-        _,value = candidates[-1]
-        return value
-    else:
+    m = re.match('((RTI)|(PAP))[A-Z]*([0-9]+)',key)
+    if m:
+        beadset = m.group(1)
+        n = m.group(4)
+        candidates = sorted([(k,v) for (k,v) in standards if beadset==k[:3] and k[3:]<=n])
+        if len(candidates)>0:
+            _,value = candidates[-1]
+            return value
+        
         return None
 
 if __name__=='__main__':
@@ -53,3 +57,4 @@ if __name__=='__main__':
     print (standards)
     print (lookup('PAP15100001',standards))
     print (lookup('PAP90200082',standards))
+    print (lookup('RTICT16100019',standards))
