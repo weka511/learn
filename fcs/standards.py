@@ -47,9 +47,8 @@ def lookup(key,standards):
         n = m.group(4)
         candidates = sorted([(k,v) for (k,v) in standards if beadset==k[:3] and k[3:]<=n])
         if len(candidates)>0:
-            _,value = candidates[-1]
-            return value
-        
+            return candidates[-1]
+
         return None
 
 if __name__=='__main__':
