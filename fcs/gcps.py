@@ -263,9 +263,9 @@ if __name__=='__main__':
                                         K      = K)
                                 
                                 if K==3:
-                                    levels = standards.lookup(plate,references)
+                                    barcode,levels = standards.lookup(plate,references)
                                     _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])
-                                    print (f'r_value={r_value}')
+                                    print (f'Using standard for {barcode}, r_value={r_value}')
     
                                 ax3 = plt.subplot(2,2,3)
                                 
