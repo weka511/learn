@@ -114,7 +114,9 @@ for root, dirs, files in os.walk(args.root):
                                         plate  = plate,
                                         well   = well,
                                         K      = K))                                
-                                print (f'{plate} {well} K={K}: elapsed {elapsed_time}')                        
+                                print (f'{plate} {well} K={K}: elapsed {elapsed_time}')
+                                if not args.show:
+                                    plt.close()
                             except:
                                 print (f'{plate} {well} K={K}: failed: {sys.exc_info()[0]}') 
 if args.show:

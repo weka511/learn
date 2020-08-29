@@ -10,3 +10,4 @@ Apply machine learning to FCS data
 | fcs.py | Investigate fitting normal curves to scattering. Also serves as a repositiory for common code |
 | gcps | Model GCPs with Gaussian Mixture Model |
 | sizes.py | Group data into size clusters|
+| standards.py | Functions to look up reference standards |

@@ -41,9 +41,9 @@ def create_standards():
     return product
 
 def lookup(key,standards):
-    candidates = sorted([(k,v) for (k,v) in standards if key[:3]==k[:3] and k>=key])
+    candidates = sorted([(k,v) for (k,v) in standards if key[:3]==k[:3] and k<=key])
     if len(candidates)>0:
-        _,value = candidates[0]
+        _,value = candidates[-1]
         return value
     else:
         return None
@@ -52,3 +52,4 @@ if __name__=='__main__':
     standards = create_standards()
     print (standards)
     print (lookup('PAP15100001',standards))
+    print (lookup('PAP90200082',standards))

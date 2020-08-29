@@ -91,9 +91,14 @@ def get_selector(ws,q=0.5,K=0): # hyperparameter
     return [w>quantile for w in ws[K]]    
 
 if __name__=='__main__':
-    import  re, argparse,sys,em
+    import  re
+    import argparse
+    import sys
+    import em
+    import standards
     from matplotlib import rc
     from mpl_toolkits.mplot3d import Axes3D
+    from scipy import stats
     
     rc('text', usetex=True)
 
@@ -139,6 +144,8 @@ if __name__=='__main__':
     show   = args.show or args.plate!='all'
     
     Konfusion = []
+    
+    references = standards.create_standards()
     
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
@@ -255,6 +262,11 @@ if __name__=='__main__':
                                         limit  = args.tolerance,
                                         K      = K)
                                 
+                                if K==3:
+                                    levels = standards.lookup(plate,references)
+                                    _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])
+                                    print (f'r_value={r_value}')
+    
                                 ax3 = plt.subplot(2,2,3)
                                 
                                 ax3.plot(range(len(likelihoods)),likelihoods)
