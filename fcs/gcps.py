@@ -22,7 +22,7 @@ import fcs,os,fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as sta
 
 # get_boundaries
 
-def get_boundaries(bins,n,K=3):
+def get_boundaries(n,K=3):
     def get_segment(c):
         for numerator in range(1,K):
             if c<numerator/K:
@@ -216,7 +216,7 @@ if __name__=='__main__':
                                 ax2             = plt.subplot(2,2,2)
                                 intensities     = np.log(df1['Red-H'][singlet]).values
                                 n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                                indices         = get_boundaries(bins,n,K=K)
+                                indices         = get_boundaries(n,K=K)
                                 indices.append(len(n))
                                 segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
                                             for k in range(K)]
