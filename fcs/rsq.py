@@ -29,8 +29,8 @@ with open(args.file) as f:
         if m:
             r_sqs.append(float(m.group(1)))
             
-    plt.hist(r_sqs,bins='fd',color='blue')
-    plt.title(args.file)
+    n,bins,_=plt.hist(r_sqs,bins='fd',color='blue')
+    plt.title(rf'File {args.file}: {100*n[-1]/sum(n):.1f}\% of wells have $r^2>${bins[-2]:.4f}')
     plt.xlabel(r'$r^2$')
     plt.ylabel('N')
     plt.show()
