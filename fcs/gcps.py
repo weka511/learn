@@ -140,12 +140,16 @@ if __name__=='__main__':
                         action='store_true',
                         help='Strip doublets')
     
+    parser.add_argument('--properties',
+                        default=r'\data\properties',
+                        help='Root for properties files')
+    
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'
     
     Konfusion = []
     
-    references = standards.create_standards()
+    references = standards.create_standards(args.properties)
     
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)

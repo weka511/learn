@@ -15,7 +15,7 @@
 
 import os, re
 
-def create_standards():
+def create_standards(path=r'C:\data\properties'):
     def extract(line,key):
         if line.startswith(key):
             pos = len(key)
@@ -25,9 +25,9 @@ def create_standards():
         return None
     
     product = []
-    for file in os.listdir('.'):
+    for file in os.listdir(path):
         if file.endswith('.properties'):
-            with open(file) as f:
+            with open(os.path.join(path,file)) as f:
                 beadset = file[:3]
                 barcode = ''
                 for line in f:
