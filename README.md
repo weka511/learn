@@ -55,3 +55,4 @@ and learning, by Rafal Bogacz](https://www.sciencedirect.com/science/article/pii
 | File  | Remarks |
 |---------------|-------------------------------------------------------------------------------------------|
 |feex1.py| Exercise 1--posterior probabilities|
+|feex2.py| Exercise 2--most likely size|
