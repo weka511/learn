@@ -23,14 +23,14 @@ def g(v):
 def g_prime(v):
     return 2*v
 
-v_p         = 3
-phi        = v_p
+v_p        = 3
 Sigma_p    = 1
 Sigma_u    = 1
 u          = 2
-epsilon_p  = (phi-v_p)/Sigma_p
-epsilon_u  = (u-g(phi))/Sigma_u
-phis       = [v_p]
+phi        = v_p
+epsilon_p  = 0
+epsilon_u  = 0
+phis       = [phi]
 epsilon_us = [epsilon_u]
 epsilon_ps = [epsilon_p]
 ts         = [0]
@@ -38,8 +38,6 @@ ts         = [0]
 dt         = 0.01
 
 for t in range(1,501):
-    epsilon_p     = (phi-v_p)/Sigma_p
-    epsilon_u     = (u-g(phi))/Sigma_u
     phi_dot       = epsilon_u*g_prime(phi) - epsilon_p
     epsilon_p_dot = phi - v_p    - Sigma_p *epsilon_p
     epsilon_u_dot = u -   g(phi) - Sigma_u * epsilon_u
@@ -54,6 +52,8 @@ for t in range(1,501):
 plt.scatter(ts,phis,s=1,label=r'$\phi$')
 plt.scatter(ts,epsilon_us,s=1,label=r'$\epsilon_u$')
 plt.scatter(ts,epsilon_ps,s=1,label=r'$\epsilon_p$')
+plt.ylim(-2,3.5)
+plt.xlabel('Time')
 plt.legend()
 plt.title('Exercise 3')
 plt.show()
