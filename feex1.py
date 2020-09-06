@@ -16,37 +16,33 @@
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 import scipy.integrate as integrate
+import math
+
+def round2(x,factor=10):
+    return math.ceil(x*factor)/factor
 
 def g(v):
     return v*v
 
-mu_u     = 2
-Sigma_u  = 1
-#p_u      = stats.norm(u, Sigma_u)
-
-def p_u_v(u,v):
+def p_u_v(u,v,Sigma_u  = 1):
     return stats.norm(g(v),Sigma_u).pdf(u)
 
 # Prior expectation of size
-vp       = 3
-Sigma_p  = 1
-def p_v(v):
+
+def p_v(v, vp = 3, Sigma_p  = 1):
     return stats.norm(vp, Sigma_p).pdf(v)
 
 def p_u(u):
     return integrate.quad(lambda v:p_v(v)*p_u_v(u,v),0,6,epsabs=0.0001)[0]
 
-vs = [0.1*i for i in range(60)]
-us = [0.1*i for i in range(100)]
-
-u = 2
-sizes = [0.01 * i for i in range(1,501)]
-evidence = p_u(u)
-
-plt.scatter(sizes,[p_v(v)*p_u_v(u,v)/evidence for v in sizes],s=5,label='posterior probability')
+u             = 2
+sizes         = [0.01 * i for i in range(1,501)]
+evidence      = p_u(u)
+probabilities = [p_v(v)*p_u_v(u,v)/evidence for v in sizes]
+plt.scatter(sizes,probabilities,s=5,label='posterior probability for size')
 plt.xlabel('v')
 plt.ylabel('p(v|u)')
-plt.ylim(0,1.4)
+plt.ylim(0,round2(max(probabilities)))
 plt.legend()
 plt.title('Exercise 1')
 plt.show()
