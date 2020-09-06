@@ -13,6 +13,9 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+# Exercise 1 from A tutorial on the free-energy framework for modelling perception
+# and learning, by Rafal Bogacz
+
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 import scipy.integrate as integrate
