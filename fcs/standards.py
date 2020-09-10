@@ -49,23 +49,26 @@ def create_standards(path=r'C:\data\properties'):
     
     product = []
     for file in os.listdir(path):
-        if file.endswith('.properties'):
-            with open(os.path.join(path,file)) as f:
-                beadset = file[:3]
-                barcode = ''
-                for line in f:
-                    bc = extract(line.strip(),'constants.Beadset.Barcodes')
-                    if bc!=None:
-                        barcode = beadset + bc 
-                    standards = extract(line.strip(),'constants.Beadset.Standards')
-                    if standards!=None:
-                        values = [float(c) for c in standards.split(',')]
-                        product.append((barcode,values))
+        if not file.endswith('.properties'): continue
+        beadset      = file[:3]
+        full_barcode = None        
+        with open(os.path.join(path,file)) as f:
+            for line in f: # Extract two key value pairs
+                barcode_number = extract(line.strip(),'constants.Beadset.Barcodes')
+                if barcode_number!=None:
+                    full_barcode = beadset + barcode_number
+                    continue
+                standards = extract(line.strip(),'constants.Beadset.Standards')
+                if standards!=None:
+                    values = [float(c) for c in standards.split(',')]
+                    product.append((full_barcode,values))
     return product
 
 # lookup
 #
-# Determine standards for specified barcode
+# Determine standards for specified barcode: the beadset must match; we want the supplied barcode 
+# digits to be greater or equal to the barcode digits in the properties file; and this must be the 
+# eraliest proerties file that satisfies the other two requirements.
 #
 # Parameters:
 #     barcode    Barcode from plate
