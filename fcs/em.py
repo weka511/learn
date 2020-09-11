@@ -17,7 +17,9 @@
 # Padhraic Smyth 
 # https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
 
-import math,numpy as np,random,sys
+import math,numpy as np
+import random
+import sys
 from scipy.stats import multivariate_normal
 
 # sqdist

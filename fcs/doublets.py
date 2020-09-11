@@ -13,7 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import fcsparser,fcs,numpy as np,math
+import fcsparser
+import fcs 
+import numpy as np
+import math
 from scipy.stats import multivariate_normal
     
 if __name__=='__main__':

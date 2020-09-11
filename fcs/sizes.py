@@ -18,10 +18,18 @@
 # https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
 
 
-import  re, argparse,sys,em,os,fcsparser,fcs,matplotlib.pyplot as plt,numpy as np,time
+import  re
+import  argparse
+import sys
+import os
+import fcsparser
+import matplotlib.pyplot as plt
+import numpy as np
+import time
 from matplotlib import rc
 from mpl_toolkits.mplot3d import Axes3D
-
+import em
+import fcs
 rc('text', usetex=True)
 cmap     = plt.cm.get_cmap('RdYlBu')
 

@@ -13,7 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,os,re
+import fcsparser
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
+import os
+import re
 
 
 #  get_bounds
