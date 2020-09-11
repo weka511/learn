@@ -14,7 +14,7 @@
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
 
-from mpl_toolkits.mplot3d import Axes3D
+
 from scipy import stats
 import fcsparser
 import math
@@ -92,6 +92,8 @@ if __name__=='__main__':
     import os
     import re
     from matplotlib import rc
+    from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.pyplot as plt
     
     rc('text', usetex=True)
     
@@ -126,8 +128,7 @@ if __name__=='__main__':
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
-        if not match: continue
-        
+        if not match: continue  
         plate = match.group(1)
         if args.plate=='all' or plate in args.plate:
             for file in files:
@@ -135,11 +136,21 @@ if __name__=='__main__':
                 well,df=read_fcs(root,file)
                 gcp_stats.append(cluster_gcp(plate,well,df,references))
         
-            ii = np.argmax([r for _,r,_,_ in gcp_stats])
-            print (f'{gcp_stats[ii]}')
+            best_gcp,rsq,mu_gcp,Sigma_gcp = gcp_stats[np.argmax([r for _,r,_,_ in gcp_stats])]
+            print (f'Using {best_gcp}, rsq={rsq}, mu={mu_gcp}, Sigma={Sigma_gcp}')
             for file in files:
                 if not re.match('.*[A-H][1]?[0-9].fcs',file): continue
                 if re.match('.*[GH]12.fcs',file): continue
                 well,df=read_fcs(root,file)
                 if well in args.well:
-                    print (f'{plate} {well}')                
+                    print (f'{plate} {well}')
+                    print ([mu_gcp[0][0]],[mu_gcp[0][1]],[mu_gcp[0][2]])
+                    xs     = df['FSC-H'].values
+                    ys     = df['SSC-H'].values
+                    zs     = df['FSC-Width'].values
+                    plt.figure(figsize=(10,10))
+                    ax1    = plt.subplot(1,1,1, projection='3d')
+                    ax1.scatter(xs,ys,zs,s=1,c='b')
+                    ax1.scatter([mu_gcp[0][0]],[mu_gcp[0][1]],[mu_gcp[0][2]+1000],c='r',s=10,marker='x')
+    plt.show()
+                    
