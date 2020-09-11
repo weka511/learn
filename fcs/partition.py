@@ -26,8 +26,6 @@ import gcps
 import standards
 
 def cluster_gcp(plate,well,df,references):
-    print (f'{well}')
-
     xs     = df['FSC-H'].values
     ys     = df['SSC-H'].values
     zs     = df['FSC-Width'].values       
@@ -63,9 +61,7 @@ def cluster_gcp(plate,well,df,references):
             limit  = args.tolerance,
             K      = K)    
     barcode,levels = standards.lookup(plate,references)
-    print (f'{barcode},{levels}')
-    _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])
-    print (f'Using standard for {barcode}, r_value={r_value}')    
+    _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])    
     return well,r_value,mus_xyw,Sigmas_xyw
 
 def read_fcs(root,file):
@@ -94,6 +90,7 @@ if __name__=='__main__':
     from matplotlib import rc
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
+    #from matplotlib import cm
     
     rc('text', usetex=True)
     
@@ -124,7 +121,6 @@ if __name__=='__main__':
     
     gcp_stats = []
     references = standards.create_standards(args.properties)    
-
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
@@ -137,20 +133,25 @@ if __name__=='__main__':
                 gcp_stats.append(cluster_gcp(plate,well,df,references))
         
             best_gcp,rsq,mu_gcp,Sigma_gcp = gcp_stats[np.argmax([r for _,r,_,_ in gcp_stats])]
-            print (f'Using {best_gcp}, rsq={rsq}, mu={mu_gcp}, Sigma={Sigma_gcp}')
             for file in files:
                 if not re.match('.*[A-H][1]?[0-9].fcs',file): continue
                 if re.match('.*[GH]12.fcs',file): continue
                 well,df=read_fcs(root,file)
                 if well in args.well:
-                    print (f'{plate} {well}')
-                    print ([mu_gcp[0][0]],[mu_gcp[0][1]],[mu_gcp[0][2]])
+                    plt.figure(figsize=(10,10))
+                    plt.suptitle (f'{plate} {well} GCP={best_gcp}, rsq={rsq:.6f}')
                     xs     = df['FSC-H'].values
                     ys     = df['SSC-H'].values
                     zs     = df['FSC-Width'].values
-                    plt.figure(figsize=(10,10))
                     ax1    = plt.subplot(1,1,1, projection='3d')
-                    ax1.scatter(xs,ys,zs,s=1,c='b')
-                    ax1.scatter([mu_gcp[0][0]],[mu_gcp[0][1]],[mu_gcp[0][2]+1000],c='r',s=10,marker='x')
+                    ax1.set_xlabel('FSC-H')
+                    ax1.set_ylabel('SSC-H')
+                    ax1.set_zlabel('FSC-Width')
+                    # Plotting with superimposed points it tricky - 
+                    # see https://stackoverflow.com/questions/33151163/pyplot-3d-scatter-points-at-the-back-overlap-points-at-the-front
+                    ax1.plot(xs,ys,zs,'.',c='b',markersize=1)
+                    ax1.plot([mu_gcp[0][0]],[mu_gcp[0][1]],[mu_gcp[0][2]],'x',c='r',markersize=20)
+ 
+   
     plt.show()
                     
