@@ -17,8 +17,13 @@
 # Padhraic Smyth 
 # https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
 
-import fcs,os,fcsparser, matplotlib.pyplot as plt,numpy as np,scipy.stats as stats,math
-
+import fcs
+import os
+import fcsparser
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats,math
+import em
 
 # get_boundaries
 
@@ -85,16 +90,36 @@ def maximize_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3,N=25,limit=1.0e-6):
 # get_selector
 #
 # Used to select weightiest data 
+#
+# Parameters:
+#      ws       Data to select from
+#      q        Quantile to use (default is median)
+#      K        Used to select from 2D array os ws
 
 def get_selector(ws,q=0.5,K=0): # hyperparameter
     quantile = np.quantile(ws[K], q) # hyperparameter
     return [w>quantile for w in ws[K]]    
 
+def filter_doublets(xs,ys,zs):
+    mult   = 0.25 # hyperparameter
+    mu     = [np.mean(xs),np.mean(ys),np.mean(zs)]
+    sigma  = [np.std(xs),np.std(ys),np.std(zs)]
+    mus    = [[mu[i]+ direction*mult*sigma[i] for i in range(len(mu))] for direction in [-1,+1]]
+    alphas = [0.5,0.5]
+    Sigmas = [np.cov([xs,ys,zs],rowvar=True),
+              np.cov([xs,ys,zs],rowvar=True)]
+
+    return em.maximize_likelihood(
+            xs,ys,zs,
+            mus=mus,
+            Sigmas=Sigmas,
+            alphas=alphas) 
+     
 if __name__=='__main__':
     import  re
     import argparse
     import sys
-    import em
+ 
     import standards
     from matplotlib import rc
     from mpl_toolkits.mplot3d import Axes3D
@@ -184,23 +209,10 @@ if __name__=='__main__':
                             for K in args.K:
                                 plt.figure(figsize=(10,10))
                                 plt.suptitle(f'{plate} {well}')
-                                singlet = [True for i in range(len(xs))]
+                                singlet = [True for i in range(len(xs))]                                
                                 ax1 = plt.subplot(2,2,1,projection='3d')
                                 if args.doublets:
-                                    mult   = 0.25 # hyperparameter
-                                    mu     = [np.mean(xs),np.mean(ys),np.mean(zs)]
-                                    sigma  = [np.std(xs),np.std(ys),np.std(zs)]
-                                    mus    = [[mu[i]+ direction*mult*sigma[i] for i in range(len(mu))] for direction in [-1,+1]]
-                                    alphas = [0.5,0.5]
-                                    Sigmas = [np.cov([xs,ys,zs],rowvar=True),
-                                              np.cov([xs,ys,zs],rowvar=True)]
-                                
-                                    maximized,likelihoods,ws,alphas,mus,Sigmas = \
-                                        em.maximize_likelihood(
-                                            xs,ys,zs,
-                                            mus=mus,
-                                            Sigmas=Sigmas,
-                                            alphas=alphas)                                     
+                                    maximized,likelihoods,ws,alphas,mus,Sigmas = filter_doublets(xs,ys,zs)             
                                     
                                     if maximized:
                                         plt.colorbar(ax1.scatter(xs,ys,zs,
