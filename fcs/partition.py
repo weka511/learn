@@ -155,7 +155,7 @@ if __name__=='__main__':
                         help='Display graphs')    
     args       = parser.parse_args()
     
-    gcp_stats  = []
+    
     references = standards.create_standards(args.properties)
     cmap       = plt.cm.get_cmap('seismic')
     for root, dirs, files in os.walk(args.root):
@@ -164,11 +164,19 @@ if __name__=='__main__':
         if not match: continue  
         plate = match.group(1)
         if args.plate=='all' or plate in args.plate:
+            gcp_stats  = []
             for file in files:
                 if not re.match('.*[GH]12.fcs',file): continue
                 well,df=read_fcs(root,file)
-                gcp_stats.append(cluster_gcp(plate,well,df,references))
-        
+                try:
+                    gcp_stats.append(cluster_gcp(plate,well,df,references))
+                except ValueError as err:
+                    print (f'Exception while processing {plate} {file}')
+                    print (err)
+            if len(gcp_stats)==0:
+                print (f'No GCPs clustered for {plate} {file}')
+                continue
+            
             best_gcp,rsq,mu_gcp,Sigma_gcp = gcp_stats[np.argmax([r for _,r,_,_ in gcp_stats])]
             for file in files:
                 if not re.match('.*[A-H][1]?[0-9].fcs',file): continue
