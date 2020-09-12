@@ -24,6 +24,7 @@ import em
 import fcs
 import gcps
 import standards
+from scipy.stats import multivariate_normal
 
 def cluster_gcp(plate,well,df,references):
     xs     = df['FSC-H'].values
@@ -138,20 +139,35 @@ if __name__=='__main__':
                 if re.match('.*[GH]12.fcs',file): continue
                 well,df=read_fcs(root,file)
                 if well in args.well:
-                    plt.figure(figsize=(10,10))
+                    fig = plt.figure(figsize=(10,10))
                     plt.suptitle (f'{plate} {well} GCP={best_gcp}, rsq={rsq:.6f}')
                     xs     = df['FSC-H'].values
                     ys     = df['SSC-H'].values
                     zs     = df['FSC-Width'].values
-                    ax1    = plt.subplot(1,1,1, projection='3d')
+                    ax1    = plt.subplot(2,2,1, projection='3d')
                     ax1.set_xlabel('FSC-H')
                     ax1.set_ylabel('SSC-H')
                     ax1.set_zlabel('FSC-Width')
-                    # Plotting with superimposed points it tricky - 
+                    # Plotting with superimposed points is tricky - 
                     # see https://stackoverflow.com/questions/33151163/pyplot-3d-scatter-points-at-the-back-overlap-points-at-the-front
                     ax1.plot(xs,ys,zs,'.',c='b',markersize=1)
                     ax1.plot([mu_gcp[0][0]],[mu_gcp[0][1]],[mu_gcp[0][2]],'x',c='r',markersize=20)
- 
-   
+                    
+                    ax2    = plt.subplot(2,2,2, projection='3d')
+                    ax2.set_xlabel('FSC-H')
+                    ax2.set_ylabel('SSC-H')
+                    ax2.set_zlabel('FSC-Width')
+                    def d2(v,mu_gcp,Sigma_gcp):
+                        return math.sqrt(sum([(v[i]-mu_gcp[i])*Sigma_gcp[i][j]*(v[j]-mu_gcp[j]) for i in range(3) for j in range(3)]))
+                    d2s = [d2([xs[i],ys[i],zs[i]],mu_gcp[0],Sigma_gcp[0]) for i in range(len(xs))]
+                    sc1 = ax2.scatter(xs,ys,zs,s=1,c=d2s,cmap=plt.cm.get_cmap('RdYlBu'))
+                    plt.colorbar(sc1)
+                    ax2.set_xlim(ax1.get_xlim())
+                    ax2.set_ylim(ax1.get_ylim()) 
+                    ax2.set_zlim(ax1.get_zlim())
+                    
+                    ax3 = plt.subplot(2,2,3)
+                    ax3.scatter(range(len(d2s)),sorted(d2s),s=1,c=sorted(d2s),cmap=plt.cm.get_cmap('RdYlBu'))
+                    fig.tight_layout()
     plt.show()
                     
