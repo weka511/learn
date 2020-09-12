@@ -211,7 +211,9 @@ if __name__=='__main__':
                         fcs.get_image_name(
                             script = os.path.basename(__file__).split('.')[0],
                             plate  = plate,
-                            well   = well))                     
+                            well   = well))
+                    if not args.show:
+                        plt.close(fig)
     if args.show:
         plt.show()
                     
