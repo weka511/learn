@@ -19,51 +19,70 @@ from scipy import stats
 import fcsparser
 import math
 import numpy as np
-from scipy import stats
+from scipy.stats import multivariate_normal
 import em
 import fcs
 import gcps
 import standards
-from scipy.stats import multivariate_normal
 
-def cluster_gcp(plate,well,df,references):
-    xs     = df['FSC-H'].values
-    ys     = df['SSC-H'].values
-    zs     = df['FSC-Width'].values       
-    K      = 3
-    maximized,likelihoods,ws,alphas,mus_xyw,Sigmas_xyw = gcps.filter_doublets(xs,ys,zs)     
-    singlet     = gcps.get_selector(ws)
-    intensities = np.log(df['Red-H'][singlet]).values
-    n,bins      = np.histogram(intensities,bins=100)
-    indices     = gcps.get_boundaries(n,K=K)
-    indices.append(len(n))
-    segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
-                for k in range(K)]
-    mus      = []
-    sigmas   = []
-    heights      = []
+# cluster_gcp
+#
+# Determibe mean and standard deviation for a GCP well
+#
+# Parameters:
+#      plate
+#      well
+#      df
+#      references Reference levels, used to determine r_value
+#      K          Number of red levels that we expect
+
+def cluster_gcp(plate,well,df,references,K=3):
+    xs                  = df['FSC-H'].values
+    ys                  = df['SSC-H'].values
+    zs                  = df['FSC-Width'].values       
+    
+    _,_,ws,_,mus,Sigmas = gcps.filter_doublets(xs,ys,zs)     
+    singlet             = gcps.get_selector(ws)
+    intensities         = np.log(df['Red-H'][singlet]).values
+    n,bins              = np.histogram(intensities,bins=100)
+    indices             = gcps.get_boundaries(n,K=K) + [len(n)]
+
+    segments            = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
+                           for k in range(K)]
+    mus_intensity       = []
+    sigmas_intensity    = []
+    heights_intensity   = []
     for k in range(K):
         mu,sigma,_,y = gcps.get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
-        mus.append(mu)
-        sigmas.append(sigma)
-        heights.append(y)
+        mus_intensity.append(mu)
+        sigmas_intensity.append(sigma)
+        heights_intensity.append(y)
         
-        alphas = [len(segments[k]) for k in range(K)]
-        alpha_norm = sum(alphas)
-        for k in range(K):
-            alphas[k] /= alpha_norm
-    likelihoods,alphas,mus,sigmas =\
-        gcps.maximize_likelihood(
-            intensities,
-            mus    = mus,
-            sigmas = sigmas,
-            alphas = alphas,
-            N      = args.N,
-            limit  = args.tolerance,
-            K      = K)    
-    barcode,levels = standards.lookup(plate,references)
-    _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])    
-    return well,r_value,mus_xyw,Sigmas_xyw
+    alphas_intensity = [len(segments[k]) for k in range(K)]
+    alpha_norm       = sum(alphas_intensity)
+    for k in range(K):
+        alphas_intensity[k] /= alpha_norm
+            
+    _,_,mus_intensity,_  = gcps.maximize_likelihood(intensities,
+                                                    mus    = mus_intensity,
+                                                    sigmas = sigmas_intensity,
+                                                    alphas = alphas_intensity,
+                                                    N      = args.N,
+                                                    limit  = args.tolerance,
+                                                    K      = K)
+    
+    _,levels            = standards.lookup(plate,references)
+    _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus_intensity])    
+    
+    return well,r_value,mus,Sigmas
+
+# read_fcs
+#
+# Read data from FCS file and gate it
+#
+# Parameters:
+#     root
+#     file
 
 def read_fcs(root,file):
     path     = os.path.join(root,file)
@@ -82,7 +101,20 @@ def read_fcs(root,file):
     
     well     = fcs.get_well_name(tbnm)
     return well,df1
-    
+
+# get_distance
+#
+# Determine distance of point from GCP
+#
+# Parameters:
+#     pt
+#     mu
+#     Sigma
+#     d           Dimensionality of space
+
+def get_distance(pt,mu,Sigma,d=3):
+    return math.sqrt(sum([(pt[i]-mu[i]) * Sigma[i][j] * (pt[j]-mu[j]) for i in range(d) for j in range(d)]))
+
 if __name__=='__main__':
     import argparse
     import sys
@@ -91,7 +123,6 @@ if __name__=='__main__':
     from matplotlib import rc
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
-    #from matplotlib import cm
     
     rc('text', usetex=True)
     
@@ -117,11 +148,16 @@ if __name__=='__main__':
     parser.add_argument('-t', '--tolerance',
                         default=1.0e-6,
                         type=float, 
-                        help='Iteration stops when ratio between likelihoods is this close to 1.')    
-    args = parser.parse_args()
+                        help='Iteration stops when ratio between likelihoods is this close to 1.')
+    parser.add_argument('-s', '--show',
+                        default=False,
+                        action='store_true',
+                        help='Display graphs')    
+    args       = parser.parse_args()
     
-    gcp_stats = []
-    references = standards.create_standards(args.properties)    
+    gcp_stats  = []
+    references = standards.create_standards(args.properties)
+    cmap       = plt.cm.get_cmap('seismic')
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
@@ -157,17 +193,25 @@ if __name__=='__main__':
                     ax2.set_xlabel('FSC-H')
                     ax2.set_ylabel('SSC-H')
                     ax2.set_zlabel('FSC-Width')
-                    def d2(v,mu_gcp,Sigma_gcp):
-                        return math.sqrt(sum([(v[i]-mu_gcp[i])*Sigma_gcp[i][j]*(v[j]-mu_gcp[j]) for i in range(3) for j in range(3)]))
-                    d2s = [d2([xs[i],ys[i],zs[i]],mu_gcp[0],Sigma_gcp[0]) for i in range(len(xs))]
-                    sc1 = ax2.scatter(xs,ys,zs,s=1,c=d2s,cmap=plt.cm.get_cmap('RdYlBu'))
-                    plt.colorbar(sc1)
+
+                    gcp_distances = [get_distance([x,y,z],mu_gcp[0],Sigma_gcp[0]) for (x,y,z) in zip(xs,ys,zs)]
+                    sc2           = ax2.scatter(xs,ys,zs,s=1,c=gcp_distances,cmap=cmap)
+                    plt.colorbar(sc2)
                     ax2.set_xlim(ax1.get_xlim())
                     ax2.set_ylim(ax1.get_ylim()) 
                     ax2.set_zlim(ax1.get_zlim())
                     
                     ax3 = plt.subplot(2,2,3)
-                    ax3.scatter(range(len(d2s)),sorted(d2s),s=1,c=sorted(d2s),cmap=plt.cm.get_cmap('RdYlBu'))
+                    ax3.scatter(range(len(gcp_distances)),sorted(gcp_distances),
+                                s=1,
+                                c=sorted(gcp_distances),
+                                cmap=cmap)
                     fig.tight_layout()
-    plt.show()
+                    fig.savefig(
+                        fcs.get_image_name(
+                            script = os.path.basename(__file__).split('.')[0],
+                            plate  = plate,
+                            well   = well))                     
+    if args.show:
+        plt.show()
                     

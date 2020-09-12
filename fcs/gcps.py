@@ -100,20 +100,24 @@ def get_selector(ws,q=0.5,K=0): # hyperparameter
     quantile = np.quantile(ws[K], q) # hyperparameter
     return [w>quantile for w in ws[K]]    
 
-def filter_doublets(xs,ys,zs):
-    mult   = 0.25 # hyperparameter
+# filter_doublets
+#
+# Used to split beads into two clusters, preumably real data and a set of doublets
+#
+# Parameters:
+#     xs
+#     ys
+#     zs
+#     mult   hyperparameter
+def filter_doublets(xs,ys,zs,mult=0.25):
     mu     = [np.mean(xs),np.mean(ys),np.mean(zs)]
     sigma  = [np.std(xs),np.std(ys),np.std(zs)]
-    mus    = [[mu[i]+ direction*mult*sigma[i] for i in range(len(mu))] for direction in [-1,+1]]
-    alphas = [0.5,0.5]
-    Sigmas = [np.cov([xs,ys,zs],rowvar=True),
-              np.cov([xs,ys,zs],rowvar=True)]
-
     return em.maximize_likelihood(
             xs,ys,zs,
-            mus=mus,
-            Sigmas=Sigmas,
-            alphas=alphas) 
+            mus    = [[mu[i]+ direction*mult*sigma[i] for i in range(len(mu))] for direction in [-1,+1]],
+            Sigmas = [np.cov([xs,ys,zs],rowvar=True),
+                      np.cov([xs,ys,zs],rowvar=True)],
+            alphas = [0.5,0.5]) 
      
 if __name__=='__main__':
     import  re
