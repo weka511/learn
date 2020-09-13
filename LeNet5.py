@@ -1,6 +1,8 @@
 # https://towardsdatascience.com/understanding-and-implementing-lenet-5-cnn-architecture-deep-learning-a2d531ebc342
 import tensorflow as tf
 from tensorflow import keras
+from keras.models import Sequential
+from keras.layers import Conv2D,AveragePooling2D,Flatten,Dense
 import numpy as np
 import os
 
@@ -12,15 +14,16 @@ test_x = tf.expand_dims(test_x, 3)
 val_x = train_x[:5000]
 val_y = train_y[:5000]
 
-lenet_5_model = keras.models.Sequential([
-    keras.layers.Conv2D(6, kernel_size=5, strides=1,  activation='tanh', input_shape=train_x[0].shape, padding='same'), #C1
-    keras.layers.AveragePooling2D(), #S2
-    keras.layers.Conv2D(16, kernel_size=5, strides=1, activation='tanh', padding='valid'), #C3
-    keras.layers.AveragePooling2D(), #S4
-    keras.layers.Flatten(), #Flatten
-    keras.layers.Dense(120, activation='tanh'), #C5
-    keras.layers.Dense(84, activation='tanh'), #F6
-    keras.layers.Dense(10, activation='softmax') #Output layer
+
+lenet_5_model = Sequential([
+    Conv2D(6, kernel_size=5, strides=1,  activation='tanh', input_shape=train_x[0].shape, padding='same'), #C1
+    AveragePooling2D(), #S2
+    Conv2D(16, kernel_size=5, strides=1, activation='tanh', padding='valid'), #C3
+    AveragePooling2D(), #S4
+    Flatten(), #Flatten
+    Dense(120, activation='tanh'), #C5
+    Dense(84, activation='tanh'), #F6
+    Dense(10, activation='softmax') #Output layer
 ])
 
 lenet_5_model.compile(optimizer='adam', loss=keras.losses.sparse_categorical_crossentropy, metrics=['accuracy'])

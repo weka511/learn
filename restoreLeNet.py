@@ -11,7 +11,7 @@ train_x                              = tf.expand_dims(train_x, 3)
 test_x                               = tf.expand_dims(test_x, 3)
 val_x                                = train_x[:5000]
 val_y                                = train_y[:5000]
-
+# https://www.tensorflow.org/tutorials/keras/save_and_load
 mobilenet_save_path = os.path.join('.', 'save')
 #loaded = tf.saved_model.load(mobilenet_save_path)
 new_model = tf.keras.models.load_model(mobilenet_save_path)
