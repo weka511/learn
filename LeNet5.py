@@ -2,6 +2,7 @@
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
+import os
 
 (train_x, train_y), (test_x, test_y) = keras.datasets.mnist.load_data()
 train_x = train_x / 255.0
@@ -25,5 +26,9 @@ lenet_5_model = keras.models.Sequential([
 lenet_5_model.compile(optimizer='adam', loss=keras.losses.sparse_categorical_crossentropy, metrics=['accuracy'])
 
 lenet_5_model.fit(train_x, train_y, epochs=5, validation_data=(val_x, val_y))
+mobilenet_save_path = os.path.join('.', 'save')
 
+tf.saved_model.save(lenet_5_model, mobilenet_save_path) # https://www.tensorflow.org/guide/saved_model
+
+print ('Testing')
 lenet_5_model.evaluate(test_x, test_y)
