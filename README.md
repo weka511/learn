@@ -36,6 +36,8 @@ Experiments in machine learning
 |---------------|--------------------------------------------|
 |tf1|[Tensorflow Tutorial](https://www.tensorflow.org/tutorials/quickstart/beginner)|
 |tf2|Modification of tf1 to use Convolutional layer|
+|LeNe5|LeNe CNN in keras|
+|restoreLwLe|Restore LeNe CNN in keras|
 
 ## Variational Inference
 
