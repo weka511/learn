@@ -12,6 +12,8 @@
 
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
+#
+# This program is a template for construction other Tensorflow scripts.
 
 # https://towardsdatascience.com/understanding-and-implementing-lenet-5-cnn-architecture-deep-learning-a2d531ebc342
 
@@ -21,7 +23,7 @@ import tensorflow as tf
 from tensorflow import keras
 from keras.models import Sequential
 from keras.layers import Conv2D,AveragePooling2D,Flatten,Dense
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint,CSVLogger,LearningRateScheduler
 import numpy as np
 
 # create_data
@@ -62,6 +64,18 @@ def create_model(train_x):
 
     return product
 
+# scheduler
+#
+# Controls learning rate
+#
+# snarfed from https://medium.com/ydata-ai/how-to-use-tensorflow-callbacks-f54f9bb6db25
+
+def scheduler(epoch):
+    if epoch < 10:
+        return 0.001
+    else:
+        return 0.001 * tf.math.exp(0.1 * (10 - epoch))
+    
 if __name__=='__main__':
     import argparse
     import os
@@ -76,11 +90,15 @@ if __name__=='__main__':
     args        = parser.parse_args()
     
     checkpoint  = os.path.join(args.path, args.checkpoint, 'cp-{epoch:04d}.ckpt')
-    
+
     cp_callback = ModelCheckpoint(filepath   = checkpoint,
                                  save_weights_only = True,
                                  save_freq         = 'epoch',
                                  verbose           = 1)
+    
+    csv_logger_callback  = CSVLogger('training.txt')
+    
+    learning_rate_callback = LearningRateScheduler(scheduler)
     
     if args.action == 'train':
         (train_x, train_y), (test_x, test_y), (val_x,val_y) = create_data()
@@ -89,10 +107,15 @@ if __name__=='__main__':
         
         model.save_weights(checkpoint.format(epoch=0))
         
-        model.fit(train_x, train_y,
-                  epochs          = args.epochs,
-                  validation_data = (val_x, val_y),
-                  callbacks       = [cp_callback])
+        history = model.fit(train_x, train_y,
+                            epochs          = args.epochs,
+                            validation_data = (val_x, val_y),
+                            callbacks       = [cp_callback,csv_logger_callback,learning_rate_callback])
+
+        print(f'loss={history.history["loss"]},accuracy={history.history["sparse_categorical_accuracy"]}')
+        print (f'validation loss={history.history["val_loss"]},accuracy={history.history["val_sparse_categorical_accuracy"]}')
+        # loss, sparse_categorical_accuracy, val_loss, val_sparse_categorical_accuracy
+
   
     
     if args.action == 'test':
@@ -117,9 +140,9 @@ if __name__=='__main__':
     
         model.load_weights(latest) 
         print (f'Loaded {latest}')
- 
+        csv_logger_callback  = CSVLogger('training.txt',append=True)
         model.fit(train_x, train_y,
                   epochs=args.epochs,
                   validation_data=(val_x, val_y),
-                  callbacks=[cp_callback])        
+                  callbacks=[cp_callback,csv_logger_callback])        
    
