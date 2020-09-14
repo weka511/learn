@@ -34,9 +34,10 @@ Experiments in machine learning
 
 | File  | Remarks |
 |---------------|--------------------------------------------|
-|tf1|[Tensorflow Tutorial](https://www.tensorflow.org/tutorials/quickstart/beginner)|
-|tf2|Modification of tf1 to use Convolutional layer|
-|LeNet5|LeNet-5 CNN in keras|
+|tf1.py|[Tensorflow Tutorial](https://www.tensorflow.org/tutorials/quickstart/beginner)|
+|tf2.py|Modification of tf1 to use Convolutional layer|
+|LeNet5.py|LeNet-5 CNN in keras|
+|losses.R|R script to analyze logs|
 
 ## Variational Inference
 

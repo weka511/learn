@@ -112,8 +112,8 @@ if __name__=='__main__':
                             validation_data = (val_x, val_y),
                             callbacks       = [cp_callback,csv_logger_callback,learning_rate_callback])
 
-        print(f'loss={history.history["loss"]},accuracy={history.history["sparse_categorical_accuracy"]}')
-        print (f'validation loss={history.history["val_loss"]},accuracy={history.history["val_sparse_categorical_accuracy"]}')
+        #print(f'loss={history.history["loss"]},accuracy={history.history["sparse_categorical_accuracy"]}')
+        #print (f'validation loss={history.history["val_loss"]},accuracy={history.history["val_sparse_categorical_accuracy"]}')
         # loss, sparse_categorical_accuracy, val_loss, val_sparse_categorical_accuracy
 
   
