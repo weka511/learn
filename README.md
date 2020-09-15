@@ -39,6 +39,7 @@ Experiments in machine learning
 |LeNet5.py|LeNet-5 CNN in keras|
 |losses.R|R script to analyze logs|
 |getdata.py|Script to read data and train (demo/tutorial)|
+|flowers.py|Script to read data and train--combination of Lenet5 and getdata |
 
 ## Variational Inference
 
