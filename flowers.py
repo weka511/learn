@@ -30,47 +30,45 @@ import tensorflow_datasets as tfds
 from tensorflow.keras.utils import get_file
 from tensorflow.keras.layers.experimental.preprocessing import Rescaling
 from tensorflow.keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.metrics import SparseCategoricalAccuracy
 import numpy as np
 import os
 import PIL
 import PIL.Image
-import matplotlib.pyplot as plt
 import pathlib
 
-def create_data(dataset_url = "https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
+def create_data(dataset_url = 'https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz',
                 fname       = 'flower_photos',
                 batch_size  = 32,
                 img_height  = 180,
                 img_width   = 180):
     
-    data_dir  = get_file(origin=dataset_url, fname=fname,  untar=True)
-    data_dir  = pathlib.Path(data_dir)
+    data_dir  = pathlib.Path(get_file(origin=dataset_url,
+                                      fname=fname,
+                                      untar=True))
 
     train_ds = image_dataset_from_directory(
         data_dir,
-        validation_split=0.2,
-        subset="training",
-        seed=123,
-        image_size=(img_height, img_width),
-        batch_size=batch_size)
+        validation_split = 0.2,
+        subset           = 'training',
+        seed             = 123,
+        image_size       = (img_height, img_width),
+        batch_size       = batch_size)
     
     val_ds = image_dataset_from_directory(
         data_dir,
-        validation_split=0.2,
-        subset="validation",
-        seed=123,
-        image_size=(img_height, img_width),
-        batch_size=batch_size)
-
-    class_names = train_ds.class_names
-    
-    normalization_layer = Rescaling(1./255)
+        validation_split = 0.2,
+        subset           = "validation",
+        seed             = 123,
+        image_size       = (img_height, img_width),
+        batch_size       = batch_size)
     
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     
     return (train_ds.cache().prefetch(buffer_size=AUTOTUNE),
             val_ds.cache().prefetch(buffer_size=AUTOTUNE),
-            class_names)
+            train_ds.class_names)
 
 # create_model
 #
@@ -90,12 +88,13 @@ def create_model(num_classes = 5):
       MaxPooling2D(),
       Flatten(),
       Dense(128, activation='relu'),
+      Dense(64, activation='relu'),
       Dense(num_classes)
     ])    
 
-    product.compile(optimizer='adam',
-                   loss=tf.losses.SparseCategoricalCrossentropy(from_logits=True),
-                   metrics=[tf.metrics.SparseCategoricalAccuracy()])
+    product.compile(optimizer = 'adam',
+                   loss       = SparseCategoricalCrossentropy(from_logits=True),
+                   metrics    = [SparseCategoricalAccuracy()])
 
     return product
 
@@ -106,42 +105,44 @@ def create_model(num_classes = 5):
 #
 # snarfed from https://medium.com/ydata-ai/how-to-use-tensorflow-callbacks-f54f9bb6db25
 
-def scheduler(epoch):
-    if epoch < 10:
-        return 0.001
-    else:
-        return 0.001 * tf.math.exp(0.1 * (10 - epoch))
+def scheduler(epoch,mult=0.001,steps=10,decay=0.1):
+    return mult if epoch < steps else mult * tf.math.exp(decay * (steps - epoch))
     
 if __name__=='__main__':
     import argparse
     import sys
+    import matplotlib.pyplot as plt
     
     print(f'Using Tensorflow {tf.version.VERSION}')    
     path   = os.path.join(os.getenv('APPDATA'),'LeNet5')
     parser = argparse.ArgumentParser('Convolutional Neural Net based on LeNet-5')
-    parser.add_argument('action',   choices=['train',
-                                             'test', 
-                                             'continue',
-                                             'show'],                           help = 'Train or test')
-    parser.add_argument('--checkpoint',                       default='checkpoint', help = 'Name of file to save and restore network')
-    parser.add_argument('--path',                             default=path,         help = 'Path of file used to save and restore network')
-    parser.add_argument('--epochs', type=int,                 default=5,            help = 'Number of epochs for training')
-    parser.add_argument('--logfile',                          default='training.txt', help = 'Name of logfile')
+    parser.add_argument('action',   
+                        choices=['train',
+                                 'test', 
+                                 'continue',
+                                 'show'],
+                        help = 'Train or test')
+    parser.add_argument('--checkpoint',         default='checkpoint',   help = 'Name of file to save and restore network')
+    parser.add_argument('--path',               default=path,           help = 'Path of file used to save and restore network')
+    parser.add_argument('--epochs', type=int,   default=5,              help = 'Number of epochs for training')
+    parser.add_argument('--logfile',            default='training.txt', help = 'Name of logfile')
     
     args                   = parser.parse_args()
     checkpoint             = os.path.join(args.path, args.checkpoint, 'cp-{epoch:04d}.ckpt')
-    checkpoint_callback    = ModelCheckpoint(filepath          = checkpoint,
+    checkpoint_callback    = ModelCheckpoint(filepath       = checkpoint,
                                           save_weights_only = True,
                                           save_freq         = 'epoch',
                                           verbose           = 1)
     
-    csv_logger_callback    = CSVLogger(args.logfile)
+    logfile                = args.logfile if len (args.logfile.split('.'))>1 else args.logfile + '.txt'
+    
+    csv_logger_callback    = CSVLogger(logfile)
     
     learning_rate_callback = LearningRateScheduler(scheduler)
     
     if args.action=='show':
         train_ds,_,class_names = create_data()
-        n = 4
+        n                      = 4
         plt.figure(figsize=(10, 10))
         for images, labels in train_ds.take(1):
             for i in range(n*n):
@@ -158,13 +159,14 @@ if __name__=='__main__':
         
         model                       = create_model()
         
-        history = model.fit(
+        model.fit(
             train_ds,
             validation_data = val_ds,
             epochs          = args.epochs,
-            callbacks       = [checkpoint_callback,csv_logger_callback,learning_rate_callback]          
+            callbacks       = [checkpoint_callback,
+                               csv_logger_callback,
+                               learning_rate_callback]          
         )        
-
   
     
     if args.action == 'test':
@@ -189,7 +191,7 @@ if __name__=='__main__':
     
         model.load_weights(latest) 
         print (f'Loaded {latest}')
-        csv_logger_callback  = CSVLogger('training.txt',append=True)
+        csv_logger_callback  = CSVLogger(logfile,append=True)
         model.fit(train_x, train_y,
                   epochs=args.epochs,
                   validation_data=(val_x, val_y),
