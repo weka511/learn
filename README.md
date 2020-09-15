@@ -38,6 +38,7 @@ Experiments in machine learning
 |tf2.py|Modification of tf1 to use Convolutional layer|
 |LeNet5.py|LeNet-5 CNN in keras|
 |losses.R|R script to analyze logs|
+|getdata.py|Script to read data and train (demo/tutorial)|
 
 ## Variational Inference
 
