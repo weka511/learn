@@ -24,7 +24,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from keras.models import Sequential
-from keras.layers import Conv2D,AveragePooling2D,Flatten,Dense,MaxPooling2D
+from keras.layers import Conv2D,AveragePooling2D,Flatten,Dense,MaxPooling2D,Dropout,SpatialDropout2D
 from tensorflow.keras.callbacks import ModelCheckpoint,CSVLogger,LearningRateScheduler
 import tensorflow_datasets as tfds
 from tensorflow.keras.utils import get_file
@@ -88,7 +88,7 @@ def create_model(num_classes = 5):
       MaxPooling2D(),
       Flatten(),
       Dense(128, activation='relu'),
-      Dense(64, activation='relu'),
+      Dropout(0.5),
       Dense(num_classes)
     ])    
 
@@ -113,9 +113,10 @@ if __name__=='__main__':
     import sys
     import matplotlib.pyplot as plt
     
-    print(f'Using Tensorflow {tf.version.VERSION}')    
-    path   = os.path.join(os.getenv('APPDATA'),'LeNet5')
-    parser = argparse.ArgumentParser('Convolutional Neural Net based on LeNet-5')
+    print(f'Using Tensorflow {tf.version.VERSION}')
+    basename = os.path.basename(__file__).split('.')[0]
+    path     = os.path.join(os.getenv('APPDATA'),basename)
+    parser   = argparse.ArgumentParser('Trining Convolutional Neural Net')
     parser.add_argument('action',   
                         choices=['train',
                                  'test', 
@@ -125,7 +126,7 @@ if __name__=='__main__':
     parser.add_argument('--checkpoint',         default='checkpoint',   help = 'Name of file to save and restore network')
     parser.add_argument('--path',               default=path,           help = 'Path of file used to save and restore network')
     parser.add_argument('--epochs', type=int,   default=5,              help = 'Number of epochs for training')
-    parser.add_argument('--logfile',            default='training.txt', help = 'Name of logfile')
+    parser.add_argument('--logfile',            default=basename, help = 'Name of logfile')
     
     args                   = parser.parse_args()
     checkpoint             = os.path.join(args.path, args.checkpoint, 'cp-{epoch:04d}.ckpt')
