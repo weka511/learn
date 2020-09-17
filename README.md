@@ -40,6 +40,7 @@ Experiments in machine learning
 |losses.R|R script to analyze logs|
 |getdata.py|Script to read data and train (demo/tutorial)|
 |flowers.py|Script to read data and train--combination of Lenet5 and getdata |
+|fashion.py| [Fashion items demo](https://www.tensorflow.org/tutorials/keras/classification)|
 
 ## Variational Inference
 
