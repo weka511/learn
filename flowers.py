@@ -23,7 +23,7 @@
 
 import tensorflow as tf
 from tensorflow import keras
-from keras.models import Sequential
+from tensorflow.keras import Sequential,regularizers
 from keras.layers import Conv2D,AveragePooling2D,Flatten,Dense,MaxPooling2D,Dropout,SpatialDropout2D
 from tensorflow.keras.callbacks import ModelCheckpoint,CSVLogger,LearningRateScheduler
 import tensorflow_datasets as tfds
@@ -87,8 +87,8 @@ def create_model(num_classes = 5):
       Conv2D(32, 3, activation='relu'),
       MaxPooling2D(),
       Flatten(),
-      Dense(128, activation='relu'),
-      Dropout(0.5),
+      Dense(128, activation='relu',kernel_regularizer=regularizers.l2(0.001)),
+      #Dropout(0.2),
       Dense(num_classes)
     ])    
 
