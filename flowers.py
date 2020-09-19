@@ -111,12 +111,6 @@ def create_model(num_classes = 5):
 def scheduler(epoch,mult=0.001,steps=10,decay=0.1):
     return mult if epoch < steps else mult * tf.math.exp(decay * (steps - epoch))
 
-#def data_iterator(val_ds):
-    #for images_batch,labels_batch in val_ds:
-        #n,_,_,_ = images_batch.shape
-        ##print (images_batch.shape,labels_batch.shape)
-        #for i in range(n):
-            #yield images_batch[i],(int)(labels_batch[i])
 
 def parse_args():
     parser   = argparse.ArgumentParser('Trining Convolutional Neural Net')
@@ -129,7 +123,8 @@ def parse_args():
     parser.add_argument('--checkpoint',         default='checkpoint',   help = 'Name of file to save and restore network')
     parser.add_argument('--path',               default=path,           help = 'Path of file used to save and restore network')
     parser.add_argument('--epochs', type=int,   default=5,              help = 'Number of epochs for training')
-    parser.add_argument('--logfile',            default=basename, help = 'Name of logfile')
+    parser.add_argument('--logfile',            default=basename,       help = 'Name of logfile')
+    parser.add_argument('--images',             default='./figs',       help = 'Path for storing images')
     
     return parser.parse_args() 
     
@@ -141,9 +136,11 @@ def predictions(model,val_ds):
             yield choice,image,(int)(label)
             
 if __name__=='__main__':
+    from matplotlib import rc
+    rc('text', usetex=True)
     print(f'Using Tensorflow {tf.version.VERSION}')
-    basename = os.path.basename(__file__).split('.')[0]
-    path     = os.path.join(os.getenv('APPDATA'),basename)
+    basename               = os.path.basename(__file__).split('.')[0]
+    path                   = os.path.join(os.getenv('APPDATA'),basename)
     args                   = parse_args() 
     
     checkpoint             = os.path.join(args.path, args.checkpoint, 'cp-{epoch:04d}.ckpt')
@@ -189,6 +186,7 @@ if __name__=='__main__':
         sys.exit()
         
     if args.action == 'test':
+        name = 'flowers'
         latest = tf.train.latest_checkpoint(os.path.dirname(checkpoint))
         print (f'Latest checkpoint: {latest}')
         _,val_ds,class_names = create_data()
@@ -198,34 +196,34 @@ if __name__=='__main__':
         model.load_weights(latest) 
         print (f'Loaded {latest}')
         
-        #probability_model = Sequential([model,Softmax()])
-        #for images_batch,labels_batch in val_ds:
-            #for probabilities,image,label in zip(probability_model.predict(images_batch),images_batch,labels_batch):
-                #choice = np.argmax(probabilities)
-                #x=0
-        #for image,pred in data_iterator(val_ds):
-            #prediction = probability_model.predict(image)
-            #x=0  
-  
-        plt.figure(figsize=(10,10))
-        m = 4
-        n = 4
-        i = 0
+        n_rows       = 4
+        n_columns    = 4
+        image_number = 0
+        n_trials     = 0
+        n_mismatches = 0
+        n_figures    = 0
+        
         for predicted,image,expected in predictions(model,val_ds):
+            n_trials += 1
             if predicted == expected: continue
-            i+=1
-            ax = plt.subplot(m,n,i)
+            n_mismatches += 1
+            if image_number==0:
+                plt.figure(figsize=(10,10))
+            image_number += 1
+            plt.subplot(n_rows,n_columns,image_number)
             plt.grid(False)
             plt.xticks([])
             plt.yticks([])       
             plt.imshow(image/255.0, cmap=plt.cm.binary)
-            if i==m*n:
-                break
-                i = 0
-                plt.figure(figsize=(10,10))
+            plt.xlabel(rf'{class_names[expected]}$\ne${class_names[predicted]}')
+            if image_number==n_rows*n_columns:
+                plt.savefig(os.path.join(args.images,f'{name}{n_figures:04d}'))
+                n_figures += 1
+                image_number = 0
+        if image_number>0:
+            plt.savefig(os.path.join(args.images,f'{name}{n_figures:04d}'))
+        print (f'{n_mismatches} mismatches in {n_trials} trials')        
         plt.show()
-        #loss,accuracy = model.evaluate(test_x, test_y, verbose=2)
-        #print (f'Tested: loss={loss}, accuracy={accuracy}')
         sys.exit()
         
     if args.action=='continue':
