@@ -24,7 +24,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import Sequential,regularizers
-from keras.layers import Conv2D,AveragePooling2D,Flatten,Dense,MaxPooling2D,Dropout,SpatialDropout2D
+from keras.layers import Conv2D,AveragePooling2D,Flatten,Dense,MaxPooling2D,Dropout,SpatialDropout2D,Softmax
 from tensorflow.keras.callbacks import ModelCheckpoint,CSVLogger,LearningRateScheduler
 import tensorflow_datasets as tfds
 from tensorflow.keras.utils import get_file
@@ -37,6 +37,9 @@ import os
 import PIL
 import PIL.Image
 import pathlib
+import argparse
+import sys
+import matplotlib.pyplot as plt
 
 def create_data(dataset_url = 'https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz',
                 fname       = 'flower_photos',
@@ -87,7 +90,7 @@ def create_model(num_classes = 5):
       Conv2D(32, 3, activation='relu'),
       MaxPooling2D(),
       Flatten(),
-      Dense(128, activation='relu',kernel_regularizer=regularizers.l2(0.001)),
+      Dense(128, activation='relu',kernel_regularizer=regularizers.l2(0.0001)),
       #Dropout(0.2),
       Dense(num_classes)
     ])    
@@ -107,15 +110,15 @@ def create_model(num_classes = 5):
 
 def scheduler(epoch,mult=0.001,steps=10,decay=0.1):
     return mult if epoch < steps else mult * tf.math.exp(decay * (steps - epoch))
-    
-if __name__=='__main__':
-    import argparse
-    import sys
-    import matplotlib.pyplot as plt
-    
-    print(f'Using Tensorflow {tf.version.VERSION}')
-    basename = os.path.basename(__file__).split('.')[0]
-    path     = os.path.join(os.getenv('APPDATA'),basename)
+
+#def data_iterator(val_ds):
+    #for images_batch,labels_batch in val_ds:
+        #n,_,_,_ = images_batch.shape
+        ##print (images_batch.shape,labels_batch.shape)
+        #for i in range(n):
+            #yield images_batch[i],(int)(labels_batch[i])
+
+def parse_args():
     parser   = argparse.ArgumentParser('Trining Convolutional Neural Net')
     parser.add_argument('action',   
                         choices=['train',
@@ -128,7 +131,21 @@ if __name__=='__main__':
     parser.add_argument('--epochs', type=int,   default=5,              help = 'Number of epochs for training')
     parser.add_argument('--logfile',            default=basename, help = 'Name of logfile')
     
-    args                   = parser.parse_args()
+    return parser.parse_args() 
+    
+def predictions(model,val_ds):
+    probability_model = Sequential([model,Softmax()])
+    for images_batch,labels_batch in val_ds:
+        for probabilities,image,label in zip(probability_model.predict(images_batch),images_batch,labels_batch):
+            choice = np.argmax(probabilities)
+            yield choice,image,(int)(label)
+            
+if __name__=='__main__':
+    print(f'Using Tensorflow {tf.version.VERSION}')
+    basename = os.path.basename(__file__).split('.')[0]
+    path     = os.path.join(os.getenv('APPDATA'),basename)
+    args                   = parse_args() 
+    
     checkpoint             = os.path.join(args.path, args.checkpoint, 'cp-{epoch:04d}.ckpt')
     checkpoint_callback    = ModelCheckpoint(filepath       = checkpoint,
                                           save_weights_only = True,
@@ -156,9 +173,9 @@ if __name__=='__main__':
         sys.exit()
         
     if args.action == 'train':
-        train_ds,val_ds,class_names = create_data()
+        train_ds,val_ds,_ = create_data()
         
-        model                       = create_model()
+        model             = create_model()
         
         model.fit(
             train_ds,
@@ -169,20 +186,48 @@ if __name__=='__main__':
                                learning_rate_callback]          
         )        
   
-    
+        sys.exit()
+        
     if args.action == 'test':
         latest = tf.train.latest_checkpoint(os.path.dirname(checkpoint))
         print (f'Latest checkpoint: {latest}')
-        _, (test_x, test_y), _ = create_data()
+        _,val_ds,class_names = create_data()
 
-        model              = create_model(test_x)
+        model                = create_model()
        
         model.load_weights(latest) 
         print (f'Loaded {latest}')
         
-        loss,accuracy = model.evaluate(test_x, test_y, verbose=2)
-        print (f'Tested: loss={loss}, accuracy={accuracy}')
-       
+        #probability_model = Sequential([model,Softmax()])
+        #for images_batch,labels_batch in val_ds:
+            #for probabilities,image,label in zip(probability_model.predict(images_batch),images_batch,labels_batch):
+                #choice = np.argmax(probabilities)
+                #x=0
+        #for image,pred in data_iterator(val_ds):
+            #prediction = probability_model.predict(image)
+            #x=0  
+  
+        plt.figure(figsize=(10,10))
+        m = 4
+        n = 4
+        i = 0
+        for predicted,image,expected in predictions(model,val_ds):
+            if predicted == expected: continue
+            i+=1
+            ax = plt.subplot(m,n,i)
+            plt.grid(False)
+            plt.xticks([])
+            plt.yticks([])       
+            plt.imshow(image/255.0, cmap=plt.cm.binary)
+            if i==m*n:
+                break
+                i = 0
+                plt.figure(figsize=(10,10))
+        plt.show()
+        #loss,accuracy = model.evaluate(test_x, test_y, verbose=2)
+        #print (f'Tested: loss={loss}, accuracy={accuracy}')
+        sys.exit()
+        
     if args.action=='continue':
         latest = tf.train.latest_checkpoint(os.path.dirname(checkpoint))
         print (f'Latest checkpoint: {latest}')        
@@ -196,5 +241,6 @@ if __name__=='__main__':
         model.fit(train_x, train_y,
                   epochs=args.epochs,
                   validation_data=(val_x, val_y),
-                  callbacks=[checkpoint_callback,csv_logger_callback])        
+                  callbacks=[checkpoint_callback,csv_logger_callback])
+        sys.exit()
    
