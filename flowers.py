@@ -120,12 +120,12 @@ def parse_args():
                                  'continue',
                                  'show'],
                         help = 'Train or test')
-    parser.add_argument('--checkpoint',         default='checkpoint',   help = 'Name of file to save and restore network')
-    parser.add_argument('--path',               default=path,           help = 'Path of file used to save and restore network')
-    parser.add_argument('--epochs', type=int,   default=5,              help = 'Number of epochs for training')
-    parser.add_argument('--logfile',            default=basename,       help = 'Name of logfile')
-    parser.add_argument('--images',             default='./figs',       help = 'Path for storing images')
-    
+    parser.add_argument('--checkpoint',                default='checkpoint',   help = 'Name of file to save and restore network')
+    parser.add_argument('--path',                      default=path,           help = 'Path of file used to save and restore network')
+    parser.add_argument('--epochs', type=int,          default=5,              help = 'Number of epochs for training')
+    parser.add_argument('--logfile',                   default=basename,       help = 'Name of logfile')
+    parser.add_argument('--images',                    default='./figs',       help = 'Path for storing images')
+    parser.add_argument('--show', action='store_true', default=False,          help = 'Display plots')
     return parser.parse_args() 
     
 def predictions(model,val_ds):
@@ -133,7 +133,7 @@ def predictions(model,val_ds):
     for images_batch,labels_batch in val_ds:
         for probabilities,image,label in zip(probability_model.predict(images_batch),images_batch,labels_batch):
             choice = np.argmax(probabilities)
-            yield choice,image,(int)(label)
+            yield choice,image,(int)(label),probabilities
             
 if __name__=='__main__':
     from matplotlib import rc
@@ -203,27 +203,43 @@ if __name__=='__main__':
         n_mismatches = 0
         n_figures    = 0
         
-        for predicted,image,expected in predictions(model,val_ds):
+        for predicted,image,expected,probabilities in predictions(model,val_ds):
             n_trials += 1
             if predicted == expected: continue
             n_mismatches += 1
             if image_number==0:
-                plt.figure(figsize=(10,10))
+                plt.figure(figsize=(15,10))
             image_number += 1
-            plt.subplot(n_rows,n_columns,image_number)
+            
+            plt.subplot(n_rows,2*n_columns,2*image_number-1)
             plt.grid(False)
             plt.xticks([])
             plt.yticks([])       
             plt.imshow(image/255.0, cmap=plt.cm.binary)
             plt.xlabel(rf'{class_names[expected]}$\ne${class_names[predicted]}')
+            
+            plt.subplot(n_rows,2*n_columns,2*image_number)
+            plt.grid(False)
+            plt.xticks(range(len(probabilities)))
+            plt.yticks([])            
+            barplot = plt.bar(range(len(probabilities)),probabilities)
+            plt.ylim([0, 1])
+            barplot[predicted].set_color('red')
+            barplot[expected].set_color('blue')
+            
             if image_number==n_rows*n_columns:
                 plt.savefig(os.path.join(args.images,f'{name}{n_figures:04d}'))
+                if not args.show:
+                    plt.close()
                 n_figures += 1
                 image_number = 0
+                
         if image_number>0:
             plt.savefig(os.path.join(args.images,f'{name}{n_figures:04d}'))
         print (f'{n_mismatches} mismatches in {n_trials} trials')        
-        plt.show()
+        if args.show:
+            plt.show()
+            
         sys.exit()
         
     if args.action=='continue':

@@ -37,5 +37,5 @@ plot_results<-function(name) {
   
 }
 
-plot_results('regularizers.txt')
+plot_results('flowers.txt')
 
