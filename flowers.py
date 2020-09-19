@@ -51,16 +51,14 @@ def create_data(dataset_url = 'https://storage.googleapis.com/download.tensorflo
                                       fname=fname,
                                       untar=True))
 
-    train_ds = image_dataset_from_directory(
-        data_dir,
+    train_ds = image_dataset_from_directory(data_dir,
         validation_split = 0.2,
         subset           = 'training',
         seed             = 123,
         image_size       = (img_height, img_width),
         batch_size       = batch_size)
     
-    val_ds = image_dataset_from_directory(
-        data_dir,
+    val_ds = image_dataset_from_directory(data_dir,
         validation_split = 0.2,
         subset           = "validation",
         seed             = 123,
@@ -115,17 +113,34 @@ def scheduler(epoch,mult=0.001,steps=10,decay=0.1):
 def parse_args():
     parser   = argparse.ArgumentParser('Trining Convolutional Neural Net')
     parser.add_argument('action',   
-                        choices=['train',
-                                 'test', 
-                                 'continue',
-                                 'show'],
-                        help = 'Train or test')
-    parser.add_argument('--checkpoint',                default='checkpoint',   help = 'Name of file to save and restore network')
-    parser.add_argument('--path',                      default=path,           help = 'Path of file used to save and restore network')
-    parser.add_argument('--epochs', type=int,          default=5,              help = 'Number of epochs for training')
-    parser.add_argument('--logfile',                   default=basename,       help = 'Name of logfile')
-    parser.add_argument('--images',                    default='./figs',       help = 'Path for storing images')
-    parser.add_argument('--show', action='store_true', default=False,          help = 'Display plots')
+                        choices = ['train',
+                                   'test', 
+                                   'continue',
+                                   'show'],
+                        help    = 'Train or test')
+    parser.add_argument('--checkpoint',
+                        default = 'checkpoint',
+                        help    = 'Name of file to save and restore network')
+    parser.add_argument('--path',
+                        default = path,
+                        help    = 'Path of file used to save and restore network')
+    parser.add_argument('--epochs',
+                        type    = int,
+                        default = 5, 
+                        help    = 'Number of epochs for training')
+    parser.add_argument('--logfile',
+                        default = basename,
+                        help    = 'Name of logfile')
+    parser.add_argument('--plotfiles',
+                        default = basename,
+                        help    = 'Name of Plots')    
+    parser.add_argument('--images', 
+                        default = './figs', 
+                        help    = 'Path for storing images')
+    parser.add_argument('--show',
+                        action  = 'store_true', 
+                        default = False,
+                        help    = 'Display plots')
     return parser.parse_args() 
     
 def predictions(model,val_ds):
@@ -186,7 +201,6 @@ if __name__=='__main__':
         sys.exit()
         
     if args.action == 'test':
-        name = 'flowers'
         latest = tf.train.latest_checkpoint(os.path.dirname(checkpoint))
         print (f'Latest checkpoint: {latest}')
         _,val_ds,class_names = create_data()
@@ -228,14 +242,14 @@ if __name__=='__main__':
             barplot[expected].set_color('blue')
             
             if image_number==n_rows*n_columns:
-                plt.savefig(os.path.join(args.images,f'{name}{n_figures:04d}'))
+                plt.savefig(os.path.join(args.images,f'{args.plotfiles}{n_figures:04d}'))
                 if not args.show:
                     plt.close()
                 n_figures += 1
                 image_number = 0
                 
         if image_number>0:
-            plt.savefig(os.path.join(args.images,f'{name}{n_figures:04d}'))
+            plt.savefig(os.path.join(args.images,f'{args.plotfiles}{n_figures:04d}'))
         print (f'{n_mismatches} mismatches in {n_trials} trials')        
         if args.show:
             plt.show()
@@ -244,17 +258,22 @@ if __name__=='__main__':
         
     if args.action=='continue':
         latest = tf.train.latest_checkpoint(os.path.dirname(checkpoint))
-        print (f'Latest checkpoint: {latest}')        
-        (train_x, train_y), (test_x, test_y), (val_x,val_y) = create_data()
+        print (f'Latest checkpoint: {latest}') 
+        train_ds,val_ds,_ = create_data()
+
         
-        model              = create_model(train_x)
+        model              = create_model()
     
         model.load_weights(latest) 
         print (f'Loaded {latest}')
         csv_logger_callback  = CSVLogger(logfile,append=True)
-        model.fit(train_x, train_y,
-                  epochs=args.epochs,
-                  validation_data=(val_x, val_y),
-                  callbacks=[checkpoint_callback,csv_logger_callback])
+        model.fit(
+            train_ds,
+            validation_data = val_ds,
+            epochs          = args.epochs,
+            callbacks       = [checkpoint_callback,
+                               csv_logger_callback,
+                               learning_rate_callback]   )        
+ 
         sys.exit()
    
