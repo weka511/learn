@@ -13,6 +13,9 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+# Plot loss and accuracy for Training and Validation data
+# from logfiles
+
 setwd("~/../learn")
 rm(list=ls())
 cat("\014") 
@@ -20,7 +23,6 @@ if(!is.null(dev.list())) dev.off()
 
 plot_results<-function(name) {
   df<-read.csv(name)
-  # m1<-max(df$val_loss)
   plot(rownames(df),
        df$loss,
        type="o",
@@ -39,7 +41,7 @@ plot_results<-function(name) {
         col="red",
         lty=2)
   legend(x='topleft', 
-         legend=c("Loss", "Validation Loss"),
+         legend=c("Training Loss", "Validation Loss"),
          col=c("blue","red"),
          lty=1:2,
          cex=0.8)
@@ -63,7 +65,7 @@ plot_results<-function(name) {
         col="red",
         lty=2)
   legend(x='bottomright',
-         legend=c("Accuracy", "Validation Accuracy"),
+         legend=c("Training Accuracy", "Validation Accuracy"),
          col=c("blue","red"),
          lty=1:2,
          cex=0.8)
