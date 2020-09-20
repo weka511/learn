@@ -78,7 +78,7 @@ def create_data(dataset_url = 'https://storage.googleapis.com/download.tensorflo
 # Parameters:
 #     train_x    Used to assign size to first layer
 
-def create_model(num_classes = 5):
+def create_model(args, num_classes = 5):
     product = Sequential([
       Rescaling(1./255),
       Conv2D(32, 3, activation='relu'),
@@ -88,10 +88,12 @@ def create_model(num_classes = 5):
       Conv2D(32, 3, activation='relu'),
       MaxPooling2D(),
       Flatten(),
-      Dense(128, activation='relu',kernel_regularizer=regularizers.l2(0.0001)),
-      #Dropout(0.2),
+      Dense(128,
+            activation='relu',
+            kernel_regularizer=regularizers.l1_l2(l1=args.l1, l2=args.l2)),
       Dense(num_classes)
     ])    
+ 
 
     product.compile(optimizer = 'adam',
                    loss       = SparseCategoricalCrossentropy(from_logits=True),
@@ -111,7 +113,7 @@ def scheduler(epoch,mult=0.001,steps=10,decay=0.1):
 
 
 def parse_args():
-    parser   = argparse.ArgumentParser('Trining Convolutional Neural Net')
+    parser   = argparse.ArgumentParser('Training Convolutional Neural Net')
     parser.add_argument('action',   
                         choices = ['train',
                                    'test', 
@@ -141,6 +143,8 @@ def parse_args():
                         action  = 'store_true', 
                         default = False,
                         help    = 'Display plots')
+    parser.add_argument('--l1', type=float, default=1e-5)
+    parser.add_argument('--l2', type=float, default=1e-4)    
     return parser.parse_args() 
     
 def predictions(model,val_ds):
@@ -185,9 +189,9 @@ if __name__=='__main__':
         sys.exit()
         
     if args.action == 'train':
-        train_ds,val_ds,_ = create_data()
+        train_ds,val_ds,class_names = create_data()
         
-        model             = create_model()
+        model             = create_model(args,num_classes=len(class_names))
         
         model.fit(
             train_ds,
@@ -205,7 +209,7 @@ if __name__=='__main__':
         print (f'Latest checkpoint: {latest}')
         _,val_ds,class_names = create_data()
 
-        model                = create_model()
+        model                = create_model(args,num_classes=len(class_names))
        
         model.load_weights(latest) 
         print (f'Loaded {latest}')
@@ -259,10 +263,9 @@ if __name__=='__main__':
     if args.action=='continue':
         latest = tf.train.latest_checkpoint(os.path.dirname(checkpoint))
         print (f'Latest checkpoint: {latest}') 
-        train_ds,val_ds,_ = create_data()
-
+        train_ds,val_ds,class_names = create_data()
         
-        model              = create_model()
+        model              = create_model(args,num_classes=len(class_names))
     
         model.load_weights(latest) 
         print (f'Loaded {latest}')
