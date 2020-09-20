@@ -20,13 +20,14 @@ if(!is.null(dev.list())) dev.off()
 
 plot_results<-function(name) {
   df<-read.csv(name)
-  
+  # m1<-max(df$val_loss)
   plot(rownames(df),
        df$loss,
        type="o",
        col="blue",
        pch="o",
        lty=1,
+       ylim=c(0,max(df$val_loss,df$loss)),
        xlab="Epoch",
        ylab="Loss")
   points(rownames(df),
@@ -40,7 +41,8 @@ plot_results<-function(name) {
   legend(x='topleft', 
          legend=c("Loss", "Validation Loss"),
          col=c("blue","red"),
-         lty=1:2, cex=0.8)
+         lty=1:2,
+         cex=0.8)
   title(name)
   
   plot(rownames(df),
@@ -49,6 +51,7 @@ plot_results<-function(name) {
        col="blue",
        pch="o",
        lty=1,
+       ylim=c(0,1),
        xlab="Epoch",
        ylab="Accuracy")
   points(rownames(df),
