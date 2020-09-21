@@ -28,12 +28,13 @@ Experiments in machine learning
 |---------------|--------------------------------------------|
 | COVID19.wpr | Project file for Wing IDE |
 | explore.py | Read data files--snarfed from [Ivan Ega Pratama's Notebook: COVID19 initial exploration tool](https://www.kaggle.com/ivanegapratama/covid-eda-initial-exploration-tool)|
-| json-test.py| Earier program to read data files|
+| json-test.py| Earlier program to read data files|
 
 ## Keras and Tensorflow explorations
 
 | File  | Remarks |
 |---------------|--------------------------------------------|
+|catdog1.py|Load data from cat and dog training set, after [How to Classify Photos of Dogs and Cats (with 97% accuracy)](https://machinelearningmastery.com/how-to-develop-a-convolutional-neural-network-to-classify-photos-of-dogs-and-cats/)|
 |fashion.py| [Fashion items demo](https://www.tensorflow.org/tutorials/keras/classification)|
 |flowers.py|Script to read data and train--combination of Lenet5 and getdata |
 |getdata.py|Script to read data and train (demo/tutorial)|
