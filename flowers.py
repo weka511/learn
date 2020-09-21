@@ -89,21 +89,27 @@ def create_model(args, num_classes = 5):
             return None if args.l2==None else regularizers.l2(args.l2)
         else:
             return regularizers.l1(argsl1) if args.l2==None else regularizers.l1_l2(l1=args.l1, l2=args.l2) 
-       
-    product = Sequential([
-      Rescaling(1./255),
-      Conv2D(32, 3, activation='relu'),
-      MaxPooling2D(),
-      Conv2D(32, 3, activation='relu'),
-      MaxPooling2D(),
-      Conv2D(32, 3, activation='relu'),
-      MaxPooling2D(),
-      Flatten(),
-      Dense(128,
-            activation='relu',
-            kernel_regularizer=create_regularizer()),
-      Dense(num_classes)
-    ])    
+    
+    def purgeNones(layers):
+        return [layer for layer in layers if not layer == None]
+    
+    product = Sequential(
+        purgeNones([
+            Rescaling(1./255),
+            Conv2D(32, 3, activation='relu'),
+            MaxPooling2D(),
+            Conv2D(32, 3, activation='relu'),
+            MaxPooling2D(),
+            Conv2D(32, 3, activation='relu'),
+            MaxPooling2D(),
+            Flatten(),
+            Dropout(args.dropout) if args.dropout else None,
+            Dense(128,
+                  activation='relu',
+                  kernel_regularizer=create_regularizer()),
+            Dropout(args.dropout) if args.dropout else None,
+            Dense(num_classes)
+    ]))    
     
     product.compile(optimizer = 'adam',
                    loss       = SparseCategoricalCrossentropy(from_logits=True),
@@ -165,7 +171,11 @@ def parse_args():
     parser.add_argument('--l2', 
                         type=float,
                         default=None,
-                        help ='Controls L2 regularization')    
+                        help ='Controls L2 regularization')
+    parser.add_argument('--dropout', 
+                        type=float,
+                        default=None,
+                        help ='Controls Dropout')    
     return parser.parse_args() 
     
 def predictions(model,val_ds):
