@@ -41,29 +41,31 @@ import argparse
 import sys
 import matplotlib.pyplot as plt
 
-def create_data(dataset_url = 'https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz',
-                fname       = 'flower_photos',
-                batch_size  = 32,
-                img_height  = 180,
-                img_width   = 180):
+def create_data(dataset_url      = 'https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz',
+                fname            = 'flower_photos',
+                validation_split = 0.2,
+                seed             = 123,
+                batch_size       = 32,
+                img_height       = 180,
+                img_width        = 180):
     
     data_dir  = pathlib.Path(get_file(origin=dataset_url,
                                       fname=fname,
                                       untar=True))
 
     train_ds = image_dataset_from_directory(data_dir,
-        validation_split = 0.2,
-        subset           = 'training',
-        seed             = 123,
-        image_size       = (img_height, img_width),
-        batch_size       = batch_size)
+                                            validation_split = validation_split,
+                                            subset           = 'training',
+                                            seed             = seed,
+                                            image_size       = (img_height, img_width),
+                                            batch_size       = batch_size)
     
     val_ds = image_dataset_from_directory(data_dir,
-        validation_split = 0.2,
-        subset           = "validation",
-        seed             = 123,
-        image_size       = (img_height, img_width),
-        batch_size       = batch_size)
+                                          validation_split = validation_split,
+                                          subset           = "validation",
+                                          seed             = seed,
+                                          image_size       = (img_height, img_width),
+                                          batch_size       = batch_size)
     
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     
