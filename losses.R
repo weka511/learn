@@ -21,47 +21,50 @@ rm(list=ls())
 cat("\014") 
 if(!is.null(dev.list())) dev.off()
 
-plot_stats<-function(name,x,y,y_val,ylab,xlegend){
+plot.metric<-function(file.name,
+                     x,y,y.validation,
+                     metric.name,x.legend){
   plot(x, y,
        type = "o",
        col  = "blue",
        pch  = "o",
        lty  = 1,
-       ylim = c(min(y,y_val),max(y,y_val)),
+       ylim = c(min(y,y.validation),
+                max(y,y.validation)),
        xlab = "Epoch",
-       ylab = ylab)
+       ylab = metric.name)
   
-  points(x,y_val,
+  points(x,y.validation,
          col = "red",
          pch = "*")
   
-  lines(x,y_val,
+  lines(x,y.validation,
         col = "red",
         lty = 2)
   
-  legend(x      = xlegend, 
-         legend = c(paste("Training", ylab),
-                    paste("Validation", ylab)),
+  legend(x      = x.legend, 
+         legend = c(paste("Training", metric.name),
+                    paste("Validation", metric.name)),
          col    = c("blue","red"),
          lty    = 1:2,
          cex    = 0.8)
   
-  title(name)
+  title(file.name)
   grid(col="darkgrey")
 }
 
 
 
-plot_results<-function(name) {
-  df<-read.csv(name)
-  plot_stats(name,rownames(df),
+plot.metrics<-function(file.name) {
+  df<-read.csv(file.name)
+  plot.metric(file.name,rownames(df),
              df$loss,df$val_loss,
              "Loss",'topright')
-  plot_stats(name,rownames(df),
+  plot.metric(file.name,rownames(df),
              df$sparse_categorical_accuracy,
              df$val_sparse_categorical_accuracy,
              "Accuracy",'bottomright')
 }
 
-plot_results('flowers.txt')
+plot.metrics('flowers.txt')
 
