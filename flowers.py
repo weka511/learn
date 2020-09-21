@@ -73,6 +73,8 @@ def create_data(dataset_url      = 'https://storage.googleapis.com/download.tens
             val_ds.cache().prefetch(buffer_size=AUTOTUNE),
             train_ds.class_names)
 
+
+    
 # create_model
 #
 # Create Neural Network model and compile it
@@ -81,6 +83,13 @@ def create_data(dataset_url      = 'https://storage.googleapis.com/download.tens
 #     train_x    Used to assign size to first layer
 
 def create_model(args, num_classes = 5):
+     
+    def create_regularizer():
+        if args.l1==None:
+            return None if args.l2==None else regularizers.l2(args.l2)
+        else:
+            return regularizers.l1(argsl1) if args.l2==None else regularizers.l1_l2(l1=args.l1, l2=args.l2) 
+       
     product = Sequential([
       Rescaling(1./255),
       Conv2D(32, 3, activation='relu'),
@@ -92,15 +101,15 @@ def create_model(args, num_classes = 5):
       Flatten(),
       Dense(128,
             activation='relu',
-            kernel_regularizer=regularizers.l1_l2(l1=args.l1, l2=args.l2)),
+            kernel_regularizer=create_regularizer()),
       Dense(num_classes)
     ])    
- 
-
+    
     product.compile(optimizer = 'adam',
                    loss       = SparseCategoricalCrossentropy(from_logits=True),
                    metrics    = [SparseCategoricalAccuracy()])
 
+      
     return product
 
 
@@ -145,8 +154,18 @@ def parse_args():
                         action  = 'store_true', 
                         default = False,
                         help    = 'Display plots')
-    parser.add_argument('--l1', type=float, default=1e-5)
-    parser.add_argument('--l2', type=float, default=1e-4)    
+    parser.add_argument('--summary',
+                        action  = 'store_true',
+                        default = False,
+                        help    = 'Print summary of model')
+    parser.add_argument('--l1',
+                        type=float, 
+                        default=None,
+                        help ='Controls L1 regularization')
+    parser.add_argument('--l2', 
+                        type=float,
+                        default=None,
+                        help ='Controls L2 regularization')    
     return parser.parse_args() 
     
 def predictions(model,val_ds):
@@ -204,6 +223,9 @@ if __name__=='__main__':
                                learning_rate_callback]          
         )        
   
+        if args.summary:
+            model.summary()
+            
         sys.exit()
         
     if args.action == 'test':
