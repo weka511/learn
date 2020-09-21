@@ -21,56 +21,46 @@ rm(list=ls())
 cat("\014") 
 if(!is.null(dev.list())) dev.off()
 
+plot_stats<-function(name,x,y,y_val,ylab,xlegend){
+  plot(x, y,
+       type = "o",
+       col  = "blue",
+       pch  = "o",
+       lty  = 1,
+       ylim = c(min(y,y_val),max(y,y_val)),
+       xlab = "Epoch",
+       ylab = ylab)
+  
+  points(x,y_val,
+         col = "red",
+         pch = "*")
+  
+  lines(x,y_val,
+        col = "red",
+        lty = 2)
+  
+  legend(x      = xlegend, 
+         legend = c(paste("Training", ylab),
+                    paste("Validation", ylab)),
+         col    = c("blue","red"),
+         lty    = 1:2,
+         cex    = 0.8)
+  
+  title(name)
+  grid(col="darkgrey")
+}
+
+
+
 plot_results<-function(name) {
   df<-read.csv(name)
-  plot(rownames(df),
-       df$loss,
-       type="o",
-       col="blue",
-       pch="o",
-       lty=1,
-       ylim=c(0,max(df$val_loss,df$loss)),
-       xlab="Epoch",
-       ylab="Loss")
-  points(rownames(df),
-         df$val_loss,
-         col="red",
-         pch="*")
-  lines(rownames(df),
-        df$val_loss,
-        col="red",
-        lty=2)
-  legend(x='topleft', 
-         legend=c("Training Loss", "Validation Loss"),
-         col=c("blue","red"),
-         lty=1:2,
-         cex=0.8)
-  title(name)
-  
-  plot(rownames(df),
-       df$sparse_categorical_accuracy,
-       type="o",
-       col="blue",
-       pch="o",
-       lty=1,
-       ylim=c(0,1),
-       xlab="Epoch",
-       ylab="Accuracy")
-  points(rownames(df),
-         df$val_sparse_categorical_accuracy,
-         col="red",
-         pch="*")
-  lines(rownames(df),
-        df$val_sparse_categorical_accuracy,
-        col="red",
-        lty=2)
-  legend(x='bottomright',
-         legend=c("Training Accuracy", "Validation Accuracy"),
-         col=c("blue","red"),
-         lty=1:2,
-         cex=0.8)
-  title(name)
-  
+  plot_stats(name,rownames(df),
+             df$loss,df$val_loss,
+             "Loss",'topright')
+  plot_stats(name,rownames(df),
+             df$sparse_categorical_accuracy,
+             df$val_sparse_categorical_accuracy,
+             "Accuracy",'bottomright')
 }
 
 plot_results('flowers.txt')
