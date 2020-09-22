@@ -21,25 +21,26 @@
 
 # https://www.tensorflow.org/tutorials/load_data/images
 
+import os
+import pathlib
+import argparse
+import sys
+import time
+
+import numpy as np
+import matplotlib.pyplot as plt
+
 import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras import Sequential,regularizers
-from keras.layers import Conv2D,AveragePooling2D,Flatten,Dense,MaxPooling2D,Dropout,SpatialDropout2D,Softmax
+from tensorflow.keras.layers import Conv2D,AveragePooling2D,Flatten,Dense,MaxPooling2D,Dropout,SpatialDropout2D,Softmax
 from tensorflow.keras.callbacks import ModelCheckpoint,CSVLogger,LearningRateScheduler
-import tensorflow_datasets as tfds
 from tensorflow.keras.utils import get_file
 from tensorflow.keras.layers.experimental.preprocessing import Rescaling
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseCategoricalAccuracy
-import numpy as np
-import os
-import PIL
-import PIL.Image
-import pathlib
-import argparse
-import sys
-import matplotlib.pyplot as plt
+import tensorflow_datasets as tfds
+
 
 def create_data(dataset_url      = 'https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz',
                 fname            = 'flower_photos',
@@ -90,8 +91,8 @@ def create_model(args, num_classes = 5):
         else:
             return regularizers.l1(argsl1) if args.l2==None else regularizers.l1_l2(l1=args.l1, l2=args.l2) 
     
-    def purgeNones(layers):
-        return [layer for layer in layers if not layer == None]
+    def purgeNones(layers): # Used to remove layers that have been set to None (e.g. unused Dropout)
+        return [layer for layer in layers if layer is not None]
     
     product = Sequential(
         purgeNones([
@@ -220,10 +221,9 @@ if __name__=='__main__':
         sys.exit()
         
     if args.action == 'train':
-        train_ds,val_ds,class_names = create_data()
-        
-        model             = create_model(args,num_classes=len(class_names))
-        
+        train_ds,val_ds,class_names = create_data()     
+        model                       = create_model(args,num_classes=len(class_names))
+        start                       = time.time()
         model.fit(
             train_ds,
             validation_data = val_ds,
@@ -232,7 +232,7 @@ if __name__=='__main__':
                                csv_logger_callback,
                                learning_rate_callback]          
         )        
-  
+        print (f'Training used {(time.time()-start)/args.epochs:.2f} sec per epoch')
         if args.summary:
             model.summary()
             
@@ -299,18 +299,20 @@ if __name__=='__main__':
         print (f'Latest checkpoint: {latest}') 
         train_ds,val_ds,class_names = create_data()
         
-        model              = create_model(args,num_classes=len(class_names))
+        model                       = create_model(args,num_classes=len(class_names))
     
         model.load_weights(latest) 
         print (f'Loaded {latest}')
-        csv_logger_callback  = CSVLogger(logfile,append=True)
+        csv_logger_callback         = CSVLogger(logfile,append=True)
+        start                       = time.time()
         model.fit(
             train_ds,
             validation_data = val_ds,
             epochs          = args.epochs,
             callbacks       = [checkpoint_callback,
                                csv_logger_callback,
-                               learning_rate_callback]   )        
+                               learning_rate_callback]   ) 
+        print (f'Training used {(time.time()-start)/args.epochs:.2f} sec per epoch')
  
         sys.exit()
    
