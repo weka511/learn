@@ -24,6 +24,7 @@
 import os
 import pathlib
 import argparse
+import shutil
 import sys
 import time
 
@@ -185,6 +186,20 @@ def predictions(model,val_ds):
         for probabilities,image,label in zip(probability_model.predict(images_batch),images_batch,labels_batch):
             choice = np.argmax(probabilities)
             yield choice,image,(int)(label),probabilities
+
+# ensure_checkpoint_removed
+#
+# Make sure that we don't have an obsolete checkpoint file when we train,
+# as such a file can cause confusion if it has more epochs than current run
+
+def ensure_checkpoint_removed(checkpoint_path):
+    if os.path.isdir(checkpoint_path):
+        try:
+            shutil.rmtree(checkpoint_path)
+        except OSError as err:
+            print (f'Error {err} deleting {checkpoint_path}')
+            return False
+    return True
             
 if __name__=='__main__':
     from matplotlib import rc
@@ -221,6 +236,7 @@ if __name__=='__main__':
         sys.exit()
         
     if args.action == 'train':
+        if not ensure_checkpoint_removed(os.path.join(args.path, args.checkpoint)): sys.exit()
         train_ds,val_ds,class_names = create_data()     
         model                       = create_model(args,num_classes=len(class_names))
         start                       = time.time()
