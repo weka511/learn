@@ -15,6 +15,7 @@
 
 import fcsparser
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
 import fcs
@@ -47,8 +48,10 @@ if __name__=='__main__':
     ssc_h,_,_ = normalize(df1,'SSC-H')
     fsc_w,_,_ = normalize(df1,'FSC-Width')
     data[0]   = [x for x in fsc_h]
-    data[1]   = [x for x in ssc_h]
-    data[2]   = [x for x in fsc_w]
+    data[1]   = [y for y in ssc_h]
+    data[2]   = [z for z in fsc_w]
     dd        = PCA(data)
-    plt.scatter(dd[0],dd[1],s=1)
+    plt.figure(figsize=(10,10))
+    ax1       = plt.subplot(1,1,1, projection='3d')
+    ax1.scatter(dd[0],dd[1],dd[2],s=1)
     plt.show()
