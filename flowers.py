@@ -42,6 +42,9 @@ from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseCategoricalAccuracy
 import tensorflow_datasets as tfds
 
+# create_data
+#
+# Read data from files and organize into training and test datasets
 
 def create_data(dataset_url      = 'https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz',
                 fname            = 'flower_photos',
@@ -127,9 +130,8 @@ def create_model(args, num_classes = 5):
 #
 # snarfed from https://medium.com/ydata-ai/how-to-use-tensorflow-callbacks-f54f9bb6db25
 
-def scheduler(epoch,mult=0.001,steps=10,decay=0.1):
-    return mult if epoch < steps else mult * tf.math.exp(decay * (steps - epoch))
-
+def scheduler(epoch,args):
+    return args.learn if epoch < args.learn_init_steps else args.learn * tf.math.exp(args.learn-decay * (args.learn_init_steps - epoch)) 
 
 def parse_args():
     parser   = argparse.ArgumentParser('Training Convolutional Neural Net')
@@ -177,9 +179,26 @@ def parse_args():
     parser.add_argument('--dropout', 
                         type=float,
                         default=None,
-                        help ='Controls Dropout')    
-    return parser.parse_args() 
+                        help ='Controls Dropout')
+    parser.add_argument('--learn', 
+                        type=float,
+                        default=0.0001,
+                        help ='Initial learning rate')
+    parser.add_argument('--learn_init_steps', 
+                        type=int,
+                        default=10,
+                        help ='Hold learning rate for this many steps')
+    parser.add_argument('--learn-decay', 
+                        type=float,
+                        default=0.1,
+                        help ='Rate at which learning decays')
     
+    return parser.parse_args() 
+
+# predictions
+#
+# Generator to iterate through test data:
+#      predicted,image,expected,probabilities
 def predictions(model,val_ds):
     probability_model = Sequential([model,Softmax()])
     for images_batch,labels_batch in val_ds:
@@ -219,7 +238,7 @@ if __name__=='__main__':
     
     csv_logger_callback    = CSVLogger(logfile)
     
-    learning_rate_callback = LearningRateScheduler(scheduler)
+    learning_rate_callback = LearningRateScheduler(lambda epoch: scheduler(epoch,args))
     
     if args.action=='show':
         train_ds,_,class_names = create_data()
