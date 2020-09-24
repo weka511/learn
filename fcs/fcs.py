@@ -13,12 +13,15 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+import argparse
 import fcsparser
+
+from matplotlib import rc
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.stats as stats
-import os
+import os 
 import re
+import scipy.stats as stats
 
 
 #  get_bounds
@@ -112,8 +115,7 @@ def consolidate(n,bins,minimum=5):
     return n1,bins1
 
 if __name__=='__main__':
-    import os, re, argparse
-    from matplotlib import rc
+
     rc('text', usetex=True)
     
     parser = argparse.ArgumentParser('Plot GCP wells')

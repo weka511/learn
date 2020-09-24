@@ -13,10 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-import re
-import matplotlib.pyplot as plt
 import argparse
+import matplotlib.pyplot as plt
 from matplotlib import rc
+import re
+
 rc('text', usetex=True)
 parser = argparse.ArgumentParser()
 parser.add_argument('file')

@@ -17,13 +17,22 @@
 # Padhraic Smyth 
 # https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
 
-import fcs
-import os
+import argparse
 import fcsparser
+from matplotlib import rc
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
+import os
+import re
+from scipy import stats
 import scipy.stats as stats,math
+import sys
+
 import em
+import fcs
+import standards
+
 
 # get_boundaries
 
@@ -119,16 +128,7 @@ def filter_doublets(xs,ys,zs,mult=0.25):
                       np.cov([xs,ys,zs],rowvar=True)],
             alphas = [0.5,0.5]) 
      
-if __name__=='__main__':
-    import  re
-    import argparse
-    import sys
- 
-    import standards
-    from matplotlib import rc
-    from mpl_toolkits.mplot3d import Axes3D
-    from scipy import stats
-    
+if __name__=='__main__':    
     rc('text', usetex=True)
 
     parser   = argparse.ArgumentParser('Fit Gaussian Mixture Model to GCP wells')
