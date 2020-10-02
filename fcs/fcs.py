@@ -114,6 +114,26 @@ def consolidate(n,bins,minimum=5):
         bins1[-1]=bins[-1] 
     return n1,bins1
 
+def fcs(root,include_gcps=False,include_regular=True):
+    def file_name_matches(file):
+        if re.match('.*[GH]12.fcs',file):
+            return include_gcps
+        if re.match('.*[A-H][0]?[0-9]',file):
+            return include_regular
+        
+    for root, dirs, files in os.walk(root):
+        
+        path  = root.split(os.sep)
+        match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
+       
+        if match:
+            plate = match.group(1)
+            for file in files:
+                if file_name_matches(file):
+                    path     = os.path.join(root,file)
+                    meta, df = fcsparser.parse(path, reformat_meta=True)
+                    yield plate,meta['TBNM'],df
+                
 if __name__=='__main__':
 
     rc('text', usetex=True)
@@ -122,7 +142,7 @@ if __name__=='__main__':
     parser.add_argument('-r','--root',default=r'\data\cytoflex\Melbourne')
     parser.add_argument('-p','--plate',nargs='+',default='all')
     args   = parser.parse_args()
-    
+
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+)',path[-1])
