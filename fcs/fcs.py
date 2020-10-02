@@ -119,24 +119,24 @@ def consolidate(n,bins,minimum=5):
 # A generator: it allows us to iterate through plates and wells
 
 def fcs(root,
-        include_gcps    = False,
-        include_regular = True,
-        plate           = 'all'):
-    def file_name_matches(file):
-        if re.match('.*[GH]12.fcs',file):
-            return include_gcps
-        if re.match('.*[A-H][0]?[0-9]',file):
-            return include_regular
-        
+        plate = 'all',
+        wells = 'all'):
+
+    re_plate =  re.compile('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)')
+    re_wells =  re.compile(
+        '.*[A-H][1]?[0-9]'  if wells=='all'       else \
+        '.*[A-H]12.fcs'     if wells== 'controls' else \
+        '.*[GH]12.fcs' )    # GCPs
+    
     for root, dirs, files in os.walk(root):   
         path  = root.split(os.sep)
-        match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
+        match = re_plate.match(path[-1])
        
         if match:
             this_plate = match.group(1)
             if plate == 'all' or 'all' in plate or this_plate in plate:
                 for file in files:
-                    if file_name_matches(file):
+                    if re_wells.match(file):
                         path     = os.path.join(root,file)
                         meta, df = fcsparser.parse(path, reformat_meta=True)
                         yield this_plate,get_well_name(meta['TBNM']),df

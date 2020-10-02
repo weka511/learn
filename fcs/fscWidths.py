@@ -24,26 +24,31 @@ import fcs
 if __name__=='__main__':
     rc('text', usetex=True)
     parser = argparse.ArgumentParser('Plot FSC Width')
-    parser.add_argument('-r',
-                        '--root',
-                        default=r'\data\cytoflex\Melbourne')
-    parser.add_argument('-p',
-                        '--plate',
-                        nargs='+',
-                        default='all')
+    parser.add_argument('--root',
+                        default = r'\data\cytoflex\Melbourne')
+    parser.add_argument('--plate',
+                        nargs   = '+',
+                        default = 'all')
+    parser.add_argument('--wells',
+                        choices = ['all',
+                                   'controls',
+                                   'gcps'],
+                        default = 'all')
     parser.add_argument('--show',
                         default=False, 
                         action = 'store_true')
     args   = parser.parse_args()
     
-    for plate,well,df in fcs.fcs(args.root,include_gcps=True,include_regular=True):
-        print ( plate,well)    
+    for plate,well,df in fcs.fcs(args.root,
+                                 plate = args.plate,
+                                 wells = args.wells):
+        print (f'{ plate} {well}')    
     
         df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)
         df_reduced_doublets = df_gated_on_sigma[df_gated_on_sigma['FSC-Width']<1000]
         fig                 = plt.figure(figsize=(15,10))
         axes                = fig.subplots(nrows=2,ncols=3) 
-        axes[0][0].set_title(r'$\Theta$')
+        fig.suptitle(f'{ plate} {well}')
         sns.scatterplot(x       = df_reduced_doublets['FSC-H'],
                         y       = df_reduced_doublets['SSC-H'],
                         hue     = df_reduced_doublets['FSC-Width'],
