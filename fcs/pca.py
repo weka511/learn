@@ -16,42 +16,56 @@
 import fcsparser
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import rc
 import numpy as np
-
+import seaborn
 import fcs
 
-def normalize(df,key):
-    mu    = np.mean(df[key])
-    sigma = np.std(df[key])
-    norm  = [(x-mu)/sigma for x in df[key]]
+def normalize(vector):
+    mu    = np.mean(vector)
+    sigma = np.std(vector)
+    norm  = [(x-mu)/sigma for x in vector]
     return norm,mu,sigma
 
-def covariance(data):
+def create_covariance(data):
     d       = len(data)
-    Cov     = np.zeros([d,d])
+    product = np.zeros([d,d])
     for i in range(d):
         for j in range(i,d):
-            Cov[i][j] = sum([x*y for (x,y) in zip(data[i],data[j]) ]) / len(data[0])
+            product[i][j]     = sum([x*y for (x,y) in zip(data[i],data[j]) ]) / len(data[0])
             if i<j:
-                Cov[j][i]=Cov[i][j]
-    return Cov
+                product[j][i] = product[i][j]
+    return product
 
 def PCA(data):
-    U,_,_ = np.linalg.svd(covariance(data))
-    return np.matmul(U.transpose(),data)
-    
+    U,_,_ = np.linalg.svd(create_covariance(data))
+    Ut    = U.transpose()
+    return np.matmul(Ut,data),Ut
+   
+def create_data(df,fields):
+    product = np.zeros([len(fields),df.shape[0]])
+    for i in range(len(fields)):
+        channel_data,_,_ = normalize(df[fields[i]])
+        product[i] = [x for x in channel_data]
+    return product
+
 if __name__=='__main__':
-    meta,df   = fcsparser.parse(r'C:\data\cytoflex\Melbourne\PAP15100054\01-Tube-A12.fcs')
-    df1       = fcs.gate_data(df,nsigma=2)
-    data      = np.zeros([3,df1.shape[0]])
-    fsc_h,_,_ = normalize(df1,'FSC-H')
-    ssc_h,_,_ = normalize(df1,'SSC-H')
-    fsc_w,_,_ = normalize(df1,'FSC-Width')
-    data[0]   = [x for x in fsc_h]
-    data[1]   = [y for y in ssc_h]
-    data[2]   = [z for z in fsc_w]
-    dd        = PCA(data)
-    plt.figure(figsize=(10,10))
-    ax1       = plt.subplot(1,1,1, projection='3d')
-    ax1.scatter(dd[0],dd[1],dd[2],s=1)
+    rc('text', usetex=True)    
+    _,df      = fcsparser.parse(r'C:\data\cytoflex\Melbourne\PAP15100054\01-Tube-A12.fcs')
+    raw       = create_data(fcs.gate_data(df,nsigma=2), ['FSC-H','SSC-H','FSC-Width'])
+    reduced,_ = PCA(raw)
+    
+    plt.figure(figsize=(10,20))
+    plt.title('PCA')
+    cm  = plt.cm.get_cmap('plasma')
+    ax1 = plt.subplot(1,2,1, projection='3d')
+    sc1 = ax1.scatter(reduced[0],reduced[1],reduced[2],
+                s=1,c=reduced[2],cmap=cm)
+    cbar = plt.colorbar(sc1,shrink=0.25)
+    cbar.set_label('$3^{rd}$ component',rotation=270)
+    ax2 = plt.subplot(1,2,2)
+    sc2 = ax2.scatter(reduced[0],reduced[1],
+                      s=1,c=reduced[2],cmap=cm)
+    ax2.set_title('Principal components')
+    plt.tight_layout()
     plt.show()
