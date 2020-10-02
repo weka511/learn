@@ -124,22 +124,40 @@ def fcs(root,
 
     re_plate =  re.compile('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)')
     re_wells =  re.compile(
-        '.*[A-H][1]?[0-9]'  if wells=='all'       else \
-        '.*[A-H]12.fcs'     if wells== 'controls' else \
-        '.*[GH]12.fcs' )    # GCPs
+        '.*([A-H][1]?[0-9]).fcs'  if wells=='all'       else \
+        '.*([A-H]12).fcs'     if wells== 'controls' else \
+        '.*([GH]12).fcs' )    # GCPs
+
+    # get_well
+    #
+    # Used to extract well number from file name
+    
+    def get_well(file_name):
+        match = re_wells.match(file_name)
+        return match.group(1) if match else None
+    
+    # gcps_first
+    #
+    # Used to sort wells so GCPs come first (as we may want some data from GCPs before we process other wells)
+    def gcps_first(couple):
+        _,well_name = couple
+        if well_name == 'G12': return -2
+        if well_name == 'H12': return -1
+        row    = ord(well_name[0])-ord('A')
+        column = int(well_name[1:])
+        return 12 * row + column
     
     for root, dirs, files in os.walk(root):   
         path  = root.split(os.sep)
-        match = re_plate.match(path[-1])
-       
+        match = re_plate.match(path[-1])     
         if match:
             this_plate = match.group(1)
             if plate == 'all' or 'all' in plate or this_plate in plate:
-                for file in files:
-                    if re_wells.match(file):
-                        path     = os.path.join(root,file)
-                        meta, df = fcsparser.parse(path, reformat_meta=True)
-                        yield this_plate,get_well_name(meta['TBNM']),df
+                for file,well in sorted([(file,get_well(file)) for file in files if get_well(file) != None],
+                                     key = gcps_first):
+                    path     = os.path.join(root,file)
+                    meta, df = fcsparser.parse(path, reformat_meta=True)
+                    yield this_plate,well,df,meta
                 if this_plate in plate: return
                 
 if __name__=='__main__':
