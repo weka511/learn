@@ -25,21 +25,25 @@ if __name__=='__main__':
     rc('text', usetex=True)
     parser = argparse.ArgumentParser('Plot FSC Width')
     parser.add_argument('--root',
-                        default = r'\data\cytoflex\Melbourne')
+                        default = r'\data\cytoflex\Melbourne',
+                        help    = 'Path to top of FCS files.')
     parser.add_argument('--plate',
                         nargs   = '+',
-                        default = 'all')
+                        default = 'all',
+                        help    = 'List of plates to process (or "all").')
     parser.add_argument('--wells',
                         choices = ['all',
                                    'controls',
                                    'gcps'],
-                        default = 'all')
+                        default = 'all',
+                        help    = 'Identify wells to be processed.')
     parser.add_argument('--show',
-                        default=False, 
-                        action = 'store_true')
+                        default = False, 
+                        action  = 'store_true',
+                        help    = 'Indicates whether to display plots (they will be saved irregardless).')
     args   = parser.parse_args()
     
-    for plate,well,df in fcs.fcs(args.root,
+    for plate,well,df,_ in fcs.fcs(args.root,
                                  plate = args.plate,
                                  wells = args.wells):
         print (f'{ plate} {well}')    
