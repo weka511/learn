@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 import os
 import seaborn as sns
+import pandas as pd
 import fcs
 
 if __name__=='__main__':
@@ -37,17 +38,27 @@ if __name__=='__main__':
                                    'gcps'],
                         default = 'all',
                         help    = 'Identify wells to be processed.')
+    parser.add_argument('--mapping',
+                        default = 'mapping.csv',
+                        help    = 'File to store mapping between plates, locations, and serial numbers.')
     parser.add_argument('--show',
                         default = False, 
                         action  = 'store_true',
                         help    = 'Indicates whether to display plots (they will be saved irregardless).')
     args   = parser.parse_args()
     
+    plates    = []
+    cytsns    = []
+    locations = []
     for plate,well,df,meta,location in fcs.fcs(args.root,
                                  plate = args.plate,
                                  wells = args.wells):
         cytsn = meta['$CYTSN']
-        print (f'{ plate} {well} {location} {cytsn}')    
+        print (f'{ plate} {well} {location} {cytsn}')
+        if not plate in plates:
+            plates.append(plate)
+            cytsns.append(cytsn)
+            locations.append(location)
     
         df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)
         df_reduced_doublets = df_gated_on_sigma[df_gated_on_sigma['FSC-Width']<1000]
@@ -86,6 +97,11 @@ if __name__=='__main__':
                 well   = well)) 
         if not args.show:
             plt.close()
-            
+     
+    refs = pd.DataFrame({ 'Plate'    : plates,
+                          'CYTSN'    : cytsns,
+                          'Location' : locations})
+    
+    refs.to_csv(args.mapping, index=False)
     if args.show:
         plt.show()
