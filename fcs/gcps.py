@@ -110,7 +110,7 @@ def get_selector(ws,q=0.5,K=0): # hyperparameter
 
 # filter_doublets
 #
-# Used to split beads into two clusters, preumably real data and a set of doublets
+# Used to split beads into two clusters, presumably real data and a set of doublets
 #
 # Parameters:
 #     xs
@@ -132,45 +132,46 @@ if __name__=='__main__':
 
     parser   = argparse.ArgumentParser('Fit Gaussian Mixture Model to GCP wells')
     parser.add_argument('-r','--root',
-                        default=r'\data\cytoflex\Melbourne',
-                        help='Root for fcs files')
+                        default = r'\data\cytoflex\Melbourne',
+                        help    = 'Root for fcs files')
     parser.add_argument('-p','--plate',
-                        default='all',
-                        nargs='+',
-                        help='Name of plate to be processed (omit for all)')
+                        default = 'all',
+                        nargs   = '+',
+                        help    = 'Name of plate to be processed (omit for all)')
     parser.add_argument('-w','--well', 
-                        default=['G12','H12'],
-                        nargs='+',
-                        help='Names of wells to be processed (omit for all)')
+                        default = ['G12','H12'],
+                        nargs   = '+',
+                        help    = 'Names of wells to be processed (omit for all)')
     parser.add_argument('-N','--N',
-                        default=25, 
-                        type=int, 
-                        help='Number of attempts for iteration')
+                        default = 25, 
+                        type    = int, 
+                        help    = 'Number of attempts for iteration')
     parser.add_argument('-K','--K', 
-                        default=[3,4],
-                        nargs='+', type=int, 
-                        help='Number of peaks to search for')
+                        default = [3,4],
+                        nargs   = '+', 
+                        type    = int, 
+                        help    = 'Number of peaks to search for')
     parser.add_argument('-t', '--tolerance',
-                        default=1.0e-6,
-                        type=float, 
-                        help='Iteration stops when ratio between likelihoods is this close to 1.')
+                        default = 1.0e-6,
+                        type    = float, 
+                        help    = 'Iteration stops when ratio between likelihoods is this close to 1.')
     parser.add_argument('-s', '--show',
-                        default=False,
-                        action='store_true',
-                        help='Display graphs')
+                        default = False,
+                        action  = 'store_true',
+                        help    = 'Display graphs')
     parser.add_argument('-f', '--fixup',
-                        default=False,
-                        action='store_true',
-                        help='Decide whether to keep K=3 or 4')
+                        default = False,
+                        action  = 'store_true',
+                        help    = 'Decide whether to keep K=3 or 4')
     
     parser.add_argument('-d','--doublets',
-                        default=False,
-                        action='store_true',
-                        help='Strip doublets')
+                        default = False,
+                        action  = 'store_true',
+                        help    = 'Strip doublets')
     
     parser.add_argument('--properties',
-                        default=r'\data\properties',
-                        help='Root for properties files')
+                        default = r'\data\properties',
+                        help    = 'Root for properties files')
     
     args   = parser.parse_args()
     show   = args.show or args.plate!='all'

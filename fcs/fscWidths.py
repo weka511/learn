@@ -15,13 +15,62 @@
 
 import argparse
 import fcsparser
+import math
 import matplotlib.pyplot as plt
 from matplotlib import rc
+import numpy as np
 import os
 import seaborn as sns
 import pandas as pd
+import re
 import fcs
+import gcps
 
+class MappingBuilder:
+    def __init__(self):
+        self.plates    = []
+        self.cytsns    = []
+        self.locations = []
+        self.refs      = None
+        
+    def accumulate(self,plate,cytsn,location):
+        if not plate in self.plates:
+            self.plates.append(plate)
+            self.cytsns.append(cytsn)
+            self.locations.append(location)
+            
+    # Build mapping between Plate, serial number, and location 
+    def build(self):
+        self.refs = pd.DataFrame({ 
+            'Plate'    : self.plates,
+            'CYTSN'    : self.cytsns,
+            'Location' : self.locations})
+        self.refs.sort_values(by      = ['Plate'],
+                              inplace = True)
+    def save(self,path):
+        self.refs.to_csv(path,index=False)  
+ 
+def plot_fsc_ssc_width(df,ax=None):
+    sns.scatterplot(x       = df['FSC-H'],
+                    y       = df['SSC-H'],
+                    hue     = df['FSC-Width'],
+                    palette = sns.color_palette('icefire', as_cmap=True),
+                    s       = 1,
+                    ax      = ax)
+
+#plot_fsc_width(df_gated_on_sigma,ax=None,mu=mus[0],sigma=sigmas[0])
+def plot_fsc_width(df,ax=None,mu=0,sigma=1):
+    sns.histplot(df,
+                 x  = 'FSC-Width',
+                 ax = ax)
+    ax2 = ax.twinx()
+    xs = df['FSC-Width'].values
+    ax2.scatter(xs,[100 * gcps.get_p(w,mu,sigma) for w in xs],
+                s=1,
+                c='r',
+                label=rf'$\mu$={mu:.0f},$\sigma$={sigma:.0f}')
+    ax2.legend()
+    
 if __name__=='__main__':
     rc('text', usetex=True)
     parser = argparse.ArgumentParser('Plot FSC Width')
@@ -41,55 +90,97 @@ if __name__=='__main__':
     parser.add_argument('--mapping',
                         default = 'mapping.csv',
                         help    = 'File to store mapping between plates, locations, and serial numbers.')
+    parser.add_argument('-N','--N',
+                        default = 25, 
+                        type    = int, 
+                        help    = 'Number of attempts for iteration')
+    parser.add_argument('-t', '--tolerance',
+                        default = 1.0e-6,
+                        type    = float, 
+                        help    = 'Iteration stops when ratio between likelihoods is this close to 1.')    
     parser.add_argument('--show',
                         default = False, 
                         action  = 'store_true',
                         help    = 'Indicates whether to display plots (they will be saved irregardless).')
-    args   = parser.parse_args()
+    args           = parser.parse_args()
     
-    plates    = []
-    cytsns    = []
-    locations = []
+    re_gcp         = re.compile('[GH]12')
+    mappingBuilder = MappingBuilder()
+    widthStats     = {}
+    
     for plate,well,df,meta,location in fcs.fcs(args.root,
                                  plate = args.plate,
                                  wells = args.wells):
-        cytsn = meta['$CYTSN']
+        cytsn  = meta['$CYTSN']
+        
         print (f'{ plate} {well} {location} {cytsn}')
-        if not plate in plates:
-            plates.append(plate)
-            cytsns.append(cytsn)
-            locations.append(location)
-    
-        df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)
-        df_reduced_doublets = df_gated_on_sigma[df_gated_on_sigma['FSC-Width']<1000]
+        mappingBuilder.accumulate(plate,cytsn,location)
         fig                 = plt.figure(figsize=(15,10))
         axes                = fig.subplots(nrows=2,ncols=3) 
-        fig.suptitle(f'{plate} {well} {location} {cytsn}')
-        sns.scatterplot(x       = df_reduced_doublets['FSC-H'],
-                        y       = df_reduced_doublets['SSC-H'],
-                        hue     = df_reduced_doublets['FSC-Width'],
-                        palette = sns.color_palette('icefire', as_cmap=True),
-                        s       = 1,
-                        ax      = axes[0][0])
-    
-        sns.histplot(df_reduced_doublets,
-                     x  = 'FSC-H',
-                     ax = axes[0][1])
-        sns.histplot(df_reduced_doublets,
-                     x  = 'SSC-H',
-                     ax = axes[1][0])
-        sns.histplot(df_gated_on_sigma,
-                     x  = 'FSC-Width',
-                     ax = axes[1][1])
-        
-        sns.scatterplot(x  = df_gated_on_sigma['FSC-H'],
-                        y  = df_gated_on_sigma['FSC-Width'],
-                        s  = 1,
-                        ax = axes[0][2])
-        sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
-                        y  = df_gated_on_sigma['FSC-Width'],
-                        s  = 1,
-                        ax = axes[1][2])
+        fig.suptitle(f'{plate} {well} {location} {cytsn}')        
+     
+        df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)
+        df_reduced_doublets = df_gated_on_sigma[df_gated_on_sigma['FSC-Width']<1000]
+        if re_gcp.match(well) != None:         # GCP
+            likelihoods,alphas,mus,sigmas =\
+                gcps.maximize_likelihood(
+                    df_gated_on_sigma['FSC-Width'].values,
+                    mus    = [800,1200], #FIXME
+                    sigmas = [200,200],  #FIXME
+                    alphas = [0.5,0.5],  #FIXME
+                    N      = args.N,
+                    limit  = args.tolerance,
+                    K      = 2)            
+            print (alphas,mus,sigmas)
+            widthStats[well] = (likelihoods,alphas,mus,sigmas)
+   
+            plot_fsc_ssc_width(df_reduced_doublets,ax=axes[0][0])
+            
+            sns.histplot(df_reduced_doublets,
+                         x  = 'FSC-H',
+                         ax = axes[0][1])
+            sns.histplot(df_reduced_doublets,
+                         x  = 'SSC-H',
+                         ax = axes[1][0])
+            plot_fsc_width(df_gated_on_sigma,ax=axes[1][1],mu=mus[0],sigma=sigmas[0])
+
+            sns.scatterplot(x  = df_gated_on_sigma['FSC-H'],
+                            y  = df_gated_on_sigma['FSC-Width'],
+                            s  = 1,
+                            ax = axes[0][2])
+            sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
+                            y  = df_gated_on_sigma['FSC-Width'],
+                            s  = 1,
+                            ax = axes[1][2])            
+        else:
+            plot_fsc_ssc_width(df_reduced_doublets,ax=axes[0][0])
+            sns.histplot(df_reduced_doublets,
+                         x  = 'FSC-H',
+                         ax = axes[0][1])
+            sns.histplot(df_reduced_doublets,
+                         x  = 'SSC-H',
+                         ax = axes[1][0])
+            #sns.histplot(df_gated_on_sigma,
+                         #x  = 'FSC-Width',
+                         #ax = axes[1][1])
+            
+            _,_,mus_g12,sigmas_g12 = widthStats['G12'] 
+            _,_,mus_h12,sigmas_h12 = widthStats['H12']   
+            plot_fsc_width(df_gated_on_sigma,
+                           ax=axes[1][1],
+                           mu=0.5*(mus_g12[0]+mus_h12[0]),
+                           sigma=math.sqrt(0.5*(sigmas_g12[0]**2+sigmas_h12[0]**2)))
+            
+            sns.scatterplot(x  = df_gated_on_sigma['FSC-H'],
+                            y  = df_gated_on_sigma['FSC-Width'],
+                            s  = 1,
+                            ax = axes[0][2])
+            sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
+                            y  = df_gated_on_sigma['FSC-Width'],
+                            s  = 1,
+                            ax = axes[1][2])            
+            
+  
         plt.savefig(
             fcs.get_image_name(
                 script = os.path.basename(__file__).split('.')[0],
@@ -97,11 +188,9 @@ if __name__=='__main__':
                 well   = well)) 
         if not args.show:
             plt.close()
-     
-    refs = pd.DataFrame({ 'Plate'    : plates,
-                          'CYTSN'    : cytsns,
-                          'Location' : locations})
     
-    refs.to_csv(args.mapping, index=False)
+    mappingBuilder.build()
+    mappingBuilder.save(args.mapping)
+    
     if args.show:
         plt.show()
