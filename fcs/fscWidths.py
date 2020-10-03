@@ -43,16 +43,17 @@ if __name__=='__main__':
                         help    = 'Indicates whether to display plots (they will be saved irregardless).')
     args   = parser.parse_args()
     
-    for plate,well,df,_ in fcs.fcs(args.root,
+    for plate,well,df,meta,location in fcs.fcs(args.root,
                                  plate = args.plate,
                                  wells = args.wells):
-        print (f'{ plate} {well}')    
+        cytsn = meta['$CYTSN']
+        print (f'{ plate} {well} {location} {cytsn}')    
     
         df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)
         df_reduced_doublets = df_gated_on_sigma[df_gated_on_sigma['FSC-Width']<1000]
         fig                 = plt.figure(figsize=(15,10))
         axes                = fig.subplots(nrows=2,ncols=3) 
-        fig.suptitle(f'{ plate} {well}')
+        fig.suptitle(f'{plate} {well} {location} {cytsn}')
         sns.scatterplot(x       = df_reduced_doublets['FSC-H'],
                         y       = df_reduced_doublets['SSC-H'],
                         hue     = df_reduced_doublets['FSC-Width'],

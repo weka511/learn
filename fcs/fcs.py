@@ -120,7 +120,12 @@ def consolidate(n,bins,minimum=5):
 
 def fcs(root,
         plate = 'all',
-        wells = 'all'):
+        wells = 'all',
+        locations = [
+            'Albuquerque',
+            'London',
+            'Melbourne',
+            'NewDelhi']):
 
     re_plate =  re.compile('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)')
     re_wells =  re.compile(
@@ -136,6 +141,11 @@ def fcs(root,
         match = re_wells.match(file_name)
         return match.group(1) if match else None
     
+    def get_location(path):
+        for component in path:
+            if component in locations:
+                return component
+    
     # gcps_first
     #
     # Used to sort wells so GCPs come first (as we may want some data from GCPs before we process other wells)
@@ -148,8 +158,9 @@ def fcs(root,
         return 12 * row + column
     
     for root, dirs, files in os.walk(root):   
-        path  = root.split(os.sep)
-        match = re_plate.match(path[-1])     
+        path     = root.split(os.sep)
+        match    = re_plate.match(path[-1])
+        location = get_location(path)
         if match:
             this_plate = match.group(1)
             if plate == 'all' or 'all' in plate or this_plate in plate:
@@ -157,7 +168,7 @@ def fcs(root,
                                      key = gcps_first):
                     path     = os.path.join(root,file)
                     meta, df = fcsparser.parse(path, reformat_meta=True)
-                    yield this_plate,well,df,meta
+                    yield this_plate,well,df,meta,location
                 if this_plate in plate: return
                 
 if __name__=='__main__':
