@@ -28,7 +28,6 @@ import re
 from scipy import stats
 import scipy.stats as stats,math
 import sys
-
 import em
 import fcs
 import standards
@@ -180,178 +179,164 @@ if __name__=='__main__':
     
     references = standards.create_standards(args.properties)
     
-    for root, dirs, files in os.walk(args.root):
-        path  = root.split(os.sep)
-        match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
-        if match:
-            plate = match.group(1)
-            if args.plate=='all' or plate in args.plate:
-                for file in files:
-                    if re.match('.*[GH]12.fcs',file):
-                        path     = os.path.join(root,file)
-                        meta, df = fcsparser.parse(path, reformat_meta=True)
+    for plate,well,df,meta,location in fcs.fcs(args.root,
+                                               plate = args.plate,
+                                               wells = 'controls'):                     
+
+        df1      = df[(0               < df['FSC-H']) & \
+                      (df['FSC-H']     < 1000000  )   & \
+                      (0               < df['SSC-H']) & \
+                      (df['SSC-H']     < 1000000)     & \
+                      (df['FSC-Width'] < 2000000)]
                         
-                        date     = meta['$DATE']
-                        tbnm     = meta['TBNM']
-                        btim     = meta['$BTIM']
-                        etim     = meta['$ETIM']
-                        cyt      = meta['$CYT']
-                        #df1      = fcs.purge_outliers(df)
-                        well     = fcs.get_well_name(tbnm)
-                        df1      = df[(0               < df['FSC-H']) & \
-                                      (df['FSC-H']     < 1000000  )   & \
-                                      (0               < df['SSC-H']) & \
-                                      (df['SSC-H']     < 1000000)     & \
-                                      (df['FSC-Width'] < 2000000)]
+        if well in args.well:
+            print (f'{plate} {well}')
+            kstats = []         # Store statistics for each K so we can tune hyperparameter
+            xs     = df1['FSC-H'].values
+            ys     = df1['SSC-H'].values
+            zs     = df1['FSC-Width'].values                             
+            for K in args.K:
+                plt.figure(figsize=(10,10))
+                plt.suptitle(f'{plate} {well}')
+                singlet = [True for i in range(len(xs))]                                
+                ax1 = plt.subplot(2,2,1,projection='3d')
+                if args.doublets:
+                    maximized,likelihoods,ws,alphas,mus,Sigmas = filter_doublets(xs,ys,zs)             
+                    
+                    if maximized:
+                        plt.colorbar(ax1.scatter(xs,ys,zs,
+                                             s=1,
+                                             c=ws[0],
+                                             cmap=plt.cm.get_cmap('RdYlBu') ))
+                        singlet = get_selector(ws)
+                    else:
+                        ax1.scatter(xs,ys,zs,s=1,c='m')
+                else:
+                    ax1.scatter(xs,ys,zs,s=1,c='g')
+                
+                ax1.set_xlabel('FSC-H')
+                ax1.set_ylabel('SSC-H')
+                ax1.set_zlabel('FSC-Width')  
+                
+                ax2             = plt.subplot(2,2,2)
+                intensities     = np.log(df1['Red-H'][singlet]).values
+                n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
+                indices         = get_boundaries(n,K=K)
+                indices.append(len(n))
+                segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
+                            for k in range(K)]
+                mus      = []
+                sigmas   = []
+                heights      = []
+                for k in range(K):
+                    mu,sigma,_,y = get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
+                    mus.append(mu)
+                    sigmas.append(sigma)
+                    heights.append(y)
+                
+                for k in range(K):    
+                    if k==0:
+                        ax2.plot(bins, heights[k], c='c', label='GMM')
+                    else:
+                        ax2.plot(bins, heights[k], c='c')
                         
-                        if well in args.well:
-                            print (f'{plate} {well}')
-                            kstats = []         # Store statistics for each K so we can tune hyperparameter
-                            xs     = df1['FSC-H'].values
-                            ys     = df1['SSC-H'].values
-                            zs     = df1['FSC-Width'].values                             
-                            for K in args.K:
-                                plt.figure(figsize=(10,10))
-                                plt.suptitle(f'{plate} {well}')
-                                singlet = [True for i in range(len(xs))]                                
-                                ax1 = plt.subplot(2,2,1,projection='3d')
-                                if args.doublets:
-                                    maximized,likelihoods,ws,alphas,mus,Sigmas = filter_doublets(xs,ys,zs)             
-                                    
-                                    if maximized:
-                                        plt.colorbar(ax1.scatter(xs,ys,zs,
-                                                             s=1,
-                                                             c=ws[0],
-                                                             cmap=plt.cm.get_cmap('RdYlBu') ))
-                                        singlet = get_selector(ws)
-                                    else:
-                                        ax1.scatter(xs,ys,zs,s=1,c='m')
-                                else:
-                                    ax1.scatter(xs,ys,zs,s=1,c='g')
-                                
-                                ax1.set_xlabel('FSC-H')
-                                ax1.set_ylabel('SSC-H')
-                                ax1.set_zlabel('FSC-Width')  
-                                
-                                ax2             = plt.subplot(2,2,2)
-                                intensities     = np.log(df1['Red-H'][singlet]).values
-                                n,bins,_        = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                                indices         = get_boundaries(n,K=K)
-                                indices.append(len(n))
-                                segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
-                                            for k in range(K)]
-                                mus      = []
-                                sigmas   = []
-                                heights      = []
-                                for k in range(K):
-                                    mu,sigma,_,y = get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
-                                    mus.append(mu)
-                                    sigmas.append(sigma)
-                                    heights.append(y)
-                                
-                                for k in range(K):    
-                                    if k==0:
-                                        ax2.plot(bins, heights[k], c='c', label='GMM')
-                                    else:
-                                        ax2.plot(bins, heights[k], c='c')
-                                        
-                                    ax2.fill_between(bins, heights[k], color='c', alpha=0.5)
-       
-                                sums  = [sum(zz) for zz in zip(*heights)] 
-                                a,b = ax2.get_ylim()
-                                cn  = 0.5*(a+b)
-                                for k in range(K):
-                                    ax2.plot(bins, [cn*c for c in [y/z for (y,z) in zip(heights[k],sums)]],  label=f'c{k}')
-                                 
-                                ax2.set_title('Initialization')
-                                ax2.set_xlabel('log(Red-H)')
-                                ax2.set_ylabel('N')
-                                ax2.legend()
-                                
-                                alphas = [len(segments[k]) for k in range(K)]
-                                alpha_norm = sum(alphas)
-                                for k in range(K):
-                                    alphas[k] /= alpha_norm
-                                likelihoods,alphas,mus,sigmas =\
-                                    maximize_likelihood(
-                                        intensities,
-                                        mus    = mus,
-                                        sigmas = sigmas,
-                                        alphas = alphas,
-                                        N      = args.N,
-                                        limit  = args.tolerance,
-                                        K      = K)
-                                
-                                if K==3:
-                                    barcode,levels = standards.lookup(plate,references)
-                                    _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])
-                                    print (f'Using standard for {barcode}, r_value={r_value}')
-    
-                                ax3 = plt.subplot(2,2,3)
-                                
-                                ax3.plot(range(len(likelihoods)),likelihoods)
-                                ax3.set_xlabel('Iteration')
-                                ax3.set_ylabel('Log Likelihood')
-                                
-                                ax4 = plt.subplot(2,2,4)
-                                
-                                n,bins,_          = ax4.hist(intensities,facecolor='g',bins=100,label='From FCS')
-                                for k in range(K):
-                                    ax4.plot(bins,[max(n)*alphas[k]*get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
-                                             #c='c',
-                                             label=fr'$\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
-                                
-                                ax4.legend(framealpha=0.5)
-                                
-                                kstats.append((K,mus,sigmas))
-                                plt.savefig(
-                                    fcs.get_image_name(
-                                        script = os.path.basename(__file__).split('.')[0],
-                                        plate  = plate,
-                                        well   = well,
-                                        K      = K))
- 
-                                print (f'K={K}, max sigma={max(sigmas)}, min dist={min([b-a for (a,b) in zip(mus[:-1],mus[1:])])}')
-                                if not show:
-                                    plt.close()
-                                    
-                            if args.fixup:   # Find optimum K
-                                K_preferred      = None
-                                sigmas_preferred = sys.float_info.max
-                                diffs_preferred = -1
-                                K_preferred_diffs = None
-                                for K,mus,sigmas in kstats:
-                                    indices = np.argsort(mus)
-                                    mus     = [mus[i] for i in indices]
-                                    diffs   = [b-a for (a,b) in zip(mus[:-1],mus[1:])]
-                                    sigmas = [sigmas[i] for i in indices]
-  
-                                    if max(sigmas)<sigmas_preferred:
-                                        K_preferred      = K
-                                        sigmas_preferred = max(sigmas)
-                                    if min(diffs)>diffs_preferred:
-                                        diffs_preferred = min(diffs)
-                                        K_preferred_diffs = K
-                                if K_preferred != K_preferred_diffs:
-                                    Konfusion.append((plate,well))
-                                    break
-                                
-                                for K,_,_ in kstats:
-                                    file_name =  fcs.get_image_name(
-                                                     script = os.path.basename(__file__).split('.')[0],
-                                                     plate  = plate,
-                                                     well   = well,
-                                                     K      = K)
-                                    if K==K_preferred:
-                                        new_file_name = fcs.get_image_name(
-                                                      script = os.path.basename(__file__).split('.')[0],
-                                                      plate  = plate,
-                                                      well   = well)
-                                        if os.path.exists(new_file_name  ):
-                                            os.remove(new_file_name  )
-                                        os.rename(file_name, new_file_name  )
-                                    else:
-                                        os.remove(file_name )
+                    ax2.fill_between(bins, heights[k], color='c', alpha=0.5)
+        
+                sums  = [sum(zz) for zz in zip(*heights)] 
+                a,b = ax2.get_ylim()
+                cn  = 0.5*(a+b)
+                for k in range(K):
+                    ax2.plot(bins, [cn*c for c in [y/z for (y,z) in zip(heights[k],sums)]],  label=f'c{k}')
+                 
+                ax2.set_title('Initialization')
+                ax2.set_xlabel('log(Red-H)')
+                ax2.set_ylabel('N')
+                ax2.legend()
+                
+                alphas = [len(segments[k]) for k in range(K)]
+                alpha_norm = sum(alphas)
+                for k in range(K):
+                    alphas[k] /= alpha_norm
+                likelihoods,alphas,mus,sigmas =\
+                    maximize_likelihood(
+                        intensities,
+                        mus    = mus,
+                        sigmas = sigmas,
+                        alphas = alphas,
+                        N      = args.N,
+                        limit  = args.tolerance,
+                        K      = K)
+                
+                if K==3:
+                    barcode,levels = standards.lookup(plate,references)
+                    _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])
+                    print (f'Using standard for {barcode}, r_value={r_value}')
+        
+                ax3 = plt.subplot(2,2,3)
+                
+                ax3.plot(range(len(likelihoods)),likelihoods)
+                ax3.set_xlabel('Iteration')
+                ax3.set_ylabel('Log Likelihood')
+                
+                ax4 = plt.subplot(2,2,4)
+                
+                n,bins,_          = ax4.hist(intensities,facecolor='g',bins=100,label='From FCS')
+                for k in range(K):
+                    ax4.plot(bins,[max(n)*alphas[k]*get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
+                             #c='c',
+                             label=fr'$\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
+                
+                ax4.legend(framealpha=0.5)
+                
+                kstats.append((K,mus,sigmas))
+                plt.savefig(
+                    fcs.get_image_name(
+                        script = os.path.basename(__file__).split('.')[0],
+                        plate  = plate,
+                        well   = well,
+                        K      = K))
+        
+                print (f'K={K}, max sigma={max(sigmas)}, min dist={min([b-a for (a,b) in zip(mus[:-1],mus[1:])])}')
+                if not show:
+                    plt.close()
+                    
+            if args.fixup:   # Find optimum K
+                K_preferred      = None
+                sigmas_preferred = sys.float_info.max
+                diffs_preferred = -1
+                K_preferred_diffs = None
+                for K,mus,sigmas in kstats:
+                    indices = np.argsort(mus)
+                    mus     = [mus[i] for i in indices]
+                    diffs   = [b-a for (a,b) in zip(mus[:-1],mus[1:])]
+                    sigmas = [sigmas[i] for i in indices]
+        
+                    if max(sigmas)<sigmas_preferred:
+                        K_preferred      = K
+                        sigmas_preferred = max(sigmas)
+                    if min(diffs)>diffs_preferred:
+                        diffs_preferred = min(diffs)
+                        K_preferred_diffs = K
+                if K_preferred != K_preferred_diffs:
+                    Konfusion.append((plate,well))
+                    break
+                
+                for K,_,_ in kstats:
+                    file_name =  fcs.get_image_name(
+                                     script = os.path.basename(__file__).split('.')[0],
+                                     plate  = plate,
+                                     well   = well,
+                                     K      = K)
+                    if K==K_preferred:
+                        new_file_name = fcs.get_image_name(
+                                      script = os.path.basename(__file__).split('.')[0],
+                                      plate  = plate,
+                                      well   = well)
+                        if os.path.exists(new_file_name  ):
+                            os.remove(new_file_name  )
+                        os.rename(file_name, new_file_name  )
+                    else:
+                        os.remove(file_name )
     
     if len(Konfusion)>0:
         print ('Could not set hyperparameter K for the following wells')
