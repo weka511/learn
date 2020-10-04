@@ -24,8 +24,10 @@ import seaborn as sns
 import pandas as pd
 import random 
 import re
+import scipy.stats as stats
 import fcs
 import gcps
+import standards
 
 # MappingBuilder
 #
@@ -82,10 +84,16 @@ def plot_fsc_width(df,ax=None,mus=[0,0],sigmas=[1,1],alphas = [0.5,0.5]):
                     s     = 1,
                     c     = ['r', 'g'][i],
                     alpha = 0.5,
-                    label = rf'$\mu$={mus[i]:.0f},$\sigma$={sigmas[i]:.0f}')
+                    label = rf'$\mu$={mus[i]:.0f}, $\sigma$={sigmas[i]:.0f}')
  
     ax2.set_ylim((0,max(ys[0])))
-    ax2.legend()
+    legend = ax2.legend()
+    
+    # Make symbols in legeng larger - see Bruno Morais contribution:
+    # https://stackoverflow.com/questions/24706125/setting-a-fixed-size-for-points-in-legend
+    for handle in legend.legendHandles:
+        handle.set_sizes([6.0])    
+    
     ax.legend(loc='lower right')
     ax.set_title('Fitting Gaussian')
 
@@ -140,13 +148,16 @@ if __name__=='__main__':
     parser.add_argument('-t', '--tolerance',
                         default = 1.0e-6,
                         type    = float, 
-                        help    = 'Iteration stops when ratio between likelihoods is this close to 1.')    
+                        help    = 'Iteration stops when ratio between likelihoods is this close to 1.')
+    parser.add_argument('--properties',
+                        default = r'\data\properties',
+                        help    = 'Root for properties files')    
     parser.add_argument('--show',
                         default = False, 
                         action  = 'store_true',
                         help    = 'Indicates whether to display plots (they will be saved irregardless).')
     args           = parser.parse_args()
-    
+    references = standards.create_standards(args.properties)
     mappingBuilder = MappingBuilder()
     widthStats     = {}
     
@@ -157,27 +168,27 @@ if __name__=='__main__':
         
         print (f'{ plate} {well} {location} {cytsn}')
         mappingBuilder.accumulate(plate,cytsn,location)
-        fig                 = plt.figure(figsize=(15,10))
+        fig  = plt.figure(figsize=(15,12))
         fig.suptitle(f'{plate} {well} {location} {cytsn}')        
-
-        if is_gcp(well):         # GCP
-            axes                = fig.subplots(nrows=2,ncols=2)     
+        plt.tight_layout()
+        if is_gcp(well):
+            axes                = fig.subplots(nrows=2,ncols=3)     
             df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1) 
-            widths = df_gated_on_sigma['FSC-Width'].values
-            q_05 = np.quantile(widths,0.05)
-            q_95 = np.quantile(widths,0.95)
-            likelihoods,alphas,mus,sigmas =\
-                gcps.maximize_likelihood(
-                    widths,
-                    mus    = [q_05,q_95],            # Initially assume the two means are close to the extremities
-                    sigmas = [q_95-q_05,q_95-q_05],  # Standard deviation also needs to be large
-                    alphas = [0.5,0.5],              # Perfect ignorance - assume rach the two
-                                                     # spans of data contains half the points 
-                    N      = args.N,
-                    limit  = args.tolerance,
-                    K      = 2)            
+            widths              = df_gated_on_sigma['FSC-Width'].values
+            q_05                = np.quantile(widths,0.05)
+            q_95                = np.quantile(widths,0.95)
+            _,alphas,mus,sigmas = gcps.maximize_likelihood(
+                                       widths,
+                                       mus    = [q_05,q_95],            # Initially assume the two means are 
+                                                                        # close to the extremities
+                                       sigmas = [q_95-q_05,q_95-q_05],  # Standard deviation also needs to be large
+                                       alphas = [0.5,0.5],              # Perfect ignorance - assume each of the two
+                                                                        # spans of data contains half the points 
+                                       N      = args.N,
+                                       limit  = args.tolerance,
+                                       K      = 2)            
             
-            widthStats[well] = (likelihoods,alphas,mus,sigmas)
+            widthStats[well]   = (alphas,mus,sigmas)
    
             plot_fsc_ssc_width(df_gated_on_sigma,
                                ax=axes[0][0],
@@ -194,13 +205,70 @@ if __name__=='__main__':
                                                     sigma = sigmas[0])
             
             plot_fsc_ssc_width(df_resampled_doublets,
-                               ax=axes[1][0],
+                               ax=axes[0][2],
                                title='Resampled on FSC-Width')
             sns.scatterplot(x=df_resampled_doublets['Green-H'],
-                            y = df_resampled_doublets['Red-H'],
-                            s = 1,
-                            ax=axes[1][1])
-                   
+                            y  = df_resampled_doublets['Red-H'],
+                            s  = 1,
+                            ax = axes[1][0])
+            ax2 = axes[1][1]
+            intensities = np.log(df_resampled_doublets['Red-H']).values 
+            n,bins,_    = ax2.hist(intensities,facecolor='g',bins=100,label='From FCS')
+            indices     = gcps.get_boundaries(n,K=3)
+            indices.append(len(n))
+            segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
+                                    for k in range(3)]
+            mus      = []
+            sigmas   = []
+            heights      = []
+            for k in range(3):
+                mu,sigma,_,y = gcps.get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
+                mus.append(mu)
+                sigmas.append(sigma)
+                heights.append(y)
+        
+            for k in range(3):    
+                if k==0:
+                    ax2.plot(bins, heights[k], c='c', label='GMM')
+                else:
+                    ax2.plot(bins, heights[k], c='c')
+        
+                ax2.fill_between(bins, heights[k], color='c', alpha=0.5)
+        
+            sums  = [sum(zz) for zz in zip(*heights)] 
+            a,b = ax2.get_ylim()
+            cn  = 0.5*(a+b)
+            for k in range(3):
+                ax2.plot(bins, [cn*c for c in [y/z for (y,z) in zip(heights[k],sums)]],  label=f'c{k}')
+        
+            ax2.set_title('Initialization')
+            ax2.set_xlabel('log(Red-H)')
+            ax2.set_ylabel('N')
+            ax2.legend()
+            
+            alphas = [len(segments[k]) for k in range(3)]
+            alpha_norm = sum(alphas)
+            for k in range(3):
+                alphas[k] /= alpha_norm
+            likelihoods,alphas,mus,sigmas =\
+                gcps.maximize_likelihood(
+                    intensities,
+                    mus    = mus,
+                    sigmas = sigmas,
+                    alphas = alphas,
+                    N      = args.N,
+                    limit  = args.tolerance,
+                    K      = 3)  
+            barcode,levels = standards.lookup(plate,references)
+            _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])
+            print (f'Using standard for {barcode}, r_value={r_value}')            
+            n,bins,_          = axes[1][2].hist(intensities,facecolor='g',bins=100,label='From FCS')
+            for k in range(3):
+                axes[1][2].plot(bins,[max(n)*alphas[k]*gcps.get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
+                         #c='c',
+                         label=fr'$\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
+            
+            axes[1][2].legend(framealpha=0.5)            
         else:    # regular well
             axes                = fig.subplots(nrows=2,ncols=3)     
             df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)
@@ -213,8 +281,8 @@ if __name__=='__main__':
                          x  = 'SSC-H',
                          ax = axes[1][0])
             
-            _,_,mus_g12,sigmas_g12 = widthStats['G12'] 
-            _,_,mus_h12,sigmas_h12 = widthStats['H12']   
+            _,mus_g12,sigmas_g12 = widthStats['G12'] 
+            _,mus_h12,sigmas_h12 = widthStats['H12']   
             plot_fsc_width(df_gated_on_sigma,
                            ax=axes[1][1],
                            mu=0.5*(mus_g12[0]+mus_h12[0]),
