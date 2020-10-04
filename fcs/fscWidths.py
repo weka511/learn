@@ -57,16 +57,25 @@ class Tracker(ABC):
 class RegressionTracker(Tracker):
     def __init__(self,path='r_values.csv'):
         super().__init__(path=path)
-        self.wells  = []
+        self.wells       = []
         self.r_values    = []
-    def accumulate(self,plate,well,r_value):
+        self.s1s         = []
+        self.s2s         = []
+        self.s3s         = []
+    def accumulate(self,plate,well,levels,r_value):
         super().accumulate(plate)
         self.wells.append(well)
+        self.s1s.append(levels[0])
+        self.s2s.append(levels[1])
+        self.s3s.append(levels[2])     
         self.r_values.append(r_value)
     def build(self):
         self.refs = pd.DataFrame({ 
-            'Plate' : self.plates,
-            'Well'  : self.wells,
+            'Plate'   : self.plates,
+            'Well'    : self.wells,
+            'S1'      : self.s1s,
+            'S2'      : self.s2s,
+            'S3'      : self.s3s,
             'r_value' : self.r_values})
 
         
@@ -207,7 +216,7 @@ def fit_reds(segments=[],intensities=[],mus=[],sigmas=[],N=25,tolerance=1e-5):
             K      = 3)  
     barcode,levels = standards.lookup(plate,references)
     _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])
-    print (f'Using standard {levels} for {barcode}, r_value={r_value}')  
+    #print (f'Using standard {levels} for {barcode}, r_value={r_value}')  
     return alphas,mus,sigmas,levels,r_value
 
 # plot_GMM_for_reds
@@ -334,7 +343,7 @@ if __name__=='__main__':
                               r_value     = r_value,
                               ax          = axes[1][1])
             
-            regressionTracker.accumulate(plate,well,r_value)
+            regressionTracker.accumulate(plate,well,levels,r_value)
             
             plt.subplots_adjust(top=0.92,
                                 bottom=0.08, 
