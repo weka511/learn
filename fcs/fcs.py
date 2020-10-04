@@ -130,8 +130,8 @@ def fcs(root,
     re_plate =  re.compile('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)')
     re_wells =  re.compile(
         '.*([A-H][1]?[0-9]).fcs'  if wells=='all'       else \
-        '.*([A-H]12).fcs'     if wells== 'controls' else \
-        '.*([GH]12).fcs' )    # GCPs
+        '.*([A-H]12).fcs'         if wells== 'controls' else \
+        '.*([GH]12).fcs' )        # GCPs
 
     # get_well
     #
