@@ -26,6 +26,8 @@ import pandas as pd
 import random 
 import re
 import scipy.stats as stats
+import time
+
 import fcs
 import gcps
 import standards
@@ -227,6 +229,7 @@ def plot_GMM_for_reds(intensities=[],alphas=[],mus=[],sigmas=[],levels=[],r_valu
     
 if __name__=='__main__':
     rc('text', usetex=True)
+    start = time.time()
     parser = argparse.ArgumentParser('Plot FSC Width. Remove doublets from GCP wells, and perform regression on Red.')
     parser.add_argument('--root',
                         default = r'\data\cytoflex\Melbourne',
@@ -380,5 +383,11 @@ if __name__=='__main__':
     
     mappingBuilder.save()
     regressionTracker.save()
+    
+    end              = time.time()
+    hours, rem       = divmod(end-start, 3600)
+    minutes, seconds = divmod(rem, 60)
+    print(f'Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)} ')
+    
     if args.show:
         plt.show()
