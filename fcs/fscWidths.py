@@ -57,6 +57,16 @@ class MappingBuilder:
     def save(self,path):
         self.refs.to_csv(path,index=False)  
 
+# suppress_y_labels
+#
+# Used to suppress display of y label when I've twinned an axis - see
+# https://stackoverflow.com/questions/2176424/hiding-axis-text-in-matplotlib-plots
+
+def suppress_y_labels(ax):
+    for xlabel_i in ax.get_yticklabels():
+        xlabel_i.set_fontsize(0.0)
+        xlabel_i.set_visible(False) 
+                
 # plot_fsc_ssc_width
 #
 # Plot FSC-H and SSC-H, with colour showing FSC-Width
@@ -88,14 +98,14 @@ def plot_fsc_width(df,ax=None,mus=[0,0],sigmas=[1,1],alphas = [0.5,0.5]):
  
     ax2.set_ylim((0,max(ys[0])))
     legend = ax2.legend()
-    
-    # Make symbols in legeng larger - see Bruno Morais contribution:
+    suppress_y_labels(ax2)
+    # Make symbols in legend larger - see Bruno Morais contribution:
     # https://stackoverflow.com/questions/24706125/setting-a-fixed-size-for-points-in-legend
     for handle in legend.legendHandles:
         handle.set_sizes([6.0])    
     
     ax.legend(loc='lower right')
-    ax.set_title('Fitting Gaussian')
+    ax.set_title('Gaussian Mixture Model for FSC-Width')
 
 # resample_widths
 #
@@ -122,10 +132,10 @@ def resample_widths(df,mu=0,sigma=1):
 def is_gcp(well):
     return re.match('[GH]12',well)
 
-# plot_intensities
+# create_segments
 
-def plot_intensities(intensities,ax=None):
-    n,bins,_    = ax.hist(intensities,facecolor='g',bins=100,label='From FCS')
+def create_segments(intensities):
+    n,bins    = np.histogram(intensities,bins=100)
     indices     = gcps.get_boundaries(n,K=3)
     indices.append(len(n))
     segments = [[r for r in intensities if bins[indices[k]]<r and r < bins[indices[k+1]]] 
@@ -134,34 +144,17 @@ def plot_intensities(intensities,ax=None):
     sigmas   = []
     heights  = []
     for k in range(3):
-        mu,sigma,_,y = gcps.get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
+        mu,sigma,_,y = gcps.get_gaussian(segments[k],
+                                         n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
         mus.append(mu)
         sigmas.append(sigma)
         heights.append(y)
 
-    for k in range(3):    
-        if k==0:
-            ax.plot(bins, heights[k], c='c', label='GMM')
-        else:
-            ax.plot(bins, heights[k], c='c')
-
-        ax.fill_between(bins, heights[k], color='c', alpha=0.5)
-     
-    sums  = [sum(zz) for zz in zip(*heights)] 
-    a,b   = ax.get_ylim()
-    cn    = 0.5*(a+b)
-    for k in range(3):
-        ax.plot(bins, [cn*c for c in [y/z for (y,z) in zip(heights[k],sums)]],  label=f'c{k}')
- 
-    ax.set_title('Initialization')
-    ax.set_xlabel('log(Red-H)')
-    ax.set_ylabel('N')
-    ax.legend()
     return mus, sigmas, segments
 
 # fit_reds
 
-def fit_reds(segments,intensities,mus,sigmas,N=25,tolerance=1e-5):
+def fit_reds(segments=[],intensities=[],mus=[],sigmas=[],N=25,tolerance=1e-5):
     alphas = [len(segments[k]) for k in range(3)]
     alpha_norm = sum(alphas)
     for k in range(3):
@@ -180,10 +173,11 @@ def fit_reds(segments,intensities,mus,sigmas,N=25,tolerance=1e-5):
     print (f'Using standard {levels} for {barcode}, r_value={r_value}')  
     return alphas,mus,sigmas,levels,r_value
 
-# plot_reds
+# plot_GMM_for_reds
 
-def plot_reds(intensities,alphas,mus,sigmas,levels,r_value,ax=None):
+def plot_GMM_for_reds(intensities=[],alphas=[],mus=[],sigmas=[],levels=[],r_value=0,ax=None):
     n,bins,_ = ax.hist(intensities,facecolor='g',bins=100,alpha=0.5)
+    ax.set_xlabel(r'$\log(Red)$')
     ax2      = ax.twinx()
     for k in range(3):
         ax2.plot(bins,
@@ -191,11 +185,14 @@ def plot_reds(intensities,alphas,mus,sigmas,levels,r_value,ax=None):
                  label=fr'{levels[k]}, $\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
     _,ymax = ax2.get_ylim()
     ax2.set_ylim(0,ymax)
-    ax2.legend(framealpha=0.5,title=f'$r^2=${r_value:.8f}') 
+    ax2.legend(framealpha=0.5,title=f'$r^2=${r_value:.8f}')
+    ax2.set_title('GMM for Red')
+    suppress_y_labels(ax2)
+   
     
 if __name__=='__main__':
     rc('text', usetex=True)
-    parser = argparse.ArgumentParser('Plot FSC Width')
+    parser = argparse.ArgumentParser('Plot FSC Width. Remove doublets from GCP wells, and perform regression on Red.')
     parser.add_argument('--root',
                         default = r'\data\cytoflex\Melbourne',
                         help    = 'Path to top of FCS files.')
@@ -228,7 +225,7 @@ if __name__=='__main__':
                         action  = 'store_true',
                         help    = 'Indicates whether to display plots (they will be saved irregardless).')
     args           = parser.parse_args()
-    references = standards.create_standards(args.properties)
+    references     = standards.create_standards(args.properties)
     mappingBuilder = MappingBuilder()
     widthStats     = {}
     
@@ -241,9 +238,9 @@ if __name__=='__main__':
         mappingBuilder.accumulate(plate,cytsn,location)
         fig  = plt.figure(figsize=(15,12))
         fig.suptitle(f'{plate} {well} {location} {cytsn}')        
-        plt.tight_layout()
+        #plt.tight_layout()
         if is_gcp(well):
-            axes                = fig.subplots(nrows=2,ncols=3)     
+            axes                = fig.subplots(nrows=2,ncols=2)     
             df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1) 
             widths              = df_gated_on_sigma['FSC-Width'].values
             q_05                = np.quantile(widths,0.05)
@@ -276,17 +273,32 @@ if __name__=='__main__':
                                                     sigma = sigmas[0])
             
             plot_fsc_ssc_width(df_resampled_doublets,
-                               ax=axes[0][2],
+                               ax=axes[1][0],
                                title='Resampled on FSC-Width')
-            sns.scatterplot(x  =df_resampled_doublets['Green-H'],
-                            y  = df_resampled_doublets['Red-H'],
-                            s  = 1,
-                            ax = axes[1][0])
+             
+            intensities                      = np.log(df_resampled_doublets['Red-H']).values 
+            mus,sigmas,segments              = create_segments(intensities)
+            alphas,mus,sigmas,levels,r_value = fit_reds(segments    = segments,
+                                                        intensities = intensities,
+                                                        mus         = mus,
+                                                        sigmas      = sigmas,
+                                                        N           = args.N,
+                                                        tolerance   = args.tolerance)
+            plot_GMM_for_reds(intensities = intensities,
+                              alphas      = alphas,
+                              mus         = mus,
+                              sigmas      = sigmas,
+                              levels      = levels,
+                              r_value     = r_value,
+                              ax          = axes[1][1])
             
-            intensities               = np.log(df_resampled_doublets['Red-H']).values 
-            mus,sigmas,segments       = plot_intensities(intensities,ax=axes[1][1])
-            alphas,mus,sigmas,levels,r_value = fit_reds(segments,intensities,mus,sigmas,N=args.N,tolerance=args.tolerance)
-            plot_reds(intensities,alphas,mus,sigmas,levels,r_value,ax=axes[1][2])
+            plt.subplots_adjust(top=0.92,
+                                bottom=0.08, 
+                                left=0.10,
+                                right=0.95, 
+                                hspace=0.25,
+                                wspace=0.35)
+            
                       
         else:    # regular well
             axes                = fig.subplots(nrows=2,ncols=3)     
