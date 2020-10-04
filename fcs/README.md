@@ -8,7 +8,7 @@ Apply machine learning to FCS data
 |doublets.py |Remove doublets from GCPs and denoise data|em|
 |em.py|Expectation Maximization--[Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning, Padhraic Smyth ](https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf)||
 |fcs.py|Investigate fitting normal curves to scattering. Also serves as a repository for common code |
-|fcsWidths.py|IPlot FSC Width. Remove doublets from GCP wells, and perform regression on Red.|fcs gcps standards|
+|fcsWidths.py|Plot FSC Width. Remove doublets from GCP wells, and perform regression on Red.|fcs gcps standards|
 |gcps.py|Model GCPs with Gaussian Mixture Model |em standards|
 |partition.py|Partition data using G12/H12|em fcs gcps standards|
 |pca.py|Principal component analysis of FCS data|fcs|
