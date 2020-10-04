@@ -285,128 +285,138 @@ if __name__=='__main__':
                         default = False, 
                         action  = 'store_true',
                         help    = 'Indicates whether to display plots (they will be saved irregardless).')
+    parser.add_argument('--seed',
+                        default = None,
+                        help = 'Seed for random number generator')
+    
     args              = parser.parse_args()
     references        = standards.create_standards(args.properties)
     mappingBuilder    = MappingBuilder(args.mapping)
     regressionTracker = RegressionTracker(args.r_values)
     widthStats        = {}
     
-    for plate,well,df,meta,location in fcs.fcs(args.root,
-                                 plate = args.plate,
-                                 wells = args.wells):
-        cytsn  = meta['$CYTSN']
+    random.seed(args.seed)
+    with open ('logfile.txt','w') as logfile:
+        logfile.write(f'{args}\n')
+        for plate,well,df,meta,location in fcs.fcs(args.root,
+                                     plate = args.plate,
+                                     wells = args.wells):
+            cytsn  = meta['$CYTSN']
+            
+            print (f'{ plate} {well} {location} {cytsn}')
+            logfile.write(f'{ plate} {well} {location} {cytsn}\n')
+            mappingBuilder.accumulate(plate,cytsn,location)
+            fig  = plt.figure(figsize=(15,12))
+            fig.suptitle(f'{plate} {well} {location} {cytsn}')        
+            
+            if is_gcp(well):
+                axes                = fig.subplots(nrows=2,ncols=2)     
+                df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1) 
+                widths              = df_gated_on_sigma['FSC-Width'].values
+                q_05                = np.quantile(widths,0.05)
+                q_95                = np.quantile(widths,0.95)
+                _,alphas,mus,sigmas = gcps.maximize_likelihood(
+                                           widths,
+                                           mus    = [q_05,q_95],            # Initially assume the two means are 
+                                                                            # close to the extremities
+                                           sigmas = [q_95-q_05,q_95-q_05],  # Standard deviation also needs to be large
+                                           alphas = [0.5,0.5],              # Perfect ignorance - assume each of the two
+                                                                            # spans of data contains half the points 
+                                           N      = args.N,
+                                           limit  = args.tolerance,
+                                           K      = 2)            
+                
+                widthStats[well]   = (alphas,mus,sigmas)
+       
+                plot_fsc_ssc_width(df_gated_on_sigma,
+                                   ax=axes[0][0],
+                                   title=r'Filtered on $\sigma$')
+                
+                plot_fsc_width(df_gated_on_sigma,
+                               ax     = axes[0][1],
+                               mus    = mus,
+                               sigmas = sigmas,
+                               alphas = alphas)
+                
+                df_resampled_doublets = resample_widths(df_gated_on_sigma,
+                                                        mu    = mus[0],
+                                                        sigma = sigmas[0])
+                
+                plot_fsc_ssc_width(df_resampled_doublets,
+                                   ax=axes[1][0],
+                                   title='Resampled on FSC-Width')
+                 
+                intensities                      = np.log(df_resampled_doublets['Red-H']).values 
+                mus,sigmas,segments              = create_segments(intensities)
+                alphas,mus,sigmas,levels,r_value = fit_reds(segments    = segments,
+                                                            intensities = intensities,
+                                                            mus         = mus,
+                                                            sigmas      = sigmas,
+                                                            N           = args.N,
+                                                            tolerance   = args.tolerance)
+                plot_GMM_for_reds(intensities = intensities,
+                                  alphas      = alphas,
+                                  mus         = mus,
+                                  sigmas      = sigmas,
+                                  levels      = levels,
+                                  r_value     = r_value,
+                                  ax          = axes[1][1])
+                
+                regressionTracker.accumulate(plate,well,levels,r_value)
+                
+                plt.subplots_adjust(top    = 0.92,
+                                    bottom = 0.08, 
+                                    left   = 0.10,
+                                    right  = 0.95, 
+                                    hspace = 0.25,
+                                    wspace = 0.35)
+                
+                          
+            else:    # regular well
+                axes                = fig.subplots(nrows=2,ncols=3)     
+                df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)          
+                plot_fsc_ssc_width(df_gated_on_sigma,
+                                   ax=axes[0][0],
+                                   title=r'Filtered on $\sigma$')
+                sns.histplot(df_gated_on_sigma,
+                             x  = 'FSC-H',
+                             ax = axes[0][1])
+                sns.histplot(df_gated_on_sigma,
+                             x  = 'SSC-H',
+                             ax = axes[1][0])
+                
+                _,mus_g12,sigmas_g12 = widthStats['G12'] 
+                _,mus_h12,sigmas_h12 = widthStats['H12']   
+                plot_fsc_width(df_gated_on_sigma,
+                               ax     = axes[1][1],
+                               mus    = [0.5*(mus_g12[i]+mus_h12[i]) for i in range(2)],
+                               sigmas = [math.sqrt(0.5*(sigmas_g12[i]**2+sigmas_h12[i]**2))for i in range(2)] )
+                
+                sns.scatterplot(x  = df_gated_on_sigma['FSC-H'],
+                                y  = df_gated_on_sigma['FSC-Width'],
+                                s  = 1,
+                                ax = axes[0][2])
+                sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
+                                y  = df_gated_on_sigma['FSC-Width'],
+                                s  = 1,
+                                ax = axes[1][2])            
+                
+      
+            plt.savefig(
+                fcs.get_image_name(
+                    script = os.path.basename(__file__).split('.')[0],
+                    plate  = plate,
+                    well   = well)) 
+            if not args.show:
+                plt.close()
         
-        print (f'{ plate} {well} {location} {cytsn}')
-        mappingBuilder.accumulate(plate,cytsn,location)
-        fig  = plt.figure(figsize=(15,12))
-        fig.suptitle(f'{plate} {well} {location} {cytsn}')        
+        mappingBuilder.save()
+        regressionTracker.save()
         
-        if is_gcp(well):
-            axes                = fig.subplots(nrows=2,ncols=2)     
-            df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1) 
-            widths              = df_gated_on_sigma['FSC-Width'].values
-            q_05                = np.quantile(widths,0.05)
-            q_95                = np.quantile(widths,0.95)
-            _,alphas,mus,sigmas = gcps.maximize_likelihood(
-                                       widths,
-                                       mus    = [q_05,q_95],            # Initially assume the two means are 
-                                                                        # close to the extremities
-                                       sigmas = [q_95-q_05,q_95-q_05],  # Standard deviation also needs to be large
-                                       alphas = [0.5,0.5],              # Perfect ignorance - assume each of the two
-                                                                        # spans of data contains half the points 
-                                       N      = args.N,
-                                       limit  = args.tolerance,
-                                       K      = 2)            
-            
-            widthStats[well]   = (alphas,mus,sigmas)
-   
-            plot_fsc_ssc_width(df_gated_on_sigma,
-                               ax=axes[0][0],
-                               title=r'Filtered on $\sigma$')
-            
-            plot_fsc_width(df_gated_on_sigma,
-                           ax     = axes[0][1],
-                           mus    = mus,
-                           sigmas = sigmas,
-                           alphas = alphas)
-            
-            df_resampled_doublets = resample_widths(df_gated_on_sigma,
-                                                    mu    = mus[0],
-                                                    sigma = sigmas[0])
-            
-            plot_fsc_ssc_width(df_resampled_doublets,
-                               ax=axes[1][0],
-                               title='Resampled on FSC-Width')
-             
-            intensities                      = np.log(df_resampled_doublets['Red-H']).values 
-            mus,sigmas,segments              = create_segments(intensities)
-            alphas,mus,sigmas,levels,r_value = fit_reds(segments    = segments,
-                                                        intensities = intensities,
-                                                        mus         = mus,
-                                                        sigmas      = sigmas,
-                                                        N           = args.N,
-                                                        tolerance   = args.tolerance)
-            plot_GMM_for_reds(intensities = intensities,
-                              alphas      = alphas,
-                              mus         = mus,
-                              sigmas      = sigmas,
-                              levels      = levels,
-                              r_value     = r_value,
-                              ax          = axes[1][1])
-            
-            regressionTracker.accumulate(plate,well,levels,r_value)
-            
-            plt.subplots_adjust(top    = 0.92,
-                                bottom = 0.08, 
-                                left   = 0.10,
-                                right  = 0.95, 
-                                hspace = 0.25,
-                                wspace = 0.35)
-            
-                      
-        else:    # regular well
-            axes                = fig.subplots(nrows=2,ncols=3)     
-            df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)          
-            plot_fsc_ssc_width(df_gated_on_sigma,ax=axes[0][0],title=r'Filtered on $\sigma$')
-            sns.histplot(df_gated_on_sigma,
-                         x  = 'FSC-H',
-                         ax = axes[0][1])
-            sns.histplot(df_gated_on_sigma,
-                         x  = 'SSC-H',
-                         ax = axes[1][0])
-            
-            _,mus_g12,sigmas_g12 = widthStats['G12'] 
-            _,mus_h12,sigmas_h12 = widthStats['H12']   
-            plot_fsc_width(df_gated_on_sigma,
-                           ax     = axes[1][1],
-                           mus    = [0.5*(mus_g12[i]+mus_h12[i]) for i in range(2)],
-                           sigmas = [math.sqrt(0.5*(sigmas_g12[i]**2+sigmas_h12[i]**2))for i in range(2)] )
-            
-            sns.scatterplot(x  = df_gated_on_sigma['FSC-H'],
-                            y  = df_gated_on_sigma['FSC-Width'],
-                            s  = 1,
-                            ax = axes[0][2])
-            sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
-                            y  = df_gated_on_sigma['FSC-Width'],
-                            s  = 1,
-                            ax = axes[1][2])            
-            
-  
-        plt.savefig(
-            fcs.get_image_name(
-                script = os.path.basename(__file__).split('.')[0],
-                plate  = plate,
-                well   = well)) 
-        if not args.show:
-            plt.close()
-    
-    mappingBuilder.save()
-    regressionTracker.save()
-    
-    end              = time.time()
-    hours, rem       = divmod(end-start, 3600)
-    minutes, seconds = divmod(rem, 60)
-    print(f'Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)} ')
-    
+        end              = time.time()
+        hours, rem       = divmod(end-start, 3600)
+        minutes, seconds = divmod(rem, 60)
+        print(f'Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)} ')
+        logfile.write(f'Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)}\n')
     if args.show:
         plt.show()
