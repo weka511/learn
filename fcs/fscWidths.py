@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-from abc import ABC
+from abc import ABC,abstractmethod
 import argparse
 import fcsparser
 import math
@@ -30,6 +30,9 @@ import fcs
 import gcps
 import standards
 
+# Tracker
+#
+# An abstract paret for various logging classes
 class Tracker(ABC):
     def __init__(self,path='tracker.csv'):
         self.plates = []
@@ -37,46 +40,47 @@ class Tracker(ABC):
         self.path   = path
     def accumulate(self,plate):
         self.plates.append(plate)
+    @abstractmethod
     def build(self):
         pass
     def save(self):
         if self.refs == None:
             self.build()
         self.refs.to_csv(self.path,index=False)   
-        
-class RegressionTracker:
-    def __init__(self):
-        self.plates = []
+
+# RegressionTracker
+#
+# This class is responsible for keeping track of
+# regression coefficients      
+class RegressionTracker(Tracker):
+    def __init__(self,path='r_values.csv'):
+        super().__init__(path=path)
         self.wells  = []
-        self.rsqs    = []
-    def accumulate(self,plate,well,rsq):
-        self.plates.append(plate)
+        self.r_values    = []
+    def accumulate(self,plate,well,r_value):
+        super().accumulate(plate)
         self.wells.append(well)
-        self.rsqs.append(rsq)
+        self.r_values.append(r_value)
     def build(self):
         self.refs = pd.DataFrame({ 
             'Plate' : self.plates,
             'Well'  : self.wells,
-            'rsq'   : self.rsqs})
-        self.refs.sort_values(by      = ['Plate'],
-                              inplace = True)
-    def save(self,path):
-        self.refs.to_csv(path,index=False) 
+            'r_value' : self.r_values})
+
         
 # MappingBuilder
 #
 # This class is responsible for keeping track of
 # the location and instrument used for each plate
-class MappingBuilder:
-    def __init__(self):
-        self.plates    = []
+class MappingBuilder(Tracker):
+    def __init__(self,path='mapping.csv'):
+        super().__init__(path=path)
         self.cytsns    = []
         self.locations = []
-        self.refs      = None
         
     def accumulate(self,plate,cytsn,location):
         if not plate in self.plates:
-            self.plates.append(plate)
+            super().accumulate(plate)
             self.cytsns.append(cytsn)
             self.locations.append(location)
             
@@ -86,10 +90,7 @@ class MappingBuilder:
             'Plate'    : self.plates,
             'CYTSN'    : self.cytsns,
             'Location' : self.locations})
-        self.refs.sort_values(by      = ['Plate'],
-                              inplace = True)
-    def save(self,path):
-        self.refs.to_csv(path,index=False)  
+    
 
 # suppress_y_labels
 #
@@ -243,8 +244,8 @@ if __name__=='__main__':
     parser.add_argument('--mapping',
                         default = 'mapping.csv',
                         help    = 'File to store mapping between plates, locations, and serial numbers.')
-    parser.add_argument('--regression',
-                        default = 'regression.csv',
+    parser.add_argument('--r_values',
+                        default = 'r_values.csv',
                         help    = 'File to store r_values.')    
     parser.add_argument('-N','--N',
                         default = 25, 
@@ -263,8 +264,8 @@ if __name__=='__main__':
                         help    = 'Indicates whether to display plots (they will be saved irregardless).')
     args              = parser.parse_args()
     references        = standards.create_standards(args.properties)
-    mappingBuilder    = MappingBuilder()
-    regressionTracker = RegressionTracker()
+    mappingBuilder    = MappingBuilder(args.mapping)
+    regressionTracker = RegressionTracker(args.r_values)
     widthStats        = {}
     
     for plate,well,df,meta,location in fcs.fcs(args.root,
@@ -377,9 +378,7 @@ if __name__=='__main__':
         if not args.show:
             plt.close()
     
-    mappingBuilder.build()
-    mappingBuilder.save(args.mapping)
-    regressionTracker.build()
-    regressionTracker.save(args.regression)
+    mappingBuilder.save()
+    regressionTracker.save()
     if args.show:
         plt.show()
