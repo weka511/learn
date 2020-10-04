@@ -26,7 +26,8 @@ import numpy as np
 import os
 import re
 from scipy import stats
-import scipy.stats as stats,math
+import scipy.stats as stats
+import math
 import sys
 import em
 import fcs
