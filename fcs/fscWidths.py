@@ -34,7 +34,7 @@ import standards
 
 # Tracker
 #
-# An abstract paret for various logging classes
+# An abstract parent for various logging classes
 class Tracker(ABC):
     def __init__(self,path='tracker.csv'):
         self.plates = []
@@ -112,12 +112,22 @@ def suppress_y_labels(ax):
     for xlabel_i in ax.get_yticklabels():
         xlabel_i.set_fontsize(0.0)
         xlabel_i.set_visible(False) 
-                
+
+# enlarge_symbols_in_legend
+#
+# Make symbols in legend larger - see Bruno Morais contribution:
+# https://stackoverflow.com/questions/24706125/setting-a-fixed-size-for-points-in-legend
+def enlarge_symbols_in_legend(legend,size=6.0):
+    for handle in legend.legendHandles:
+        handle.set_sizes([size])  
+        
 # plot_fsc_ssc_width
 #
 # Plot FSC-H and SSC-H, with colour showing FSC-Width
 
-def plot_fsc_ssc_width(df,ax=None,title=''):
+def plot_fsc_ssc_width(df,
+                       ax=None,
+                       title=''):
     sns.scatterplot(x       = df['FSC-H'],
                     y       = df['SSC-H'],
                     hue     = df['FSC-Width'],
@@ -128,10 +138,17 @@ def plot_fsc_ssc_width(df,ax=None,title=''):
 
 # plot_fsc_width
 #
-# Plot histogram for FSC-Width, accopmanied by plot of Gausian Mixture Model
+# Plot histogram for FSC-Width, accompanied by plot of Gausian Mixture Model
 
-def plot_fsc_width(df,ax=None,mus=[0,0],sigmas=[1,1],alphas = [0.5,0.5]):
+def plot_fsc_width(df,
+                   ax     = None, 
+                   mus    = [0,0],
+                   sigmas = [1,1],
+                   alphas = [0.5,0.5]):
     sns.histplot(df, x  = 'FSC-Width', ax = ax, label='FSC-Width')
+    ax.legend(loc='lower right')
+    ax.set_title('Gaussian Mixture Model for FSC-Width')
+    
     ax2 = ax.twinx()
     xs  = df['FSC-Width'].values
     ys  = [[alphas[i]*gcps.get_p(w,mus[i],sigmas[i]) for w in xs] for i in range(len(alphas))]
@@ -143,15 +160,10 @@ def plot_fsc_width(df,ax=None,mus=[0,0],sigmas=[1,1],alphas = [0.5,0.5]):
                     label = rf'$\mu$={mus[i]:.0f}, $\sigma$={sigmas[i]:.0f}')
  
     ax2.set_ylim((0,max(ys[0])))
-    legend = ax2.legend()
     suppress_y_labels(ax2)
-    # Make symbols in legend larger - see Bruno Morais contribution:
-    # https://stackoverflow.com/questions/24706125/setting-a-fixed-size-for-points-in-legend
-    for handle in legend.legendHandles:
-        handle.set_sizes([6.0])    
-    
-    ax.legend(loc='lower right')
-    ax.set_title('Gaussian Mixture Model for FSC-Width')
+    legend = ax2.legend()
+    enlarge_symbols_in_legend(legend)
+
 
 # resample_widths
 #
@@ -216,7 +228,6 @@ def fit_reds(segments=[],intensities=[],mus=[],sigmas=[],N=25,tolerance=1e-5):
             K      = 3)  
     barcode,levels = standards.lookup(plate,references)
     _, _, r_value, _, _ = stats.linregress(levels,[math.exp(y) for y in mus])
-    #print (f'Using standard {levels} for {barcode}, r_value={r_value}')  
     return alphas,mus,sigmas,levels,r_value
 
 # plot_GMM_for_reds
@@ -289,7 +300,7 @@ if __name__=='__main__':
         mappingBuilder.accumulate(plate,cytsn,location)
         fig  = plt.figure(figsize=(15,12))
         fig.suptitle(f'{plate} {well} {location} {cytsn}')        
-        #plt.tight_layout()
+        
         if is_gcp(well):
             axes                = fig.subplots(nrows=2,ncols=2)     
             df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1) 
@@ -345,32 +356,31 @@ if __name__=='__main__':
             
             regressionTracker.accumulate(plate,well,levels,r_value)
             
-            plt.subplots_adjust(top=0.92,
-                                bottom=0.08, 
-                                left=0.10,
-                                right=0.95, 
-                                hspace=0.25,
-                                wspace=0.35)
+            plt.subplots_adjust(top    = 0.92,
+                                bottom = 0.08, 
+                                left   = 0.10,
+                                right  = 0.95, 
+                                hspace = 0.25,
+                                wspace = 0.35)
             
                       
         else:    # regular well
             axes                = fig.subplots(nrows=2,ncols=3)     
-            df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)
-            df_reduced_doublets = df_gated_on_sigma[df_gated_on_sigma['FSC-Width']<1000]            
-            plot_fsc_ssc_width(df_reduced_doublets,ax=axes[0][0],title=r'Filtered on $\sigma$')
-            sns.histplot(df_reduced_doublets,
+            df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)          
+            plot_fsc_ssc_width(df_gated_on_sigma,ax=axes[0][0],title=r'Filtered on $\sigma$')
+            sns.histplot(df_gated_on_sigma,
                          x  = 'FSC-H',
                          ax = axes[0][1])
-            sns.histplot(df_reduced_doublets,
+            sns.histplot(df_gated_on_sigma,
                          x  = 'SSC-H',
                          ax = axes[1][0])
             
             _,mus_g12,sigmas_g12 = widthStats['G12'] 
             _,mus_h12,sigmas_h12 = widthStats['H12']   
             plot_fsc_width(df_gated_on_sigma,
-                           ax=axes[1][1],
-                           mu=0.5*(mus_g12[0]+mus_h12[0]),
-                           sigma=math.sqrt(0.5*(sigmas_g12[0]**2+sigmas_h12[0]**2)))
+                           ax     = axes[1][1],
+                           mus    = [0.5*(mus_g12[i]+mus_h12[i]) for i in range(2)],
+                           sigmas = [math.sqrt(0.5*(sigmas_g12[i]**2+sigmas_h12[i]**2))for i in range(2)] )
             
             sns.scatterplot(x  = df_gated_on_sigma['FSC-H'],
                             y  = df_gated_on_sigma['FSC-Width'],
