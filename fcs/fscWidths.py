@@ -22,10 +22,15 @@ import numpy as np
 import os
 import seaborn as sns
 import pandas as pd
+import random 
 import re
 import fcs
 import gcps
 
+# MappingBuilder
+#
+# This class is responsible for keeping track of
+# the location and instrument used for each plate
 class MappingBuilder:
     def __init__(self):
         self.plates    = []
@@ -49,28 +54,66 @@ class MappingBuilder:
                               inplace = True)
     def save(self,path):
         self.refs.to_csv(path,index=False)  
- 
-def plot_fsc_ssc_width(df,ax=None):
+
+# plot_fsc_ssc_width
+#
+# Plot FSC-H and SSC-H, with colour showing FSC-Width
+
+def plot_fsc_ssc_width(df,ax=None,title=''):
     sns.scatterplot(x       = df['FSC-H'],
                     y       = df['SSC-H'],
                     hue     = df['FSC-Width'],
                     palette = sns.color_palette('icefire', as_cmap=True),
                     s       = 1,
                     ax      = ax)
+    ax.set_title(title)
 
-#plot_fsc_width(df_gated_on_sigma,ax=None,mu=mus[0],sigma=sigmas[0])
-def plot_fsc_width(df,ax=None,mu=0,sigma=1):
-    sns.histplot(df,
-                 x  = 'FSC-Width',
-                 ax = ax)
+# plot_fsc_width
+#
+# Plot histogram for FSC-Width, accopmanied by plot of Gausian Mixture Model
+
+def plot_fsc_width(df,ax=None,mus=[0,0],sigmas=[1,1],alphas = [0.5,0.5]):
+    sns.histplot(df, x  = 'FSC-Width', ax = ax, label='FSC-Width')
     ax2 = ax.twinx()
-    xs = df['FSC-Width'].values
-    ax2.scatter(xs,[100 * gcps.get_p(w,mu,sigma) for w in xs],
-                s=1,
-                c='r',
-                label=rf'$\mu$={mu:.0f},$\sigma$={sigma:.0f}')
+    xs  = df['FSC-Width'].values
+    ys  = [[alphas[i]*gcps.get_p(w,mus[i],sigmas[i]) for w in xs] for i in range(len(alphas))]
+    for i in range(len(alphas)):
+        ax2.scatter(xs,ys[i],
+                    s     = 1,
+                    c     = ['r', 'g'][i],
+                    alpha = 0.5,
+                    label = rf'$\mu$={mus[i]:.0f},$\sigma$={sigmas[i]:.0f}')
+ 
+    ax2.set_ylim((0,max(ys[0])))
     ax2.legend()
-    
+    ax.legend(loc='lower right')
+    ax.set_title('Fitting Gaussian')
+
+# resample_widths
+#
+# Create a sample, of the same size as the original data, whose widths match the 
+# first Gaussian in GMM
+
+def resample_widths(df,mu=0,sigma=1):
+    widths   = df['FSC-Width'].values
+    selector = []
+    nrows    = len(df.index)
+    while len(selector)<nrows:
+        candidate = random.randint(0,nrows-1)
+        x         = widths[candidate]
+        p         = math.exp(-0.5*((x-mu)/sigma)**2)
+        test      = random.random()
+        if p>test:
+            selector.append(candidate)
+    return df.iloc[selector] 
+ 
+# is_gcp
+#
+# Verify thaat well is a GCP well
+
+def is_gcp(well):
+    return re.match('[GH]12',well)
+
 if __name__=='__main__':
     rc('text', usetex=True)
     parser = argparse.ArgumentParser('Plot FSC Width')
@@ -104,7 +147,6 @@ if __name__=='__main__':
                         help    = 'Indicates whether to display plots (they will be saved irregardless).')
     args           = parser.parse_args()
     
-    re_gcp         = re.compile('[GH]12')
     mappingBuilder = MappingBuilder()
     widthStats     = {}
     
@@ -116,53 +158,60 @@ if __name__=='__main__':
         print (f'{ plate} {well} {location} {cytsn}')
         mappingBuilder.accumulate(plate,cytsn,location)
         fig                 = plt.figure(figsize=(15,10))
-        axes                = fig.subplots(nrows=2,ncols=3) 
         fig.suptitle(f'{plate} {well} {location} {cytsn}')        
-     
-        df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)
-        df_reduced_doublets = df_gated_on_sigma[df_gated_on_sigma['FSC-Width']<1000]
-        if re_gcp.match(well) != None:         # GCP
+
+        if is_gcp(well):         # GCP
+            axes                = fig.subplots(nrows=2,ncols=2)     
+            df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1) 
+            widths = df_gated_on_sigma['FSC-Width'].values
+            q_05 = np.quantile(widths,0.05)
+            q_95 = np.quantile(widths,0.95)
             likelihoods,alphas,mus,sigmas =\
                 gcps.maximize_likelihood(
-                    df_gated_on_sigma['FSC-Width'].values,
-                    mus    = [800,1200], #FIXME
-                    sigmas = [200,200],  #FIXME
-                    alphas = [0.5,0.5],  #FIXME
+                    widths,
+                    mus    = [q_05,q_95],            # Initially assume the two means are close to the extremities
+                    sigmas = [q_95-q_05,q_95-q_05],  # Standard deviation also needs to be large
+                    alphas = [0.5,0.5],              # Perfect ignorance - assume rach the two
+                                                     # spans of data contains half the points 
                     N      = args.N,
                     limit  = args.tolerance,
                     K      = 2)            
-            print (alphas,mus,sigmas)
+            
             widthStats[well] = (likelihoods,alphas,mus,sigmas)
    
-            plot_fsc_ssc_width(df_reduced_doublets,ax=axes[0][0])
+            plot_fsc_ssc_width(df_gated_on_sigma,
+                               ax=axes[0][0],
+                               title=r'Filtered on $\sigma$')
             
+            plot_fsc_width(df_gated_on_sigma,
+                           ax     = axes[0][1],
+                           mus    = mus,
+                           sigmas = sigmas,
+                           alphas = alphas)
+            
+            df_resampled_doublets = resample_widths(df_gated_on_sigma,
+                                                    mu    = mus[0],
+                                                    sigma = sigmas[0])
+            
+            plot_fsc_ssc_width(df_resampled_doublets,
+                               ax=axes[1][0],
+                               title='Resampled on FSC-Width')
+            sns.scatterplot(x=df_resampled_doublets['Green-H'],
+                            y = df_resampled_doublets['Red-H'],
+                            s = 1,
+                            ax=axes[1][1])
+                   
+        else:    # regular well
+            axes                = fig.subplots(nrows=2,ncols=3)     
+            df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)
+            df_reduced_doublets = df_gated_on_sigma[df_gated_on_sigma['FSC-Width']<1000]            
+            plot_fsc_ssc_width(df_reduced_doublets,ax=axes[0][0],title=r'Filtered on $\sigma$')
             sns.histplot(df_reduced_doublets,
                          x  = 'FSC-H',
                          ax = axes[0][1])
             sns.histplot(df_reduced_doublets,
                          x  = 'SSC-H',
                          ax = axes[1][0])
-            plot_fsc_width(df_gated_on_sigma,ax=axes[1][1],mu=mus[0],sigma=sigmas[0])
-
-            sns.scatterplot(x  = df_gated_on_sigma['FSC-H'],
-                            y  = df_gated_on_sigma['FSC-Width'],
-                            s  = 1,
-                            ax = axes[0][2])
-            sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
-                            y  = df_gated_on_sigma['FSC-Width'],
-                            s  = 1,
-                            ax = axes[1][2])            
-        else:
-            plot_fsc_ssc_width(df_reduced_doublets,ax=axes[0][0])
-            sns.histplot(df_reduced_doublets,
-                         x  = 'FSC-H',
-                         ax = axes[0][1])
-            sns.histplot(df_reduced_doublets,
-                         x  = 'SSC-H',
-                         ax = axes[1][0])
-            #sns.histplot(df_gated_on_sigma,
-                         #x  = 'FSC-Width',
-                         #ax = axes[1][1])
             
             _,_,mus_g12,sigmas_g12 = widthStats['G12'] 
             _,_,mus_h12,sigmas_h12 = widthStats['H12']   
