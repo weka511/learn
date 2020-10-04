@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+from abc import ABC
 import argparse
 import fcsparser
 import math
@@ -29,6 +30,39 @@ import fcs
 import gcps
 import standards
 
+class Tracker(ABC):
+    def __init__(self,path='tracker.csv'):
+        self.plates = []
+        self.refs   = None
+        self.path   = path
+    def accumulate(self,plate):
+        self.plates.append(plate)
+    def build(self):
+        pass
+    def save(self):
+        if self.refs == None:
+            self.build()
+        self.refs.to_csv(self.path,index=False)   
+        
+class RegressionTracker:
+    def __init__(self):
+        self.plates = []
+        self.wells  = []
+        self.rsqs    = []
+    def accumulate(self,plate,well,rsq):
+        self.plates.append(plate)
+        self.wells.append(well)
+        self.rsqs.append(rsq)
+    def build(self):
+        self.refs = pd.DataFrame({ 
+            'Plate' : self.plates,
+            'Well'  : self.wells,
+            'rsq'   : self.rsqs})
+        self.refs.sort_values(by      = ['Plate'],
+                              inplace = True)
+    def save(self,path):
+        self.refs.to_csv(path,index=False) 
+        
 # MappingBuilder
 #
 # This class is responsible for keeping track of
@@ -209,6 +243,9 @@ if __name__=='__main__':
     parser.add_argument('--mapping',
                         default = 'mapping.csv',
                         help    = 'File to store mapping between plates, locations, and serial numbers.')
+    parser.add_argument('--regression',
+                        default = 'regression.csv',
+                        help    = 'File to store r_values.')    
     parser.add_argument('-N','--N',
                         default = 25, 
                         type    = int, 
@@ -224,10 +261,11 @@ if __name__=='__main__':
                         default = False, 
                         action  = 'store_true',
                         help    = 'Indicates whether to display plots (they will be saved irregardless).')
-    args           = parser.parse_args()
-    references     = standards.create_standards(args.properties)
-    mappingBuilder = MappingBuilder()
-    widthStats     = {}
+    args              = parser.parse_args()
+    references        = standards.create_standards(args.properties)
+    mappingBuilder    = MappingBuilder()
+    regressionTracker = RegressionTracker()
+    widthStats        = {}
     
     for plate,well,df,meta,location in fcs.fcs(args.root,
                                  plate = args.plate,
@@ -292,6 +330,8 @@ if __name__=='__main__':
                               r_value     = r_value,
                               ax          = axes[1][1])
             
+            regressionTracker.accumulate(plate,well,r_value)
+            
             plt.subplots_adjust(top=0.92,
                                 bottom=0.08, 
                                 left=0.10,
@@ -339,6 +379,7 @@ if __name__=='__main__':
     
     mappingBuilder.build()
     mappingBuilder.save(args.mapping)
-    
+    regressionTracker.build()
+    regressionTracker.save(args.regression)
     if args.show:
         plt.show()
