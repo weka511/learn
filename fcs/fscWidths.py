@@ -26,7 +26,7 @@ import pandas as pd
 import random 
 import re
 import scipy.stats as stats
-import time
+from time import gmtime, strftime, time
 
 import fcs
 import gcps
@@ -246,10 +246,27 @@ def plot_GMM_for_reds(intensities=[],alphas=[],mus=[],sigmas=[],levels=[],r_valu
     ax2.set_title('GMM for Red')
     suppress_y_labels(ax2)
    
-    
+class Logger:
+    def __init__(self,path):
+        self.path = path
+    def __enter__(self):
+        self.file = open(self.path,'w')
+        return self
+    def log(self,text):
+        print (text)
+        self.file.write(f'{strftime("%Y-%m-%d %H:%M:%S", gmtime())} {text}\n')    
+    def __exit__(self,etype, value, traceback):
+        if traceback is not None:
+            print(f'{etype}, {value}, {traceback}')
+        try:
+            self.file.close()
+        except:
+            e = sys.exc_info()[0]
+            print (e)
+        
 if __name__=='__main__':
     rc('text', usetex=True)
-    start = time.time()
+    start = time()
     parser = argparse.ArgumentParser('Plot FSC Width. Remove doublets from GCP wells, and perform regression on Red.')
     parser.add_argument('--root',
                         default = r'\data\cytoflex\Melbourne',
@@ -267,6 +284,9 @@ if __name__=='__main__':
     parser.add_argument('--mapping',
                         default = 'mapping.csv',
                         help    = 'File to store mapping between plates, locations, and serial numbers.')
+    parser.add_argument('--log',
+                        default = 'log.txt',
+                        help    = 'Path to Log file.')    
     parser.add_argument('--r_values',
                         default = 'r_values.csv',
                         help    = 'File to store r_values.')    
@@ -296,15 +316,14 @@ if __name__=='__main__':
     widthStats        = {}
     
     random.seed(args.seed)
-    with open ('logfile.txt','w') as logfile:
-        logfile.write(f'{args}\n')
+    with Logger(args.log) as logger:
+        logger.log(f'{args}')
         for plate,well,df,meta,location in fcs.fcs(args.root,
                                      plate = args.plate,
                                      wells = args.wells):
             cytsn  = meta['$CYTSN']
             
-            print (f'{ plate} {well} {location} {cytsn}')
-            logfile.write(f'{ plate} {well} {location} {cytsn}\n')
+            logger.log (f'{ plate} {well} {location} {cytsn}')
             mappingBuilder.accumulate(plate,cytsn,location)
             fig  = plt.figure(figsize=(15,12))
             fig.suptitle(f'{plate} {well} {location} {cytsn}')        
@@ -413,10 +432,10 @@ if __name__=='__main__':
         mappingBuilder.save()
         regressionTracker.save()
         
-        end              = time.time()
+        end              = time()
         hours, rem       = divmod(end-start, 3600)
         minutes, seconds = divmod(rem, 60)
-        print(f'Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)} ')
-        logfile.write(f'Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)}\n')
+        logger.log(f'Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)} ')
+        
     if args.show:
         plt.show()
