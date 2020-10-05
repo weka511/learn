@@ -263,7 +263,26 @@ class Logger:
         except:
             e = sys.exc_info()[0]
             print (e)
-        
+
+# fit_gmm_to_widths
+#
+# Fit Gaussiam Mixture Model with 2 peaks to FSC-Width
+
+def fit_gmm_to_widths(widths,N=25,tolerance=1e-5):
+    q_05 = np.quantile(widths,0.05)
+    q_95 = np.quantile(widths,0.95)
+    return  gcps.maximize_likelihood(
+                     widths,
+                     mus    = [q_05,q_95],            # Initially assume the two means are 
+                                                      # close to the extremities
+                     sigmas = [q_95-q_05,q_95-q_05],  # Standard deviation also needs to be large
+                     alphas = [0.5,0.5],              # Perfect ignorance - assume each of the two
+                                                      # spans of data contains half the points 
+                     N      = N,
+                     limit  = tolerance,
+                     K      = 2) 
+
+  
 if __name__=='__main__':
     rc('text', usetex=True)
     start = time()
@@ -331,19 +350,10 @@ if __name__=='__main__':
             if is_gcp(well):
                 axes                = fig.subplots(nrows=2,ncols=2)     
                 df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1) 
-                widths              = df_gated_on_sigma['FSC-Width'].values
-                q_05                = np.quantile(widths,0.05)
-                q_95                = np.quantile(widths,0.95)
-                _,alphas,mus,sigmas = gcps.maximize_likelihood(
-                                           widths,
-                                           mus    = [q_05,q_95],            # Initially assume the two means are 
-                                                                            # close to the extremities
-                                           sigmas = [q_95-q_05,q_95-q_05],  # Standard deviation also needs to be large
-                                           alphas = [0.5,0.5],              # Perfect ignorance - assume each of the two
-                                                                            # spans of data contains half the points 
-                                           N      = args.N,
-                                           limit  = args.tolerance,
-                                           K      = 2)            
+   
+                _,alphas,mus,sigmas = fit_gmm_to_widths(df_gated_on_sigma['FSC-Width'].values,
+                                                        N=args.N,
+                                                        tolerance=args.tolerance)
                 
                 widthStats[well]   = (alphas,mus,sigmas)
        
@@ -392,11 +402,15 @@ if __name__=='__main__':
                 
                           
             else:    # regular well
-                axes                = fig.subplots(nrows=2,ncols=3)     
-                df_gated_on_sigma   = fcs.gate_data(df,nsigma=2,nw=1)          
+                axes                 = fig.subplots(nrows=2,ncols=3)     
+                df_gated_on_sigma    = fcs.gate_data(df,nsigma=2,nw=1)
+                _,mus_g12,sigmas_g12 = widthStats['G12'] 
+                _,mus_h12,sigmas_h12 = widthStats['H12']                
                 plot_fsc_ssc_width(df_gated_on_sigma,
                                    ax=axes[0][0],
                                    title=r'Filtered on $\sigma$')
+                ax2 = axes[0][0].twinx();
+                
                 sns.histplot(df_gated_on_sigma,
                              x  = 'FSC-H',
                              ax = axes[0][1])
@@ -404,8 +418,7 @@ if __name__=='__main__':
                              x  = 'SSC-H',
                              ax = axes[1][0])
                 
-                _,mus_g12,sigmas_g12 = widthStats['G12'] 
-                _,mus_h12,sigmas_h12 = widthStats['H12']   
+                
                 plot_fsc_width(df_gated_on_sigma,
                                ax     = axes[1][1],
                                mus    = [0.5*(mus_g12[i]+mus_h12[i]) for i in range(2)],
