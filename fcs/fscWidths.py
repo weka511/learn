@@ -136,11 +136,11 @@ def plot_fsc_ssc_width(df,
                     ax      = ax)
     ax.set_title(title)
 
-# plot_fsc_width
+# plot_fsc_width_histogram
 #
 # Plot histogram for FSC-Width, accompanied by plot of Gausian Mixture Model
 
-def plot_fsc_width(df,
+def plot_fsc_width_histogram(df,
                    ax     = None, 
                    mus    = [0,0],
                    sigmas = [1,1],
@@ -282,7 +282,23 @@ def fit_gmm_to_widths(widths,N=25,tolerance=1e-5):
                      limit  = tolerance,
                      K      = 2) 
 
-  
+# fit_line_fsc_width
+#
+# returns gradient, intercept, r_value, p_value, std_err
+def fit_line_fsc_width(xs=[], ys=[], x_gcp=0):
+    selector = [i for i in range(len(xs)) if xs[i]>x_gcp]
+    return stats.linregress([xs[i] for i in selector],
+                            [ys[i] for i in selector])
+    
+
+def plot_line_fsc_width(x_gcp=0, x_max=0, ax=None,ylim=None,gradient=1, intercept=0, r_value=0,n=100):
+    x  = np.linspace(x_gcp,x_max,n)
+    ax.plot(x,gradient*x + intercept,
+            '-r',
+            label=f'$r^2$={r_value:.3f}')
+    ax.set_ylim(ylim)
+    ax.legend()
+    
 if __name__=='__main__':
     rc('text', usetex=True)
     start = time()
@@ -355,21 +371,23 @@ if __name__=='__main__':
                                                         N=args.N,
                                                         tolerance=args.tolerance)
                 
-                widthStats[well]   = (alphas,mus,sigmas)
-       
                 plot_fsc_ssc_width(df_gated_on_sigma,
                                    ax=axes[0][0],
                                    title=r'Filtered on $\sigma$')
                 
-                plot_fsc_width(df_gated_on_sigma,
-                               ax     = axes[0][1],
-                               mus    = mus,
-                               sigmas = sigmas,
-                               alphas = alphas)
+                plot_fsc_width_histogram(df_gated_on_sigma,
+                                         ax     = axes[0][1],
+                                         mus    = mus,
+                                         sigmas = sigmas,
+                                         alphas = alphas)
                 
                 df_resampled_doublets = resample_widths(df_gated_on_sigma,
                                                         mu    = mus[0],
                                                         sigma = sigmas[0])
+         
+                widthStats[well]   = (alphas,mus,sigmas,
+                                      np.mean(df_resampled_doublets['FSC-H']),
+                                      np.mean(df_resampled_doublets['SSC-H']))
                 
                 plot_fsc_ssc_width(df_resampled_doublets,
                                    ax=axes[1][0],
@@ -404,8 +422,8 @@ if __name__=='__main__':
             else:    # regular well
                 axes                 = fig.subplots(nrows=2,ncols=3)     
                 df_gated_on_sigma    = fcs.gate_data(df,nsigma=2,nw=1)
-                _,mus_g12,sigmas_g12 = widthStats['G12'] 
-                _,mus_h12,sigmas_h12 = widthStats['H12']                
+                _,mus_g12,sigmas_g12,x0_g12,y0_g12 = widthStats['G12'] 
+                _,mus_h12,sigmas_h12,x0_h12,y0_h12 = widthStats['H12']                
                 plot_fsc_ssc_width(df_gated_on_sigma,
                                    ax=axes[0][0],
                                    title=r'Filtered on $\sigma$')
@@ -414,12 +432,13 @@ if __name__=='__main__':
                 sns.histplot(df_gated_on_sigma,
                              x  = 'FSC-H',
                              ax = axes[0][1])
+                
                 sns.histplot(df_gated_on_sigma,
                              x  = 'SSC-H',
                              ax = axes[1][0])
                 
                 
-                plot_fsc_width(df_gated_on_sigma,
+                plot_fsc_width_histogram(df_gated_on_sigma,
                                ax     = axes[1][1],
                                mus    = [0.5*(mus_g12[i]+mus_h12[i]) for i in range(2)],
                                sigmas = [math.sqrt(0.5*(sigmas_g12[i]**2+sigmas_h12[i]**2))for i in range(2)] )
@@ -428,12 +447,28 @@ if __name__=='__main__':
                                 y  = df_gated_on_sigma['FSC-Width'],
                                 s  = 1,
                                 ax = axes[0][2])
+                
+                gradient, intercept, r_value, _, _ = fit_line_fsc_width(
+                                                        xs    = df_gated_on_sigma['FSC-H'].values,
+                                                        ys    = df_gated_on_sigma['FSC-Width'].values,
+                                                        x_gcp = 0.5*(x0_g12+x0_h12))
+                plot_line_fsc_width(
+                    ax        = axes[0][2].twinx(),
+                    x_gcp     = 0.5*(x0_g12+x0_h12),
+                    x_max     = max(df_gated_on_sigma['FSC-H']),
+                    ylim      = axes[0][2].get_ylim(),
+                    gradient  = gradient,
+                    intercept = intercept)               
+                
                 sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
                                 y  = df_gated_on_sigma['FSC-Width'],
                                 s  = 1,
                                 ax = axes[1][2])            
                 
-      
+                #plot_wh(xs = df_gated_on_sigma['SSC-H'].values,
+                        #ys = df_gated_on_sigma['FSC-Width'].values,
+                        #ax =axes[1][2].twinx())
+                
             plt.savefig(
                 fcs.get_image_name(
                     script = os.path.basename(__file__).split('.')[0],
