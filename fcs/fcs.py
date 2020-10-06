@@ -126,20 +126,30 @@ def fcs(root,
             'London',
             'Melbourne',
             'NewDelhi']):
-
-    re_plate =  re.compile('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)')
-    re_wells =  re.compile(
-        '.*([A-H][1]?[0-9]).fcs'  if wells=='all'       else \
-        '.*([A-H]12).fcs'         if wells== 'controls' else \
-        '.*([GH]12).fcs' )        # GCPs
+    def parse_wells():
+        if isinstance(wells,str) or len(wells)==1:
+            return (re.compile(
+                          '.*([A-H][1]?[0-9]).fcs'  if wells=='all'       else \
+                          '.*([A-H]12).fcs'         if wells== 'controls' else \
+                          '.*([GH]12).fcs' ) ,       # GCPs
+                    [])
+        else:
+            re_w = re.compile('.*([A-H][1]?[0-9])')
+            for w in wells:
+                if not re_w.match(w):
+                    raise Exception(f'{w} is not a valid well')            
+            return (re.compile('.*([A-H][1]?[0-9]).fcs'),wells)
+        
+ 
 
     # get_well
     #
     # Used to extract well number from file name
     
     def get_well(file_name):
-        match = re_wells.match(file_name)
-        return match.group(1) if match else None
+        match   = re_wells.match(file_name)
+        matched = match and (len(well_list)==0 or match.group(1) in well_list)
+        return match.group(1) if matched else None
     
     def get_location(path):
         for component in path:
@@ -156,6 +166,10 @@ def fcs(root,
         row    = ord(well_name[0])-ord('A')
         column = int(well_name[1:])
         return 12 * row + column
+    
+    re_plate =  re.compile('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)')
+    
+    re_wells,well_list = parse_wells() 
     
     for root, dirs, files in os.walk(root):   
         path     = root.split(os.sep)

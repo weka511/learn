@@ -311,10 +311,12 @@ if __name__=='__main__':
                         default = 'all',
                         help    = 'List of plates to process (or "all").')
     parser.add_argument('--wells',
+                        nargs='+',
                         choices = ['all',
                                    'controls',
-                                   'gcps'],
-                        default = 'all',
+                                   'gcps',
+                                   'A12','B12', 'C12', 'D12', 'E12','F12','G12','H12'],
+                        default = 'controls',
                         help    = 'Identify wells to be processed.')
     parser.add_argument('--mapping',
                         default = 'mapping.csv',
