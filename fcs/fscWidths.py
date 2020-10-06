@@ -434,17 +434,8 @@ if __name__=='__main__':
                                    title=r'Filtered on $\sigma$')
                 ax2 = axes[0][0].twinx();
                 
-                sns.histplot(df_gated_on_sigma,
-                             x  = 'FSC-H',
-                             ax = axes[0][1])
-                
-                sns.histplot(df_gated_on_sigma,
-                             x  = 'SSC-H',
-                             ax = axes[1][0])
-                
-                
                 plot_fsc_width_histogram(df_gated_on_sigma,
-                               ax     = axes[1][1],
+                               ax     = axes[0][1],
                                mus    = [0.5*(mus_g12[i]+mus_h12[i]) for i in range(2)],
                                sigmas = [math.sqrt(0.5*(sigmas_g12[i]**2+sigmas_h12[i]**2))for i in range(2)] )
                 
@@ -470,7 +461,7 @@ if __name__=='__main__':
                 ssc_h_s   = df_gated_on_sigma['SSC-H'].values
                 fsc_w_s   = df_gated_on_sigma['FSC-Width'].values                
                 selection = [i for i in range(len(fsc_h_s)) if fsc_h_s[i] < x_gcp or fsc_w_s[i]<gradient*fsc_h_s[i] + intercept]
-                n,bins,_  = axes[1][2].hist(fsc_h_s[selection],bins=50)
+                n,bins,_  = axes[1][0].hist(fsc_h_s[selection],bins=50)
                 quantiles = [np.quantile(fsc_h_s,q/7) for q in range(1,7)]
             
                 _,alphas,mus,sigmas=  gcps.maximize_likelihood(
@@ -481,7 +472,7 @@ if __name__=='__main__':
                                             N      = args.N,
                                             limit  = args.tolerance,
                                             K      = 6) 
-                ax2      = axes[1][2].twinx()
+                ax2      = axes[1][0].twinx()
                 for k in range(6):
                     ax2.plot(bins,
                              [max(n)*alphas[k]*gcps.get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
