@@ -460,14 +460,37 @@ if __name__=='__main__':
                     gradient  = gradient,
                     intercept = intercept)               
                 
-                sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
-                                y  = df_gated_on_sigma['FSC-Width'],
-                                s  = 1,
-                                ax = axes[1][2])            
+                xs = df_gated_on_sigma['FSC-H'].values
+                ys = df_gated_on_sigma['SSC-H'].values
+                ws = df_gated_on_sigma['FSC-Width'].values
+                selection = [i for i in range(len(xs)) if xs[i]< 0.5*(x0_g12+x0_h12) or ws[i]<gradient*xs[i] + intercept + 50]
+                n,bins,_=axes[1][2].hist(xs[selection],bins=50)
+                qs = [np.quantile(xs,q/7) for q in range(1,7)]
+            
+                likelihoods,alphas,mus,sigmas=  gcps.maximize_likelihood(
+                                                          xs,
+                                                          mus    = qs,       
+                                                          sigmas = [(qs[5]-qs[0])/10]*6,
+                                                          alphas = [1/6]*6,                                        
+                                                          N      = args.N,
+                                                          limit  = args.tolerance,
+                                                          K      = 6) 
+                ax2      = axes[1][2].twinx()
+                for k in range(6):
+                    ax2.plot(bins,
+                             [max(n)*alphas[k]*gcps.get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
+                             label=fr'$\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
+                _,ymax = ax2.get_ylim()
+                ax2.set_ylim(0,ymax)
+                ax2.legend(framealpha=0.5,title=f'$r^2=${r_value:.8f}')
+                ax2.set_title('GMM for FSC-H')
+                suppress_y_labels(ax2)                
+                #sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
+                                #y  = df_gated_on_sigma['FSC-Width'],
+                                #s  = 1,
+                                #ax = axes[1][2])            
                 
-                #plot_wh(xs = df_gated_on_sigma['SSC-H'].values,
-                        #ys = df_gated_on_sigma['FSC-Width'].values,
-                        #ax =axes[1][2].twinx())
+               
                 
             plt.savefig(
                 fcs.get_image_name(
