@@ -310,12 +310,13 @@ if __name__=='__main__':
                         nargs   = '+',
                         default = 'all',
                         help    = 'List of plates to process (or "all").')
+    
     parser.add_argument('--wells',
                         nargs='+',
                         choices = ['all',
                                    'controls',
-                                   'gcps',
-                                   'A12','B12', 'C12', 'D12', 'E12','F12','G12','H12'],
+                                   'gcps'] 
+                                  + [f'{row}{column}' for row in 'ABCDEFGH' for column in range(1,13)],
                         default = 'controls',
                         help    = 'Identify wells to be processed.')
     parser.add_argument('--mapping',
