@@ -352,7 +352,9 @@ if __name__=='__main__':
     
     random.seed(args.seed)
     with Logger(args.log) as logger:
-        logger.log(f'{args}')
+        for key,value in vars(args).items():
+            logger.log(f'{key} = {value}')
+            
         for plate,well,df,meta,location in fcs.fcs(args.root,
                                      plate = args.plate,
                                      wells = args.wells):
@@ -448,33 +450,34 @@ if __name__=='__main__':
                                 s  = 1,
                                 ax = axes[0][2])
                 
+                x_gcp     = 0.5*(x0_g12+x0_h12)
                 gradient, intercept, r_value, _, _ = fit_line_fsc_width(
                                                         xs    = df_gated_on_sigma['FSC-H'].values,
                                                         ys    = df_gated_on_sigma['FSC-Width'].values,
-                                                        x_gcp = 0.5*(x0_g12+x0_h12))
+                                                        x_gcp = x_gcp)
                 plot_line_fsc_width(
                     ax        = axes[0][2].twinx(),
-                    x_gcp     = 0.5*(x0_g12+x0_h12),
+                    x_gcp     = x_gcp,
                     x_max     = max(df_gated_on_sigma['FSC-H']),
                     ylim      = axes[0][2].get_ylim(),
                     gradient  = gradient,
                     intercept = intercept)               
                 
-                xs = df_gated_on_sigma['FSC-H'].values
-                ys = df_gated_on_sigma['SSC-H'].values
-                ws = df_gated_on_sigma['FSC-Width'].values
-                selection = [i for i in range(len(xs)) if xs[i]< 0.5*(x0_g12+x0_h12) or ws[i]<gradient*xs[i] + intercept + 50]
-                n,bins,_=axes[1][2].hist(xs[selection],bins=50)
-                qs = [np.quantile(xs,q/7) for q in range(1,7)]
+                fsc_h_s   = df_gated_on_sigma['FSC-H'].values
+                ssc_h_s   = df_gated_on_sigma['SSC-H'].values
+                fsc_w_s   = df_gated_on_sigma['FSC-Width'].values                
+                selection = [i for i in range(len(fsc_h_s)) if fsc_h_s[i] < x_gcp or fsc_w_s[i]<gradient*fsc_h_s[i] + intercept]
+                n,bins,_  = axes[1][2].hist(fsc_h_s[selection],bins=50)
+                quantiles = [np.quantile(fsc_h_s,q/7) for q in range(1,7)]
             
-                likelihoods,alphas,mus,sigmas=  gcps.maximize_likelihood(
-                                                          xs,
-                                                          mus    = qs,       
-                                                          sigmas = [(qs[5]-qs[0])/10]*6,
-                                                          alphas = [1/6]*6,                                        
-                                                          N      = args.N,
-                                                          limit  = args.tolerance,
-                                                          K      = 6) 
+                _,alphas,mus,sigmas=  gcps.maximize_likelihood(
+                                            fsc_h_s,
+                                            mus    = quantiles,       
+                                            sigmas = [(quantiles[5]-quantiles[0])/10]*6,
+                                            alphas = [1/6]*6,                                        
+                                            N      = args.N,
+                                            limit  = args.tolerance,
+                                            K      = 6) 
                 ax2      = axes[1][2].twinx()
                 for k in range(6):
                     ax2.plot(bins,
@@ -485,10 +488,7 @@ if __name__=='__main__':
                 ax2.legend(framealpha=0.5,title=f'$r^2=${r_value:.8f}')
                 ax2.set_title('GMM for FSC-H')
                 suppress_y_labels(ax2)                
-                #sns.scatterplot(x  = df_gated_on_sigma['SSC-H'],
-                                #y  = df_gated_on_sigma['FSC-Width'],
-                                #s  = 1,
-                                #ax = axes[1][2])            
+               
                 
                
                 
