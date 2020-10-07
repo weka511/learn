@@ -296,22 +296,23 @@ def fit_gmm_to_widths(widths,N=25,tolerance=1e-5):
 # returns gradient, intercept, r_value, p_value, std_err
 def fit_line_fsc_width(xs=[], ys=[], x_gcp=0):
     selector = [i for i in range(len(xs)) if xs[i]>x_gcp]
-    gradient, intercept, r_value, _, _ = stats.linregress([xs[i] for i in selector],
-                            [ys[i] for i in selector])
-    
+    #return stats.linregress([xs[i] for i in selector],
+                            #[ys[i] for i in selector])
+    gradient, intercept, r_value, p_value, std_err = stats.linregress([xs[i] for i in selector],
+                                                                      [ys[i] for i in selector])    
     selector2 = [i for i in range(len(xs)) if xs[i]>x_gcp and ys[i]<gradient*xs[i] + intercept]
-    gradient2, intercept2, r_value2, zz, zzz = stats.linregress([xs[i] for i in selector2],
-                            [ys[i] for i in selector2])
-    return gradient2, intercept2, r_value2, zz, zzz
+    gradient2, intercept2, r_value2, p_value2, std_err2 = stats.linregress([xs[i] for i in selector2],
+                                                                           [ys[i] for i in selector2])
+    return gradient2, intercept2, r_value2, p_value, std_err
     
-def plot_line_fsc_width(x_gcp=0, x_max=0, ax=None,ylim=None,gradient=1, intercept=0, r_value=0,n=100,y_w=0):
+def plot_line_fsc_width(x_gcp=0, x_max=0, ax=None,ylim=None,gradient=1, intercept=0, r_value=0,n=100,y_w=0,offset1=0,offset2=0):
     x0,_ = ax.get_xlim()
     ax.plot(np.linspace(x0,x_gcp,n),
-            [y_w]*n,
+            [y_w+offset1]*n,
             '-b',
             label=f'FSC-H<{x_gcp}')    
     x  = np.linspace(x_gcp,x_max,n)
-    ax.plot(x,gradient*x + intercept,
+    ax.plot(x,gradient*x + intercept+offset2,
             '-m',
             label=f'$r^2$={r_value:.3f}')
     ax.set_ylim(ylim)
@@ -324,17 +325,37 @@ def plot_line_fsc_width(x_gcp=0, x_max=0, ax=None,ylim=None,gradient=1, intercep
 def rms(xs):
     return math.sqrt( np.mean( [x**2 for x in xs]))
 
-if __name__=='__main__':
-    rc('text', usetex=True)
-    start = time()
+def prepare_data_for_kmeans(fsc_h_s,fsc_w_s,max_width_low_fsc=0, intercept=0, gradient=1):
+    selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<max(max_width_low_fsc,
+                                                                 gradient*fsc_h_s[i] + intercept)
+                                                              and fsc_h_s[i]<800000]    
+    scale     = (max(fsc_h_s)-min(fsc_h_s))/(max(fsc_w_s)-min(fsc_w_s))
+    X         = list(zip(fsc_h_s,[w*scale for w in fsc_w_s]))
+    return [X[i] for i in selection],scale,selection
+
+# parse_args
+#
+# Build ArgumentParser and parse commena line arguments
+
+def parse_args(root       = r'\data\cytoflex\Melbourne',
+               plate      = 'all',
+               wells      = 'controls',
+               mapping    = 'mapping.csv',
+               log        = 'log.txt',
+               r_values   = 'r_values.csv',
+               N          = 25,
+               tolerance = 1.0e-6,
+               properties = r'\data\properties',
+               show       = False,
+               seed       = None):
     parser = argparse.ArgumentParser('Plot FSC Width. Remove doublets from GCP wells, and perform regression on Red.')
     parser.add_argument('--root',
-                        default = r'\data\cytoflex\Melbourne',
-                        help    = 'Path to top of FCS files.')
+                        default = root,
+                        help    = f'Path to top of FCS files [{root}]')
     parser.add_argument('--plate',
                         nargs   = '+',
-                        default = 'all',
-                        help    = 'List of plates to process (or "all").')
+                        default = plate,
+                        help    = f'List of plates to process [{plate}]')
     
     parser.add_argument('--wells',
                         nargs='+',
@@ -342,37 +363,42 @@ if __name__=='__main__':
                                    'controls',
                                    'gcps'] 
                                   + [f'{row}{column}' for row in 'ABCDEFGH' for column in range(1,13)],
-                        default = 'controls',
-                        help    = 'Identify wells to be processed.')
+                        default = wells,
+                        help    = f'Identify wells to be processed [{wells}]')
     parser.add_argument('--mapping',
-                        default = 'mapping.csv',
-                        help    = 'File to store mapping between plates, locations, and serial numbers.')
+                        default = mapping,
+                        help    = f'File to store mapping between plates, locations, and serial numbers [{mapping}]')
     parser.add_argument('--log',
-                        default = 'log.txt',
-                        help    = 'Path to Log file.')    
+                        default = log,
+                        help    = f'Path to Log file [{log}]')    
     parser.add_argument('--r_values',
-                        default = 'r_values.csv',
-                        help    = 'File to store r_values.')    
+                        default = r_values,
+                        help    = f'File to store r_values [{r_values}]')    
     parser.add_argument('-N','--N',
-                        default = 25, 
+                        default = N, 
                         type    = int, 
-                        help    = 'Number of attempts for iteration')
+                        help    = f'Number of attempts for iteration [{N}]')
     parser.add_argument('-t', '--tolerance',
-                        default = 1.0e-6,
+                        default = tolerance,
                         type    = float, 
-                        help    = 'Iteration stops when ratio between likelihoods is this close to 1.')
+                        help    = f'Iteration stops when ratio between likelihoods is this close to 1 [{tolerance}].')
     parser.add_argument('--properties',
-                        default = r'\data\properties',
-                        help    = 'Root for properties files')    
+                        default = properties,
+                        help    = f'Root for properties files [{properties}]')    
     parser.add_argument('--show',
-                        default = False, 
+                        default = show, 
                         action  = 'store_true',
-                        help    = 'Indicates whether to display plots (they will be saved irregardless).')
+                        help    = f'Indicates whether to display plots (they will be saved irregardless) [{show}]')
     parser.add_argument('--seed',
-                        default = None,
-                        help = 'Seed for random number generator')
+                        default = seed,
+                        help = f'Seed for random number generator [{seed}]')
     
-    args              = parser.parse_args()
+    return parser.parse_args()
+
+if __name__=='__main__':
+    rc('text', usetex=True)
+    start             = time()
+    args              = parse_args()
     references        = standards.create_standards(args.properties)
     mappingBuilder    = MappingBuilder(args.mapping)
     regressionTracker = RegressionTracker(args.r_values)
@@ -450,16 +476,16 @@ if __name__=='__main__':
                           
             else:    # regular well
                 axes               = fig.subplots(nrows=2,ncols=3)     
-                df_gated_on_sigma  = fcs.gate_data(df,nsigma=2,nw=1)
+                df_gated_on_sigma  = fcs.gate_data(df,nsigma=1,nw=1) # Trying a severe restriction on FSC-H to help H/W clustering
                 mus_gcp            = [values[1][0] for values in widthStats.values()]
                 sigmas_gcp         = [values[2][0] for values in widthStats.values()]
-                fsc_gcp            = [values[3]for values in widthStats.values()]
-                ssc_gcp            = [values[4] for values in widthStats.values()]
+                fsc_gcp            = [values[3]    for values in widthStats.values()]
+                ssc_gcp            = [values[4]    for values in widthStats.values()]
                 mean_width         = np.mean(mus_gcp)
                 mean_sigma         = rms(sigmas_gcp)
                 max_width_low_fsc  = mean_width + mean_sigma
                 mean_mus_doublet   = np.mean([values[1][1] for values in widthStats.values()])
-                mean_sigma_doublet = rms([values[2][1] for values in widthStats.values()])
+                mean_sigma_doublet = rms([values[2][1]     for values in widthStats.values()])
                 x_gcp              = np.mean(fsc_gcp)
                 
                 # row 1, column 1 -- FSC-H/SSC-H/FSC-Width
@@ -489,7 +515,8 @@ if __name__=='__main__':
                                                         ys    = df_gated_on_sigma['FSC-Width'].values,
                                                         x_gcp = x_gcp)
                 
-                
+                offset1   = 50
+                offset2   = 5               
                 plot_line_fsc_width(
                     ax        = axes[0][2].twinx(),
                     x_gcp     = x_gcp,
@@ -497,33 +524,43 @@ if __name__=='__main__':
                     ylim      = axes[0][2].get_ylim(),
                     gradient  = gradient,
                     intercept = intercept,
-                    y_w       = max_width_low_fsc ) 
+                    y_w       = max_width_low_fsc,
+                    offset1   = offset1,
+                    offset2   = offset2) 
                 
-                fsc_h_s   = df_gated_on_sigma['FSC-H'].values
-                ssc_h_s   = df_gated_on_sigma['SSC-H'].values
-                fsc_w_s   = df_gated_on_sigma['FSC-Width'].values                
-                selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<min(max_width_low_fsc+50,
-                                                                             gradient*fsc_h_s[i] + intercept+100)]
-                Z2 = list(zip(fsc_h_s,fsc_w_s))
-                X = [Z2[i] for i in selection]
-               
-                kmeans = KMeans(n_clusters=8).fit(X)
-                print (kmeans.cluster_centers_)  
-  
+                fsc_h_s  = df_gated_on_sigma['FSC-H'].values
+                ssc_h_s  = df_gated_on_sigma['SSC-H'].values
+                fsc_w_s  = df_gated_on_sigma['FSC-Width'].values
+                
+                X,scale,selection  = prepare_data_for_kmeans(fsc_h_s,
+                                                             fsc_w_s,
+                                                             gradient          = gradient,
+                                                             max_width_low_fsc = max_width_low_fsc+offset1,
+                                                             intercept         = intercept+offset2)
+                kmeans  = KMeans(n_clusters=6,algorithm='full').fit(X)
+                centres = sorted([(x,y/scale) for (x,y) in kmeans.cluster_centers_])
+                for centre in centres: 
+                    logger.log(f'({centre[0]:.0f},{centre[1]:.0f})')
                 ax2 = axes[0][2].twinx()
+                
+                ax2.scatter([X[i][0] for i in range(len(X))],
+                            [X[i][1]/scale for i in range(len(X))],
+                            s=1,
+                            c='g')                
+                
                 ax2.set_ylim(axes[0][2].get_ylim())
-                ax2.scatter([kmeans.cluster_centers_[i][0] for i in range(len(kmeans.cluster_centers_))],
-                            [kmeans.cluster_centers_[i][1] for i in range(len(kmeans.cluster_centers_))],
-                            c='r',
-                            marker='+')                
-
+                ax2.scatter([centres[i][0] for i in range(len(kmeans.cluster_centers_))],
+                            [centres[i][1] for i in range(len(kmeans.cluster_centers_))],
+                            c      = 'r',
+                            marker = '+')                
+                
                 # row 2, column 1
                 
-                fsc_h_s   = df_gated_on_sigma['FSC-H'].values
-                ssc_h_s   = df_gated_on_sigma['SSC-H'].values
-                fsc_w_s   = df_gated_on_sigma['FSC-Width'].values                
-                selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<min(max_width_low_fsc+50,
-                                                                              gradient*fsc_h_s[i] + intercept+50)]
+                #fsc_h_s   = df_gated_on_sigma['FSC-H'].values
+                #ssc_h_s   = df_gated_on_sigma['SSC-H'].values
+                #fsc_w_s   = df_gated_on_sigma['FSC-Width'].values                
+                #selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<max(max_width_low_fsc+offset1,
+                                                                              #gradient*fsc_h_s[i] + intercept+offset2)]
                 n,bins,_  = axes[1][0].hist(fsc_h_s[selection],bins=50)
                 quantiles = [np.quantile(fsc_h_s,q/7) for q in range(1,7)]
             
