@@ -90,18 +90,22 @@ def maximize_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3,N=25,limit=1.0e-6):
     # e_step
     #
     # Perform E step from EM algorithm. The ws represent the numerators in Padhraic Smyth's formulae;
-    # the Zs are the denominators, which aren't they same as Smyth's zs. The function returns Smyths ws.
-    
+    # the Zs are the denominators, which aren't they same as Smyth's zs.
+    #
+    # The function returns Smyth's ws.
     def e_step(mus=[],sigmas=[],alphas=[]):
         ws      = [[get_p(xs[i],mus[k],sigmas[k])*alphas[k] for i in range(len(xs))] for k in range(K)] 
-        Zs      = [sum([ws[k][i] for k in range(K)]) for i in range(len(xs))]
+        Zs      = [sum([ws[k][i] for k in range(K)]) for i in range(len(xs))] #Normalizers 
         return [[ws[k][i]/Zs[i] for i in range(len(xs))] for k in range(K)]
 
     # m_step
     #
     # Perform M step from EM algorithm: calculate new values for alphas, mus, and sigmas    
     def m_step(ws):
+        # Number of data points assigned to each k; since it is calculted from weights, and unrounded, the
+        # values aren't exact integers.
         N       = [sum([ws[k][i] for i in range(len(xs))] ) for k in range(K)]
+        # Proportion of data points assigned to each k
         alphas  = [n/sum(N) for n in N]
         mus     = [sum([ws[k][i]*xs[i] for i in range(len(xs))] )/N[k] for k in range(K)]
         sigmas  = [math.sqrt(sum([ws[k][i]*(xs[i]-mus[k])**2 for i in range(len(xs))] )/N[k]) for k in range(K)]
@@ -250,7 +254,7 @@ if __name__=='__main__':
                             for k in range(K)]
                 mus      = []
                 sigmas   = []
-                heights      = []
+                heights  = []
                 for k in range(K):
                     mu,sigma,_,y = get_gaussian(segments[k],n=max(n[i] for i in range(indices[k],indices[k+1])),bins=bins)
                     mus.append(mu)
