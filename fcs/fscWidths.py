@@ -18,7 +18,7 @@ import argparse
 import fcsparser
 import math
 import matplotlib.pyplot as plt
-from matplotlib import rc
+from   matplotlib import rc
 import numpy as np
 import os
 import seaborn as sns
@@ -26,6 +26,7 @@ import pandas as pd
 import random 
 import re
 import scipy.stats as stats
+from   sklearn.cluster import KMeans
 from time import gmtime, strftime, time
 
 import fcs
@@ -249,12 +250,20 @@ def plot_GMM_for_reds(intensities=[],alphas=[],mus=[],sigmas=[],levels=[],r_valu
 class Logger:
     def __init__(self,path):
         self.path = path
+        
     def __enter__(self):
         self.file = open(self.path,'w')
         return self
+    
     def log(self,text):
         print (text)
-        self.file.write(f'{strftime("%Y-%m-%d %H:%M:%S", gmtime())} {text}\n')    
+        self.file.write(f'{strftime("%Y-%m-%d %H:%M:%S", gmtime())} {text}\n')
+        
+    def log_args(self,args):
+        self.log('Arguments:')
+        for key,value in vars(args).items():
+            self.log(f'\t{key} = {value}')
+            
     def __exit__(self,etype, value, traceback):
         if traceback is not None:
             print(f'{etype}, {value}, {traceback}')
@@ -287,10 +296,14 @@ def fit_gmm_to_widths(widths,N=25,tolerance=1e-5):
 # returns gradient, intercept, r_value, p_value, std_err
 def fit_line_fsc_width(xs=[], ys=[], x_gcp=0):
     selector = [i for i in range(len(xs)) if xs[i]>x_gcp]
-    return stats.linregress([xs[i] for i in selector],
+    gradient, intercept, r_value, _, _ = stats.linregress([xs[i] for i in selector],
                             [ys[i] for i in selector])
     
-
+    selector2 = [i for i in range(len(xs)) if xs[i]>x_gcp and ys[i]<gradient*xs[i] + intercept]
+    gradient2, intercept2, r_value2, zz, zzz = stats.linregress([xs[i] for i in selector2],
+                            [ys[i] for i in selector2])
+    return gradient2, intercept2, r_value2, zz, zzz
+    
 def plot_line_fsc_width(x_gcp=0, x_max=0, ax=None,ylim=None,gradient=1, intercept=0, r_value=0,n=100,y_w=0):
     x0,_ = ax.get_xlim()
     ax.plot(np.linspace(x0,x_gcp,n),
@@ -299,13 +312,17 @@ def plot_line_fsc_width(x_gcp=0, x_max=0, ax=None,ylim=None,gradient=1, intercep
             label=f'FSC-H<{x_gcp}')    
     x  = np.linspace(x_gcp,x_max,n)
     ax.plot(x,gradient*x + intercept,
-            '-r',
+            '-m',
             label=f'$r^2$={r_value:.3f}')
     ax.set_ylim(ylim)
     ax.legend()
 
+# rms
+#
+# Calculate root mean square of a sequence
+
 def rms(xs):
-    return math.sqrt(np.mean(sum(x**2 for x in xs)))
+    return math.sqrt( np.mean( [x**2 for x in xs]))
 
 if __name__=='__main__':
     rc('text', usetex=True)
@@ -363,8 +380,7 @@ if __name__=='__main__':
     
     random.seed(args.seed)
     with Logger(args.log) as logger:
-        for key,value in vars(args).items():
-            logger.log(f'{key} = {value}')
+        logger.log_args(args)
             
         for plate,well,df,meta,location in fcs.fcs(args.root,
                                      plate = args.plate,
@@ -451,7 +467,8 @@ if __name__=='__main__':
                 plot_fsc_ssc_width(df_gated_on_sigma,
                                    ax=axes[0][0],
                                    title=r'Filtered on $\sigma$')
- 
+   
+                
                 # row 1, column 2 --  GMM for FSC-Width              
                 plot_fsc_width_histogram(df_gated_on_sigma,
                                ax     = axes[0][1],
@@ -465,11 +482,13 @@ if __name__=='__main__':
                                 s  = 1,
                                 ax = axes[0][2])
                 
-  
+     
+                
                 gradient, intercept, r_value, _, _ = fit_line_fsc_width(
                                                         xs    = df_gated_on_sigma['FSC-H'].values,
                                                         ys    = df_gated_on_sigma['FSC-Width'].values,
                                                         x_gcp = x_gcp)
+                
                 
                 plot_line_fsc_width(
                     ax        = axes[0][2].twinx(),
@@ -478,15 +497,33 @@ if __name__=='__main__':
                     ylim      = axes[0][2].get_ylim(),
                     gradient  = gradient,
                     intercept = intercept,
-                    y_w       = max_width_low_fsc )               
+                    y_w       = max_width_low_fsc ) 
+                
+                fsc_h_s   = df_gated_on_sigma['FSC-H'].values
+                ssc_h_s   = df_gated_on_sigma['SSC-H'].values
+                fsc_w_s   = df_gated_on_sigma['FSC-Width'].values                
+                selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<min(max_width_low_fsc+50,
+                                                                             gradient*fsc_h_s[i] + intercept+100)]
+                Z2 = list(zip(fsc_h_s,fsc_w_s))
+                X = [Z2[i] for i in selection]
+               
+                kmeans = KMeans(n_clusters=8).fit(X)
+                print (kmeans.cluster_centers_)  
+  
+                ax2 = axes[0][2].twinx()
+                ax2.set_ylim(axes[0][2].get_ylim())
+                ax2.scatter([kmeans.cluster_centers_[i][0] for i in range(len(kmeans.cluster_centers_))],
+                            [kmeans.cluster_centers_[i][1] for i in range(len(kmeans.cluster_centers_))],
+                            c='r',
+                            marker='+')                
 
                 # row 2, column 1
                 
                 fsc_h_s   = df_gated_on_sigma['FSC-H'].values
                 ssc_h_s   = df_gated_on_sigma['SSC-H'].values
                 fsc_w_s   = df_gated_on_sigma['FSC-Width'].values                
-                selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<min(max_width_low_fsc,
-                                                                              gradient*fsc_h_s[i] + intercept)]
+                selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<min(max_width_low_fsc+50,
+                                                                              gradient*fsc_h_s[i] + intercept+50)]
                 n,bins,_  = axes[1][0].hist(fsc_h_s[selection],bins=50)
                 quantiles = [np.quantile(fsc_h_s,q/7) for q in range(1,7)]
             
