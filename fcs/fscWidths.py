@@ -418,6 +418,12 @@ def is_x_w_close_enough(x,w,monotonic_centres,offset=10):
                         /(delta0 + delta1)
         return w < w_interpolated
     
+def find_nearest(p,centres=[]):
+    def dist(p,c):
+        return sum((pp-cc)**2 for (pp,cc) in zip(p,c))
+
+    return np.argmin( [dist(p,c) for c in centres])
+    
 if __name__=='__main__':
     rc('text', usetex=True)
     start             = time()
@@ -634,9 +640,21 @@ if __name__=='__main__':
                 suppress_y_labels(ax2)  
                 
                # row 2, column 2
-               # row 2, column 3
                 
-               
+                X       = list(zip(fsc_h_s[selection2],ssc_h_s[selection2]))                
+                kmeans  = KMeans(n_clusters=6,algorithm='full').fit(X)                
+                axes[1][1].scatter(fsc_h_s[selection2],ssc_h_s[selection2],s=1)
+                axes[1][1].scatter([x for (x,y) in kmeans.cluster_centers_],
+                                   [y for (x,y) in kmeans.cluster_centers_],
+                                   c='r',
+                                   marker='+')
+                
+               # row 2, column 3
+                centres = sorted([(x,y) for (x,y) in kmeans.cluster_centers_])
+                clusters = [find_nearest([x,y],centres=centres) for (x,y) in zip(fsc_h_s[selection2],ssc_h_s[selection2])]
+                colour_selection = ['m','c','y','g','r','b']
+                colours = [colour_selection[i] for i in clusters]
+                axes[1][2].scatter(fsc_h_s[selection2],ssc_h_s[selection2],s=1,c=colours)
                 
             plt.savefig(
                 fcs.get_image_name(
