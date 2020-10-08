@@ -417,12 +417,36 @@ def is_x_w_close_enough(x,w,monotonic_centres,offset=10):
         w_interpolated = (delta0* monotonic_centres[index][1] + delta1* monotonic_centres[index-1][1]) \
                         /(delta0 + delta1)
         return w < w_interpolated
-    
-def find_nearest(p,centres=[]):
-    def dist(p,c):
-        return sum((pp-cc)**2 for (pp,cc) in zip(p,c))
+ 
+# find_nearest
+#
+# Given a point and a list of points (centres), 
+# find the index of the centre that is nearest to the original point.
+# This is typically used to allocate points to clusters
 
-    return np.argmin( [dist(p,c) for c in centres])
+def find_nearest(p,centres=[], distance=lambda p,c: sum((pp-cc)**2 for (pp,cc) in zip(p,c))):
+    return np.argmin( [distance(p,c) for c in centres])
+
+# plot_clusters
+#
+# Scatter plot clusters
+
+def plot_clusters(fsc_h,ssc_h,
+                  fsc_gcp=[],
+                  ssc_gcp=[],
+                  cluster_assignments=[],
+                  ax=None,
+                  cluster_colours   = ['m','c','y','g','r','b']):
+    for cluster in range(6):
+        xs=[fsc_h[i] for i in range(len(fsc_h)) if cluster_assignments[i]==cluster]
+        ys=[ssc_h[i] for i in range(len(fsc_h)) if cluster_assignments[i]==cluster]
+        ax.scatter(xs,ys,s=1,c=cluster_colours[cluster],label=f'{cluster}')
+                
+    ax.scatter(fsc_gcp,ssc_gcp,s=25,c='k',marker='x',label='GCP')
+    ax.set_xlabel('FSC-H')
+    ax.set_ylabel('SSC-H')
+    ax.grid(True)
+    ax.legend(loc='upper left')
     
 if __name__=='__main__':
     rc('text', usetex=True)
@@ -432,6 +456,8 @@ if __name__=='__main__':
     mappingBuilder    = MappingBuilder(args.mapping)
     regressionTracker = RegressionTracker(args.r_values)
     widthStats        = {}
+    nGCPs             = 0
+    nregular          = 0
     
     random.seed(args.seed)
     with Logger(args.log) as logger:
@@ -502,7 +528,8 @@ if __name__=='__main__':
                                     hspace = 0.25,
                                     wspace = 0.35)
                 
-                          
+                nGCPs+=1
+                 
             else:    # regular well
                 axes               = fig.subplots(nrows=2,ncols=3)     
                 df_gated_on_sigma  = fcs.gate_data(df,nsigma=1,nw=1) # Trying a severe restriction on FSC-H to help H/W clustering
@@ -516,7 +543,7 @@ if __name__=='__main__':
                 mean_mus_doublet   = np.mean([values[1][1] for values in widthStats.values()])
                 mean_sigma_doublet = rms([values[2][1]     for values in widthStats.values()])
                 x_gcp              = np.mean(fsc_gcp)
-                
+                y_gcp              = np.mean(ssc_gcp)
                 # row 1, column 1 -- FSC-H/SSC-H/FSC-Width
                 
                 plot_fsc_ssc_width(df_gated_on_sigma,
@@ -650,11 +677,15 @@ if __name__=='__main__':
                                    marker='+')
                 
                # row 2, column 3
-                centres = sorted([(x,y) for (x,y) in kmeans.cluster_centers_])
-                clusters = [find_nearest([x,y],centres=centres) for (x,y) in zip(fsc_h_s[selection2],ssc_h_s[selection2])]
-                colour_selection = ['m','c','y','g','r','b']
-                colours = [colour_selection[i] for i in clusters]
-                axes[1][2].scatter(fsc_h_s[selection2],ssc_h_s[selection2],s=1,c=colours)
+               
+                centres  = sorted([(x,y) for (x,y) in kmeans.cluster_centers_])
+                cluster_assignments = [find_nearest([x,y],centres=centres) \
+                                        for (x,y) in zip(fsc_h_s[selection2],  ssc_h_s[selection2])]
+                plot_clusters(fsc_h_s[selection2],ssc_h_s[selection2],
+                              fsc_gcp=fsc_gcp, ssc_gcp=ssc_gcp,
+                              cluster_assignments=cluster_assignments,ax=axes[1][2])
+                
+                nregular+=1
                 
             plt.savefig(
                 fcs.get_image_name(
@@ -670,7 +701,7 @@ if __name__=='__main__':
         end              = time()
         hours, rem       = divmod(end-start, 3600)
         minutes, seconds = divmod(rem, 60)
-        logger.log(f'Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)} ')
+        logger.log(f'Processed {nGCPs} GCP wells and {nregular} regular wells. Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)} ')
         
     if args.show:
         plt.show()
