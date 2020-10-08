@@ -309,14 +309,12 @@ def plot_line_fsc_width(x_gcp=0, x_max=0, ax=None,ylim=None,gradient=1, intercep
     x0,_ = ax.get_xlim()
     ax.plot(np.linspace(x0,x_gcp,n),
             [y_w+offset1]*n,
-            '-b',
-            label=f'FSC-H<{x_gcp}')    
+            '-b')    
     x  = np.linspace(x_gcp,x_max,n)
     ax.plot(x,gradient*x + intercept+offset2,
-            '-m',
-            label=f'$r^2$={r_value:.3f}')
+            '-m')
     ax.set_ylim(ylim)
-    ax.legend()
+   
 
 # rms
 #
@@ -427,6 +425,22 @@ def is_x_w_close_enough(x,w,monotonic_centres,offset=10):
 def find_nearest(p,centres=[], distance=lambda p,c: sum((pp-cc)**2 for (pp,cc) in zip(p,c))):
     return np.argmin( [distance(p,c) for c in centres])
 
+# plot_filtered
+#
+# Plot FSC-H/SSC-H after doublet removal
+
+def plot_filtered(fsc_h_s,ssc_h_s,centres=[],ax=None):
+    ax.scatter(fsc_h_s,ssc_h_s,s=1,c='b',label='Doublets removed')
+    ax.scatter([x for (x,y) in centres],
+                       [y for (x,y) in centres],
+                       c      = 'r',
+                       marker ='+',
+                       label  = 'Centres')
+    ax.set_xlabel('FSC-H')
+    ax.set_ylabel('SSC-H')
+    ax.grid(True)
+    ax.legend(loc='upper left')
+    
 # plot_clusters
 #
 # Scatter plot clusters
@@ -562,10 +576,9 @@ if __name__=='__main__':
                 sns.scatterplot(x  = df_gated_on_sigma['FSC-H'],
                                 y  = df_gated_on_sigma['FSC-Width'],
                                 s  = 1,
-                                ax = axes[0][2])
-                
-     
-                
+                                ax = axes[0][2],
+                                label=r'Gated on $\sigma$')
+                plt.legend(loc='lower right')
                 gradient, intercept, r_value, _, _ = fit_line_fsc_width(
                                                         xs    = df_gated_on_sigma['FSC-H'].values,
                                                         ys    = df_gated_on_sigma['FSC-Width'].values,
@@ -605,28 +618,30 @@ if __name__=='__main__':
                     logger.log(f'({centre[0]:.0f},{centre[1]:.0f})')
                     
                 ax2 = axes[0][2].twinx()   
-                
-
-                    
+                                 
                 ax2.scatter([X[i][0] for i in range(len(X))],
                             [X[i][1]/scale for i in range(len(X))],
-                            s=1,
-                            c='c')      
+                            s     = 1,
+                            c     = 'c',
+                            label = 'Trimmed Data')      
                 
                 selection2 = [i for i in range(len(fsc_h_s)) if is_x_w_close_enough(fsc_h_s[i],fsc_w_s[i],monotonic_centres) ]
                 ax2.scatter([fsc_h_s[i] for i in selection2],[fsc_w_s[i] for i in selection2 ],
-                            s=1,
-                            c='g')     
+                            s     = 1,
+                            c     = 'g',
+                            label = 'Data w/o doublets')     
                 
                 ax2.set_ylim(axes[0][2].get_ylim())
                 ax2.scatter([centres[i][0] for i in range(len(centres))],
                             [centres[i][1] for i in range(len(centres))],
                             c      = 'k',
-                            marker = '+')
+                            marker = '+',
+                            label='Spurious centres')
                 ax2.scatter([monotonic_centres[i][0] for i in range(len(monotonic_centres))],
                             [monotonic_centres[i][1] for i in range(len(monotonic_centres))],
                             c      = 'r',
-                            marker = '+') 
+                            marker = '+',
+                            label='Centres tidied') 
                 
                 X,scale,_  = prepare_data_for_kmeans(fsc_h_s,
                                                     fsc_w_s,
@@ -641,7 +656,9 @@ if __name__=='__main__':
                 ax2.scatter([centres[i][0] for i in range(len(centres))],
                             [centres[i][1] for i in range(len(centres))],
                             c      = 'm',
-                            marker = 'x')                
+                            marker = 'x',
+                            label='Centres Final')       
+                ax2.legend(loc='upper left')
                 # row 2, column 1
                 
                 n,bins,_  = axes[1][0].hist(fsc_h_s[selection2],bins=50)
@@ -669,21 +686,19 @@ if __name__=='__main__':
                # row 2, column 2
                 
                 X       = list(zip(fsc_h_s[selection2],ssc_h_s[selection2]))                
-                kmeans  = KMeans(n_clusters=6,algorithm='full').fit(X)                
-                axes[1][1].scatter(fsc_h_s[selection2],ssc_h_s[selection2],s=1)
-                axes[1][1].scatter([x for (x,y) in kmeans.cluster_centers_],
-                                   [y for (x,y) in kmeans.cluster_centers_],
-                                   c='r',
-                                   marker='+')
+                kmeans  = KMeans(n_clusters=6,algorithm='full').fit(X)
+                plot_filtered(fsc_h_s[selection2],ssc_h_s[selection2],
+                              ax=axes[1][1],centres=kmeans.cluster_centers_)
                 
                # row 2, column 3
                
-                centres  = sorted([(x,y) for (x,y) in kmeans.cluster_centers_])
-                cluster_assignments = [find_nearest([x,y],centres=centres) \
+                cluster_assignments = [find_nearest([x,y],
+                                                    centres=sorted([(x,y) for (x,y) in kmeans.cluster_centers_])) \
                                         for (x,y) in zip(fsc_h_s[selection2],  ssc_h_s[selection2])]
                 plot_clusters(fsc_h_s[selection2],ssc_h_s[selection2],
                               fsc_gcp=fsc_gcp, ssc_gcp=ssc_gcp,
-                              cluster_assignments=cluster_assignments,ax=axes[1][2])
+                              cluster_assignments=cluster_assignments,
+                              ax=axes[1][2])
                 
                 nregular+=1
                 
@@ -702,6 +717,7 @@ if __name__=='__main__':
         hours, rem       = divmod(end-start, 3600)
         minutes, seconds = divmod(rem, 60)
         logger.log(f'Processed {nGCPs} GCP wells and {nregular} regular wells. Elapsed time: {int(hours)}:{int(minutes)}:{int(seconds)} ')
+        logger.log(f'{(end-start)/(nGCPs + nregular):.0f} seconds per well')
         
     if args.show:
         plt.show()
