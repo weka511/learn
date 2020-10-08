@@ -325,17 +325,25 @@ def plot_line_fsc_width(x_gcp=0, x_max=0, ax=None,ylim=None,gradient=1, intercep
 def rms(xs):
     return math.sqrt( np.mean( [x**2 for x in xs]))
 
-def prepare_data_for_kmeans(fsc_h_s,fsc_w_s,max_width_low_fsc=0, intercept=0, gradient=1):
-    selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<max(max_width_low_fsc,
-                                                                 gradient*fsc_h_s[i] + intercept)
-                                                              and fsc_h_s[i]<800000]    
+def prepare_data_for_kmeans(fsc_h_s,fsc_w_s,max_width_low_fsc=0, intercept=0, gradient=1,selection=None):
+    if selection==None:
+        selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<max(max_width_low_fsc,
+                                                                     gradient*fsc_h_s[i] + intercept)
+                                                                  and fsc_h_s[i]<800000]    
     scale     = (max(fsc_h_s)-min(fsc_h_s))/(max(fsc_w_s)-min(fsc_w_s))
     X         = list(zip(fsc_h_s,[w*scale for w in fsc_w_s]))
     return [X[i] for i in selection],scale,selection
 
+def get_monotonic_subset(centres):
+    padded_centres = [centre for centre in centres] + [(0,1000000)]
+    return [padded_centres[i] for i in range(len(centres)) if padded_centres[i][1]<padded_centres[i+1][1]]
+
 # parse_args
 #
-# Build ArgumentParser and parse commena line arguments
+# Build ArgumentParser and parse command line arguments
+#
+# Parameters:
+#    Default values for arguments
 
 def parse_args(root       = r'\data\cytoflex\Melbourne',
                plate      = 'all',
@@ -344,7 +352,7 @@ def parse_args(root       = r'\data\cytoflex\Melbourne',
                log        = 'log.txt',
                r_values   = 'r_values.csv',
                N          = 25,
-               tolerance = 1.0e-6,
+               tolerance  = 1.0e-6,
                properties = r'\data\properties',
                show       = False,
                seed       = None):
@@ -395,6 +403,21 @@ def parse_args(root       = r'\data\cytoflex\Melbourne',
     
     return parser.parse_args()
 
+def is_x_w_close_enough(x,w,monotonic_centres,offset=10):
+    def max_distance():
+        return max([monotonic_centres[i+1][0]-monotonic_centres[i][0] for i in range(len(monotonic_centres)-1)])
+    index = np.searchsorted([c[0] for c in monotonic_centres],x)
+    if index==0:
+        return monotonic_centres[0][0]-x < 1.1* max_distance() and w<monotonic_centres[0][1]+offset
+    elif index==len(monotonic_centres):
+        return x-monotonic_centres[-1][0] < 1.1* max_distance() and w<monotonic_centres[-1][1]+offset
+    else:
+        delta0         = x - monotonic_centres[index-1][0]
+        delta1         = monotonic_centres[index][0] - x
+        w_interpolated = (delta0* monotonic_centres[index][1] + delta1* monotonic_centres[index-1][1]) \
+                        /(delta0 + delta1)
+        return w < w_interpolated
+    
 if __name__=='__main__':
     rc('text', usetex=True)
     start             = time()
@@ -539,33 +562,60 @@ if __name__=='__main__':
                                                              intercept         = intercept+offset2)
                 kmeans  = KMeans(n_clusters=6,algorithm='full').fit(X)
                 centres = sorted([(x,y/scale) for (x,y) in kmeans.cluster_centers_])
+                logger.log('Centres')
                 for centre in centres: 
                     logger.log(f'({centre[0]:.0f},{centre[1]:.0f})')
-                ax2 = axes[0][2].twinx()
+                           
+                monotonic_centres = get_monotonic_subset(centres)
+                logger.log('Monotonic Centres')
+                for centre in monotonic_centres: 
+                    logger.log(f'({centre[0]:.0f},{centre[1]:.0f})')
+                    
+                ax2 = axes[0][2].twinx()   
                 
+
+                    
                 ax2.scatter([X[i][0] for i in range(len(X))],
                             [X[i][1]/scale for i in range(len(X))],
                             s=1,
-                            c='g')                
+                            c='c')      
+                
+                selection2 = [i for i in range(len(fsc_h_s)) if is_x_w_close_enough(fsc_h_s[i],fsc_w_s[i],monotonic_centres) ]
+                ax2.scatter([fsc_h_s[i] for i in selection2],[fsc_w_s[i] for i in selection2 ],
+                            s=1,
+                            c='g')     
                 
                 ax2.set_ylim(axes[0][2].get_ylim())
-                ax2.scatter([centres[i][0] for i in range(len(kmeans.cluster_centers_))],
-                            [centres[i][1] for i in range(len(kmeans.cluster_centers_))],
+                ax2.scatter([centres[i][0] for i in range(len(centres))],
+                            [centres[i][1] for i in range(len(centres))],
+                            c      = 'k',
+                            marker = '+')
+                ax2.scatter([monotonic_centres[i][0] for i in range(len(monotonic_centres))],
+                            [monotonic_centres[i][1] for i in range(len(monotonic_centres))],
                             c      = 'r',
-                            marker = '+')                
+                            marker = '+') 
                 
+                X,scale,_  = prepare_data_for_kmeans(fsc_h_s,
+                                                    fsc_w_s,
+                                                    gradient          = gradient,
+                                                    max_width_low_fsc = max_width_low_fsc+offset1,
+                                                    intercept         = intercept+offset2,selection=selection2)
+                kmeans  = KMeans(n_clusters=6,algorithm='full').fit(X)
+                centres = sorted([(x,y/scale) for (x,y) in kmeans.cluster_centers_])
+                logger.log('Centres')
+                for centre in centres: 
+                    logger.log(f'({centre[0]:.0f},{centre[1]:.0f})')                
+                ax2.scatter([centres[i][0] for i in range(len(centres))],
+                            [centres[i][1] for i in range(len(centres))],
+                            c      = 'm',
+                            marker = 'x')                
                 # row 2, column 1
                 
-                #fsc_h_s   = df_gated_on_sigma['FSC-H'].values
-                #ssc_h_s   = df_gated_on_sigma['SSC-H'].values
-                #fsc_w_s   = df_gated_on_sigma['FSC-Width'].values                
-                #selection = [i for i in range(len(fsc_h_s)) if fsc_w_s[i]<max(max_width_low_fsc+offset1,
-                                                                              #gradient*fsc_h_s[i] + intercept+offset2)]
-                n,bins,_  = axes[1][0].hist(fsc_h_s[selection],bins=50)
-                quantiles = [np.quantile(fsc_h_s,q/7) for q in range(1,7)]
+                n,bins,_  = axes[1][0].hist(fsc_h_s[selection2],bins=50)
+                quantiles = [np.quantile(fsc_h_s[selection2],q/7) for q in range(1,7)]
             
                 _,alphas,mus,sigmas=  gcps.maximize_likelihood(
-                                            fsc_h_s,
+                                            fsc_h_s[selection2],
                                             mus    = quantiles,       
                                             sigmas = [(quantiles[5]-quantiles[0])/10]*6,
                                             alphas = [1/6]*6,                                        
