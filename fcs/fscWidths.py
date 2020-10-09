@@ -461,6 +461,19 @@ def plot_clusters(fsc_h,ssc_h,
     ax.set_ylabel('SSC-H')
     ax.grid(True)
     ax.legend(loc='upper left')
+
+def plot_greens(greens, ax = None,alphas=[],mus=[],sigmas=[],cluster=0,K=2):
+    n,bins,_ = ax.hist(greens, facecolor=['m','c','y','g','r','b'][cluster],bins=100,alpha=0.5)
+    ax.set_xlabel(r'$\log(Green)$')
+    ax2      = ax.twinx()
+    for k in range(K):
+        ax2.plot(bins,
+                 [max(n)*alphas[k]*gcps.get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
+                 label=fr'{levels[k]}, $\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
+    _,ymax = ax2.get_ylim()
+    ax2.set_ylim(0,ymax)
+    ax2.set_title(f'GMM for Green cluster {cluster}')
+    ax2.legend()
     
 if __name__=='__main__':
     rc('text', usetex=True)
@@ -545,7 +558,7 @@ if __name__=='__main__':
                 nGCPs+=1
                  
             else:    # regular well
-                axes               = fig.subplots(nrows=2,ncols=3)     
+                axes               = fig.subplots(nrows=2,ncols=4)     
                 df_gated_on_sigma  = fcs.gate_data(df,nsigma=1,nw=1) # Trying a severe restriction on FSC-H to help H/W clustering
                 mus_gcp            = [values[1][0] for values in widthStats.values()]
                 sigmas_gcp         = [values[2][0] for values in widthStats.values()]
@@ -600,6 +613,7 @@ if __name__=='__main__':
                 fsc_h_s  = df_gated_on_sigma['FSC-H'].values
                 ssc_h_s  = df_gated_on_sigma['SSC-H'].values
                 fsc_w_s  = df_gated_on_sigma['FSC-Width'].values
+                fsc_green_s  = df_gated_on_sigma['Green-H'].values
                 
                 X,scale,selection  = prepare_data_for_kmeans(fsc_h_s,
                                                              fsc_w_s,
@@ -676,10 +690,11 @@ if __name__=='__main__':
                 for k in range(6):
                     ax2.plot(bins,
                              [max(n)*alphas[k]*gcps.get_p(x,mu=mus[k],sigma=sigmas[k]) for x in bins],
-                             label=fr'$\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}')
+                             label = fr'$\mu=${mus[k]:.3f}, $\sigma=${sigmas[k]:.3f}',
+                             c     = ['m','c','y','g','r','b'][k])
                 _,ymax = ax2.get_ylim()
                 ax2.set_ylim(0,ymax)
-                ax2.legend(framealpha=0.5,title=f'$r^2=${r_value:.8f}')
+                ax2.legend(framealpha=0.5)
                 ax2.set_title('GMM for FSC-H')
                 suppress_y_labels(ax2)  
                 
@@ -696,12 +711,36 @@ if __name__=='__main__':
                                                     centres=sorted([(x,y) for (x,y) in kmeans.cluster_centers_])) \
                                         for (x,y) in zip(fsc_h_s[selection2],  ssc_h_s[selection2])]
                 plot_clusters(fsc_h_s[selection2],ssc_h_s[selection2],
-                              fsc_gcp=fsc_gcp, ssc_gcp=ssc_gcp,
-                              cluster_assignments=cluster_assignments,
-                              ax=axes[1][2])
+                              fsc_gcp             = fsc_gcp,
+                              ssc_gcp             = ssc_gcp,
+                              cluster_assignments = cluster_assignments,
+                              ax                  = axes[1][2])
                 
                 nregular+=1
                 
+                # row 2, column 4
+                cluster = 0
+                
+                all_greens = fsc_green_s[selection2] 
+                greens     = [math.log(all_greens[i]) for i in range(len(all_greens)) if cluster_assignments[i]==cluster]
+                quantiles  = [np.quantile(greens,0.25),np.quantile(greens,0.75) ]
+                qdiff      = quantiles[1] - quantiles[0]
+                try:
+                    likelihoods,alphas,mus,sigmas = gcps.maximize_likelihood(greens,
+                                                                             mus    = quantiles,
+                                                                             sigmas = [qdiff,qdiff],
+                                                                             alphas = [0.5,0.5],
+                                                                             N      = args.N,
+                                                                             limit  = args.tolerance,
+                                                                             K      = 2)
+                    
+                    plot_greens(greens,alphas=alphas,mus=mus,sigmas=sigmas,ax=axes[1][3])
+                except ZeroDivisionError:
+                    logger.log('Error plotting green levels')
+                    axes[1][3].scatter(0,0,c='r',s=300,marker='x')
+                    axes[1][3]('Error plotting green levels')
+                    axes[1][3].set_tick_params(axis='both', which='both', bottom='off', top='off',
+                                    labelbottom='off', right='off', left='off', labelleft='off')                
             plt.savefig(
                 fcs.get_image_name(
                     script = os.path.basename(__file__).split('.')[0],
