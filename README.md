@@ -21,13 +21,6 @@ Experiments in machine learning
 | mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)|
 | naive.py | Code from [How to Develop a Naive Bayes Classifier from Scratch in Python](https://machinelearningmastery.com/classification-as-conditional-probability-and-the-naive-bayes-algorithm/)|
 
-## COVID19
-
-| File  | Remarks |
-|---------------|--------------------------------------------|
-| COVID19.wpr | Project file for Wing IDE |
-| explore.py | Read data files--snarfed from [Ivan Ega Pratama's Notebook: COVID19 initial exploration tool](https://www.kaggle.com/ivanegapratama/covid-eda-initial-exploration-tool)|
-| json-test.py| Earlier program to read data files|
 
 ## Keras and Tensorflow explorations
 
