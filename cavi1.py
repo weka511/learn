@@ -21,8 +21,10 @@
 #  Coordinate Ascent Mean-Field Variational Inference (CAVI) after
 #  David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians
 
-import random, numpy as np, math
-
+import numpy as np
+import math
+import matplotlib.pyplot as plt
+import random
 
 def create_data(n=100,sigma=1,mu=0):
     return [random.gauss(mu,sigma) for _ in range(n)]
@@ -74,21 +76,21 @@ def cavi(xs,N=25,N0=2,tolerance=0.000001):
     return (mu,sigma,elbos)
 
 if __name__=='__main__':
-    import matplotlib.pyplot as plt
+    
     plt.rcParams.update({
         "text.usetex": True
     })     
     #random.seed(1)
-    xs = create_data(mu=0.5,sigma=0.5,n=10000)
+    xs             = create_data(mu=0.5,sigma=0.5,n=10000)
     mu,sigma,elbos = cavi(xs)
-    ys = create_data(mu=mu,sigma=sigma,n=10000)
+    ys             = create_data(mu=mu,sigma=sigma,n=10000)
     plt.figure(figsize=(10,10))
-    ax1=plt.subplot(211)
+    ax1 = plt.subplot(211)
     ax1.hist(xs, bins=30, alpha=0.5, label=fr'Data: $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',color='r') 
     ax1.hist(ys, bins=30, alpha=0.5, label=fr'CAVI: $\mu=${mu:.3f}, $\sigma=${sigma:.3f}',color='b') 
     ax1.set_title ('Data')
     ax1.legend()
-    ax2=plt.subplot(212)
+    ax2 = plt.subplot(212)
     ax2.set_title ('ELBO')
     ax2.plot(range(1,len(elbos)+1),elbos)
     plt.xticks(range(1,len(elbos)+1))

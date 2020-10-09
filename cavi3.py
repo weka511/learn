@@ -21,7 +21,10 @@
 #  Coordinate Ascent Mean-Field Variational Inference (CAVI) after
 #  David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians
 
-import random, numpy as np, math
+import math
+import matplotlib.pyplot as plt
+import numpy as np
+import random
 
 def create_parameter_set(k=6,sigma=1):
     return (k,sigma,[random.gauss(0,sigma) for _ in range(k)])
@@ -69,12 +72,12 @@ def cavi(x,k=6,N=25,sigma=1):
     return (False,N,phi,m,s)
 
 if __name__=='__main__':
-    import matplotlib.pyplot as plt
+    
     random.seed(1)
     parameter_set = create_parameter_set(sigma=1)
     cs,xs         = create_data(parameter_set)
     plt.hist(xs)
-    k,sigma,_                  = parameter_set
+    k,sigma,_     = parameter_set
     success,iteration,phi,m,s = cavi(xs,k=k,N=100,sigma=sigma)
     print (phi)
     print (m)

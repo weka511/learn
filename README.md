@@ -5,7 +5,7 @@ Experiments in machine learning
 
 | File  | Remarks |
 |---------------|--------------------------------------------|
-| backprop.py | Train neural network using Backpropagation |
+| backprop.py | Train neural network using Backpropagation (just an exercise) |
 | learn.wpr | Project file for Wing IDE |
 | mnist-test.py | Tests based on MNIST training set |
 | test.py  | Test network against MNIST test dataset |
@@ -17,9 +17,8 @@ Experiments in machine learning
 | File  | Remarks |
 |-------------------------|------------------------------------------------------------------------------------|
 | bayes1.py |Simple  demo for pymc3-Code from [Estimating Probabilities with Bayesian Modeling in Python](https://towardsdatascience.com/estimating-probabilities-with-bayesian-modeling-in-python-7144be007815)|
-| estimating.py| Some calcs from [Estimating Probabilities with Bayesian Modeling in Python](https://towardsdatascience.com/estimating-probabilities-with-bayesian-modeling-in-python-7144be007815)|
 | gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html) |
-| metropolis-hastings.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)|
+| mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)|
 | naive.py | Code from [How to Develop a Naive Bayes Classifier from Scratch in Python](https://machinelearningmastery.com/classification-as-conditional-probability-and-the-naive-bayes-algorithm/)|
 
 ## COVID19
@@ -51,7 +50,7 @@ Programs written to understand Variational Inference, based on the following ref
 | File  | Remarks |
 |---------------|-------------------------------------------------------------------------------------------|
 |cavi1.py|CAVI for Univariate Gaussian from [Univariate Gaussian Example](https://suzyahyah.github.io/bayesian%20inference/machine%20learning/variational%20inference/2019/03/20/CAVI.html)|
-|cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al|
+|cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of[David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)|
 
 ## Free Energy
 

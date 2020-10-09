@@ -17,7 +17,14 @@
 Train neural network using Backpropagation
 '''
 
-import math,numpy as np,random,time,os,glob
+import glob
+import math
+import numpy as np
+import os
+import random
+import time
+import unittest
+
 
 def sigmoid(z):
     '''
@@ -103,11 +110,11 @@ def delta_weights(target,output,activations,Xs,Thetas):
 
 
 def gradient_descent(Thetas,
-                     data_source=None,
-                     eta=0.5,
-                     alpha=0.5,
-                     print_interval=100,
-                     output=lambda i,maximum_error,average_error,Thetas: None#print ('{0} {1:9.3g} {2:9.3g}'.format(i,maximum_error,average_error))
+                     data_source    = None,
+                     eta            = 0.5,
+                     alpha          = 0.5,
+                     print_interval = 100,
+                     output         = lambda i,maximum_error,average_error,Thetas: None
                      ):
 
     '''
@@ -232,7 +239,6 @@ def save(Thetas,run='nn',ext='npy',path='./weights',max_files=3):
 
         
 if __name__=='__main__':
-    import unittest
     
     class TestEvaluation(unittest.TestCase):
         '''Tests based on https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/'''
