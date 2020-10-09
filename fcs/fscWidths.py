@@ -738,8 +738,8 @@ if __name__=='__main__':
                 except ZeroDivisionError:
                     logger.log('Error plotting green levels')
                     axes[1][3].scatter(0,0,c='r',s=300,marker='x')
-                    axes[1][3]('Error plotting green levels')
-                    axes[1][3].set_tick_params(axis='both', which='both', bottom='off', top='off',
+                    axes[1][3].set_title('Error plotting green levels')
+                    plt.tick_params(axis='both', which='both', bottom='off', top='off',
                                     labelbottom='off', right='off', left='off', labelleft='off')                
             plt.savefig(
                 fcs.get_image_name(
