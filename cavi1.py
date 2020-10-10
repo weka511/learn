@@ -24,13 +24,15 @@
 #  Coordinate Ascent Mean-field Variational Inference (Univariate Gaussian Example)
 #  https://suzyahyah.github.io/bayesian%20inference/machine%20learning/variational%20inference/2019/03/20/CAVI.html
 
-import numpy as np
+import argparse
 import math
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 import random
 from   scipy.stats import norm
 import em
+import time
 
 # cavi
 #
@@ -86,13 +88,14 @@ def plot_data(xs,mu,sigma,mus_em,sigmas_em,ax=None):
         factor = max(n)/max(ys)
         return [factor*y for y in ys]
     
-    n,bins,_ = ax.hist(xs, bins=30,
-                     label=fr'1: Data: $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',
-                     color='b') 
-    ax.plot(bins,normalize([norm.pdf(x,loc=mu,scale=sigma) for x in bins]),
+    n,bins,_ = ax.hist(xs, bins=50,
+                     label=fr'1: Data $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',
+                     color='b')
+    bins_mid = [0.5*(bins[i-1]+bins[i]) for i in range(1,len(bins))]
+    ax.plot(bins_mid,normalize([norm.pdf(x,loc=mu,scale=sigma) for x in bins_mid]),
             color = 'c',
-            label = fr'2: CAVI: $\mu=${mu:.3f}, $\sigma=${sigma:.3f}')            
-    ax.plot(bins,normalize([norm.pdf(x,loc=mus_em[0],scale=sigmas_em[0]) for x in bins]),
+            label = fr'2: CAVI $\mu=${mu:.3f}, $\sigma=${sigma:.3f}')            
+    ax.plot(bins_mid,normalize([norm.pdf(x,loc=mus_em[0],scale=sigmas_em[0]) for x in bins_mid]),
             color = 'm',
             label = fr'3: EM $\mu$={mus_em[0]:.3f}, $\sigma=${sigmas_em[0]:.3f}')
     ax.set_title ('Data compared to CAVI and EM')
@@ -111,15 +114,19 @@ def plot_ELBO(ELBOs,ax=None):
     ax.set_xlabel('Iteration')
 
 if __name__=='__main__':
-    
-    N  = 1000
+    parser = argparse.ArgumentParser('CAVI for Gaussian')
+    parser.add_argument('--N', type=int, default=5000, help='Dataset size')
+    args  = parser.parse_args()
+    start = time.time()
     plt.rcParams.update({
         "text.usetex": True
     })     
     
-    xs                   = np.random.normal(loc=0.5,scale=0.5,size=N)
-    mu,sigma,ELBOs       = cavi(xs) 
-    _,_,mus_em,sigmas_em = em.maximize_likelihood(xs,mus=[np.mean(xs)],sigmas=[2],alphas=[1],K=1,N=25,limit=1.0e-6)
+    xs                   = np.random.normal(loc=0.5,scale=0.5,size=args.N)
+    mu,sigma,ELBOs       = cavi(xs,tolerance = 1e-6)
+    time_cavi            = time.time()
+    _,_,mus_em,sigmas_em = em.maximize_likelihood(xs,mus=[np.mean(xs)],sigmas=[2],alphas=[1],K=1)
+    time_em              = time.time()
     plt.figure(figsize=(10,10))
     plot_data(xs,
               mu,sigma,
@@ -128,7 +135,8 @@ if __name__=='__main__':
     plot_ELBO(ELBOs,ax=plt.subplot(212))
     
     plt.savefig(os.path.basename(__file__).split('.')[0] )
-    
-
+    elapsed_cavi = time_cavi - start
+    elapsed_em   = time_em - time_cavi
+    print (f'N={args.N}, CAVI: {elapsed_cavi:.3f} sec, EM: {(elapsed_em):.3f} sec, ratio={(elapsed_em/elapsed_cavi):.1f}')
     plt.show()
     
