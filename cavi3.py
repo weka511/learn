@@ -24,20 +24,15 @@
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import random
+import scipy.stats as stats
 
-def create_parameter_set(k=6,sigma=1):
-    return (k,sigma,np.random.normal(scale=sigma,size=k))
-
-def split(data):
-    return ([c for c,_ in data],[x for _,x in data])
-
-def create_data(parameter_set,n=1000,sigma=1):
+def create_data(mu,n=1000,sigma=1):
     def create_datum():
-        i = random.randrange(k)
+        i = random.randrange(len(mu))
         return (i,random.gauss(mu[i],sigma))
-    k,_,mu=parameter_set
-    return split([create_datum() for _ in range(n)])
+    return list(zip(*[create_datum() for _ in range(n)]))
  
 # cavi
 #
@@ -48,15 +43,12 @@ def cavi(x,k=6,N=25,sigma=1,tolerance=1e-6):
     def get_uniform_vector():
         sample = [random.random() for _ in range(k)]
         return [s/sum(sample) for s in sample]
-    
-    def converged():
-        pass
-    
+       
     # calcELBO
     #
     # Calculate ELBO following Blei et al, equation (21)
     def calcELBO():
-        log_p_x     = 0 #TBP
+        log_p_x     = 1 #TBP
         log_p_mu    = 0 #TBP
         log_p_sigma = 0 #TBP
         log_q_mu    = 0 #TBP
@@ -86,15 +78,43 @@ def cavi(x,k=6,N=25,sigma=1,tolerance=1e-6):
     return (N,phi,m,s)
 
 if __name__=='__main__':
+    plt.rcParams.update({
+        "text.usetex": True
+    })         
     
     random.seed(1)
-    parameter_set = create_parameter_set(sigma=1)
-    cs,xs         = create_data(parameter_set)
-    plt.hist(xs,bins=25)
-    k,sigma,_     = parameter_set
+    sigma = 1
+    k     = 3
+    mu    = sorted(np.random.normal(scale=sigma,size=k))
+    cs,xs = create_data(mu,sigma=sigma,n=1000)
+    plt.figure(figsize=(10,10))
+    plt.hist(xs,
+             bins=25,
+             label='Full Dataset',
+             alpha=0.5)
+    x_values = np.arange(min(xs), max(xs), 0.1)
+    for i in range(len(mu)):
+        colour = ['r','g','b'][i]
+        x0s = [xs[j] for j in range(len(xs)) if cs[j]==i ]
+        n,bins,_ = plt.hist(x0s,
+                            bins=25,
+                            label=f'Component {i}',
+                            alpha=0.5,
+                            facecolor=colour)
+        y_values = stats.norm(mu[i], sigma)
+        plt.plot(x_values, [y*max(n)*2 for y in y_values.pdf(x_values)],
+                 c=colour,
+                 label=fr'$\mu=${mu[i]:.3f}, $\sigma=${sigma:.1f}')
+    plt.legend()
+    plt.title('Raw data')
+    plt.xlabel('X')
+    plt.ylabel('N')
+    plt.savefig(os.path.basename(__file__).split('.')[0] )
+    
     iteration,phi,m,s = cavi(xs,k=k,N=100,sigma=sigma)
     print (phi)
     print (m)
     print (s)
+    
     plt.show()
     
