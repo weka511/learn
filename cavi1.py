@@ -81,18 +81,27 @@ def cavi(xs,
             raise Exception(f'ELBO has not converged to within {tolerance} after {N} iterations')
     return (mu,sigma,ELBOs)
 
-def plot_data(xs,ys,mus_em,sigmas_em,ax=None):
-    n,bins,_=ax.hist(xs, bins=30, alpha=0.5,
-                     label=fr'Data: $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',
-                     color='r') 
-    ax.hist(ys, bins=30, alpha=0.5,
-            label=fr'Samples: $\mu=${mu:.3f}, $\sigma=${sigma:.3f}',
-            color='b')
-    ax.plot(bins,[max(n)*norm.pdf(x,loc=mus_em[0],scale=sigmas_em[0]) for x in bins],
-            color='c',
-            label=fr'EM: $\mu$={mus_em[0]:.3f}, $\sigma=${sigmas_em[0]:.3f}')
-    ax.set_title ('Data and Samples')
-    ax.legend()
+def plot_data(xs,mu,sigma,mus_em,sigmas_em,ax=None):
+    def normalize(ys):
+        factor = max(n)/max(ys)
+        return [factor*y for y in ys]
+    
+    n,bins,_ = ax.hist(xs, bins=30,
+                     label=fr'1: Data: $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',
+                     color='b') 
+    ax.plot(bins,normalize([norm.pdf(x,loc=mu,scale=sigma) for x in bins]),
+            color = 'c',
+            label = fr'2: CAVI: $\mu=${mu:.3f}, $\sigma=${sigma:.3f}')            
+    ax.plot(bins,normalize([norm.pdf(x,loc=mus_em[0],scale=sigmas_em[0]) for x in bins]),
+            color = 'm',
+            label = fr'3: EM $\mu$={mus_em[0]:.3f}, $\sigma=${sigmas_em[0]:.3f}')
+    ax.set_title ('Data compared to CAVI and EM')
+ 
+    # sort both labels and handles by labels
+    # snarfed from https://stackoverflow.com/questions/22263807/how-is-order-of-items-in-matplotlib-legend-determined
+    handles, labels = ax.get_legend_handles_labels()
+    labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: t[0]))
+    ax.legend(handles, labels)    
 
 def plot_ELBO(ELBOs,ax=None):
     ax.set_title ('ELBO')
@@ -113,7 +122,7 @@ if __name__=='__main__':
     _,_,mus_em,sigmas_em = em.maximize_likelihood(xs,mus=[np.mean(xs)],sigmas=[2],alphas=[1],K=1,N=25,limit=1.0e-6)
     plt.figure(figsize=(10,10))
     plot_data(xs,
-              np.random.normal(loc=mu,scale=sigma,size=N),
+              mu,sigma,
               mus_em,sigmas_em,
               ax=plt.subplot(211))
     plot_ELBO(ELBOs,ax=plt.subplot(212))
