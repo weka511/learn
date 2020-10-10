@@ -43,7 +43,7 @@ Programs written to understand Variational Inference, based on the following ref
 | File  | Remarks |
 |---------------|-------------------------------------------------------------------------------------------|
 |cavi1.py|CAVI for Univariate Gaussian from [Univariate Gaussian Example](https://suzyahyah.github.io/bayesian%20inference/machine%20learning/variational%20inference/2019/03/20/CAVI.html)|
-|cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of[David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)|
+|cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of [David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)|
 |em.py|Expectation Maximization--[ Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning--Padhraic Smyth ](https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf)|
 
 ## Free Energy
