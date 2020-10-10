@@ -29,6 +29,8 @@ import math
 import matplotlib.pyplot as plt
 import os
 import random
+from   scipy.stats import norm
+import em
 
 # cavi
 #
@@ -79,9 +81,16 @@ def cavi(xs,
             raise Exception(f'ELBO has not converged to within {tolerance} after {N} iterations')
     return (mu,sigma,ELBOs)
 
-def plot_data(xs,ys,ax=None):
-    ax.hist(xs, bins=30, alpha=0.5, label=fr'Data: $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',color='r') 
-    ax.hist(ys, bins=30, alpha=0.5, label=fr'Samples: $\mu=${mu:.3f}, $\sigma=${sigma:.3f}',color='b') 
+def plot_data(xs,ys,mus_em,sigmas_em,ax=None):
+    n,bins,_=ax.hist(xs, bins=30, alpha=0.5,
+                     label=fr'Data: $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',
+                     color='r') 
+    ax.hist(ys, bins=30, alpha=0.5,
+            label=fr'Samples: $\mu=${mu:.3f}, $\sigma=${sigma:.3f}',
+            color='b')
+    ax.plot(bins,[max(n)*norm.pdf(x,loc=mus_em[0],scale=sigmas_em[0]) for x in bins],
+            color='c',
+            label=fr'EM: $\mu$={mus_em[0]:.3f}, $\sigma=${sigmas_em[0]:.3f}')
     ax.set_title ('Data and Samples')
     ax.legend()
 
@@ -91,7 +100,7 @@ def plot_ELBO(ELBOs,ax=None):
     ax.set_xticks(range(1,len(ELBOs)-1))
     ax.set_ylabel('ELBO')
     ax.set_xlabel('Iteration')
-    
+
 if __name__=='__main__':
     
     N  = 1000
@@ -99,14 +108,18 @@ if __name__=='__main__':
         "text.usetex": True
     })     
     
-    xs             = np.random.normal(loc=0.5,scale=0.5,size=N)
-    mu,sigma,ELBOs = cavi(xs) 
+    xs                   = np.random.normal(loc=0.5,scale=0.5,size=N)
+    mu,sigma,ELBOs       = cavi(xs) 
+    _,_,mus_em,sigmas_em = em.maximize_likelihood(xs,mus=[np.mean(xs)],sigmas=[2],alphas=[1],K=1,N=25,limit=1.0e-6)
     plt.figure(figsize=(10,10))
     plot_data(xs,
               np.random.normal(loc=mu,scale=sigma,size=N),
+              mus_em,sigmas_em,
               ax=plt.subplot(211))
     plot_ELBO(ELBOs,ax=plt.subplot(212))
     
     plt.savefig(os.path.basename(__file__).split('.')[0] )
+    
+
     plt.show()
     
