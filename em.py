@@ -18,23 +18,24 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning 
+# Padhraic Smyth 
+# https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
+
 import math
 from scipy.stats import norm
 
 # maximize_likelihood
 #
-# Get best GMM fit, using 
-# Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning 
-# Padhraic Smyth 
-# https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
-def maximize_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3,N=25,limit=1.0e-6):
+# Get best GMM fit
+def maximize_likelihood(xs,mus=[],sigmas=[],alphas=[],K=3,N=25,tolerance=1.0e-6):
 
     # has_converged
     #
     # Used to check whether likelhood has stopped improving
 
     def has_converged():
-        return len(likelihoods)>1 and abs(likelihoods[-1]/likelihoods[-2]-1)<limit
+        return len(likelihoods)>1 and abs(likelihoods[-1]/likelihoods[-2]-1)<tolerance
 
     # get_log_likelihood
     #
