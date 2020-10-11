@@ -17,7 +17,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
+#
+# CAVI for single Gaussian
+#
 #  Coordinate Ascent Mean-Field Variational Inference (CAVI) after
 #  David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians
 #  and
@@ -51,7 +53,7 @@ def cavi(xs,
         log_p_mu    = -(0.5 / sigma) * sum([(x-mu_0)**2 for x in xs])
         log_p_sigma = (-alpha_0-1) * math.log(sigma) - beta_0/sigma
         log_q_mu    = -(0.5 / sigma) *(1/(len(xs)+1)) * (mu - mu_n) **2
-        log_q_sigma = (alpha_n-1) * math.log(sigma) - 1/sigma * beta_n
+        log_q_sigma = (alpha_n-1) * math.log(sigma) - beta_n/sigma 
         
         return log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
     
@@ -71,13 +73,13 @@ def cavi(xs,
     sigma   = sigma_0
     mu      = random.gauss(mu_0,sigma)
 
-    while (abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
+    while (abs((ELBOs[-1]-ELBOs[-2])/ELBOs[-2])>tolerance):
         mu_n    = (ndata*x_bar + mu_0)/(ndata + 1)
         mu      = mu_n
         alpha_n = alpha_0 + (ndata + 1)/2
         beta_n  = beta_0 +  0.5*sum(x**2 for x in xs) - x_bar * sum(xs)   \
-                  + ((ndata+1)/2)*(sigma/ndata + x_bar**2)- mu_0*x_bar + 0.5*mu_0**2
-        sigma   = (beta_n-1)/alpha_n
+                  + ((ndata+1)/2)*(sigma/ndata + x_bar**2) - mu_0*x_bar + 0.5*mu_0**2
+        sigma   = math.sqrt((beta_n-1)/alpha_n)
         ELBOs.append(calcELBO())
         if len(ELBOs)>N:
             raise Exception(f'ELBO has not converged to within {tolerance} after {N} iterations')
@@ -114,15 +116,23 @@ def plot_ELBO(ELBOs,ax=None):
     ax.set_xlabel('Iteration')
 
 if __name__=='__main__':
-    parser = argparse.ArgumentParser('CAVI for Gaussian')
-    parser.add_argument('--N', type=int, default=5000, help='Dataset size')
-    args  = parser.parse_args()
-    start = time.time()
     plt.rcParams.update({
         "text.usetex": True
-    })     
+    })   
     
-    xs                   = np.random.normal(loc=0.5,scale=0.5,size=args.N)
+    parser = argparse.ArgumentParser('CAVI for single Gaussian')
+    parser.add_argument('--N',     type=int,   default=5000,  help='Dataset size')
+    parser.add_argument('--mean',  type=float, default=0.5,   help='Mean for dataset')
+    parser.add_argument('--sigma', type=float, default=0.5,   help='Standard deviation')
+    parser.add_argument('--seed',  type=int,   default=None,  help='Seed for random number generator')
+    parser.add_argument('--show',              default=False, action='store_true')
+    args = parser.parse_args()
+    
+    random.seed(args.seed)
+    start                = time.time()   
+    xs                   = np.random.normal(loc   = args.mean,
+                                            scale = args.sigma,
+                                            size  = args.N)
     mu,sigma,ELBOs       = cavi(xs,tolerance = 1e-6)
     time_cavi            = time.time()
     _,_,mus_em,sigmas_em = em.maximize_likelihood(xs,mus=[np.mean(xs)],sigmas=[2],alphas=[1],K=1)
@@ -136,7 +146,8 @@ if __name__=='__main__':
     
     plt.savefig(os.path.basename(__file__).split('.')[0] )
     elapsed_cavi = time_cavi - start
-    elapsed_em   = time_em - time_cavi
+    elapsed_em   = time_em   - time_cavi
     print (f'N={args.N}, CAVI: {elapsed_cavi:.3f} sec, EM: {(elapsed_em):.3f} sec, ratio={(elapsed_em/elapsed_cavi):.1f}')
-    plt.show()
+    if args.show:
+        plt.show()
     
