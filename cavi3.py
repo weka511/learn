@@ -62,7 +62,7 @@ def cavi(x,K=3,N=25,sigmas=1,tolerance=1e-6):
     s     = [random.random()*np.std(x) for _ in range(K)]
     ELBOs = [1,2]
     
-    while (abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
+    while (len(ELBOs)<N):#abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
         # update cluster assignment
         phi_update = [[math.exp(-0.5*m[k]*m[k] + s[k]*s[k] + x[i]*m[k]) for k in range(K)]  for i in range(len(x))]
         denoms     = [sum([phi_update[i][k]                             for k in range(K)]) for i in range(len(x))]
@@ -72,13 +72,13 @@ def cavi(x,K=3,N=25,sigmas=1,tolerance=1e-6):
         denominator = [(1/(sigma*sigma))+sum([phi[i][k] for i in range(len(x))]) for k in range(K)]
         m           = [n/d for (n,d) in zip(numerator,denominator)]
         s           = [1/d for d in denominator]
-        print (m,s)
+        print (f'm={m}, s={s}')
         ELBOs.append(calcELBO())
         if len(ELBOs)>N:
             raise Exception(f'ELBO has not converged to within {tolerance} after {N} iterations')
-    return (N,phi,m,s)
+    return (ELBOs,phi,m,[math.sqrt(ss) for ss in s])
 
-def plot_data(xs,cs,mu=[],sigmas=[],colours=['r','g','b', 'c', 'm', 'y']):
+def plot_data(xs,cs,mu=[],sigmas=[],m=0,s=1,colours=['r','g','b', 'c', 'm', 'y']):
     plt.figure(figsize=(10,10))
     plt.hist(xs,
              bins  = 25,
@@ -86,18 +86,25 @@ def plot_data(xs,cs,mu=[],sigmas=[],colours=['r','g','b', 'c', 'm', 'y']):
              alpha = 0.5)
     
     for i in range(len(mu)):
-        colour   = colours[i]
-        x0s      = [xs[j] for j in range(len(xs)) if cs[j]==i ]
-        n,bins,_ = plt.hist(x0s,
+        x0s           = [xs[j] for j in range(len(xs)) if cs[j]==i ]
+        n,bins,_      = plt.hist(x0s,
                             bins      = 25,
                             label     = fr'$\mu=${mu[i]:.3f}, $\sigma=${sigmas[i]:.1f}',
                             alpha     = 0.5,
-                            facecolor = colour)
-        x_values = np.arange(min(xs), max(xs), 0.1)
-        y_values = stats.norm(mu[i], sigmas[i])
+                            facecolor = colours[i])
+        x_values      = np.arange(min(xs), max(xs), 0.1)
+        y_values      = stats.norm(mu[i], sigmas[i])
+        y_values_cavi = stats.norm(m[i], s[i])
+        ys            = y_values.pdf(x_values)
+        ys_cavi       = y_values_cavi.pdf(x_values)
         plt.plot(x_values,
-                 [y*max(n)*2 for y in y_values.pdf(x_values)],
-                 c = colour)
+                 [y*max(n)/max(ys) for y in ys],
+                 c = colours[i])
+        
+        plt.plot(x_values,
+                 [y*max(n)/max(ys_cavi) for y in ys_cavi],
+                 c = colours[i],
+                 linestyle='--')        
 
     plt.legend()
     plt.title('Raw data')
@@ -112,17 +119,22 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser('CAVI')
     parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
     parser.add_argument('--n', type=int, default=1000, help='Number of points')
+    parser.add_argument('--N', type=int, default=25, help='Number of iterations')
     args = parser.parse_args()
     
     random.seed(1)
     
-    sigma  = 3
-    sigmas = [0.5]*args.K
-    mu     = sorted(np.random.normal(scale=sigma,size=args.K))
-    cs,xs  = create_data(mu,sigmas=sigmas,n=args.n)
+    sigma     = 3
+    sigmas    = [0.5]*args.K
+    mu        = sorted(np.random.normal(scale=sigma,size=args.K))
+    cs,xs     = create_data(mu,sigmas=sigmas,n=args.n)
 
-    plot_data(xs,cs,mu=mu,sigmas=sigmas)
-    iteration,phi,m,s = cavi(xs,K=args.K,N=100,sigmas=sigmas)
+    _,phi,m,s = cavi(xs,K=args.K,N=args.N,sigmas=sigmas)
+    plot_data(xs,cs,
+              mu=mu,
+              sigmas=sigmas,
+              m=m,
+              s=s)
     print (phi)
     print (m)
     print (s)
