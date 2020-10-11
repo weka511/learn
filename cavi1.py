@@ -96,10 +96,11 @@ def plot_data(xs,mu,sigma,mus_em,sigmas_em,ax=None):
     bins_mid = [0.5*(bins[i-1]+bins[i]) for i in range(1,len(bins))]
     ax.plot(bins_mid,normalize([norm.pdf(x,loc=mu,scale=sigma) for x in bins_mid]),
             color = 'c',
-            label = fr'2: CAVI $\mu=${mu:.3f}, $\sigma=${sigma:.3f}')            
-    ax.plot(bins_mid,normalize([norm.pdf(x,loc=mus_em[0],scale=sigmas_em[0]) for x in bins_mid]),
-            color = 'm',
-            label = fr'3: EM $\mu$={mus_em[0]:.3f}, $\sigma=${sigmas_em[0]:.3f}')
+            label = fr'2: CAVI $\mu=${mu:.3f}, $\sigma=${sigma:.3f}') 
+    if len(mus_em)>0:
+        ax.plot(bins_mid,normalize([norm.pdf(x,loc=mus_em[0],scale=sigmas_em[0]) for x in bins_mid]),
+                color = 'm',
+                label = fr'3: EM $\mu$={mus_em[0]:.3f}, $\sigma=${sigmas_em[0]:.3f}')
     ax.set_title ('Data compared to CAVI and EM')
  
     # sort both labels and handles by labels
@@ -126,6 +127,7 @@ if __name__=='__main__':
     parser.add_argument('--sigma', type=float, default=0.5,   help='Standard deviation')
     parser.add_argument('--seed',  type=int,   default=None,  help='Seed for random number generator')
     parser.add_argument('--show',              default=False, action='store_true')
+    parser.add_argument('--em',              default=False, action='store_true')
     args = parser.parse_args()
     
     random.seed(args.seed)
@@ -135,7 +137,10 @@ if __name__=='__main__':
                                             size  = args.N)
     mu,sigma,ELBOs       = cavi(xs,tolerance = 1e-6)
     time_cavi            = time.time()
-    _,_,mus_em,sigmas_em = em.maximize_likelihood(xs,mus=[np.mean(xs)],sigmas=[2],alphas=[1],K=1)
+    mus_em               = []
+    sigmas_em            = []
+    if args.em:
+        _,_,mus_em,sigmas_em = em.maximize_likelihood(xs,mus=[np.mean(xs)],sigmas=[2],alphas=[1],K=1)
     time_em              = time.time()
     plt.figure(figsize=(10,10))
     plot_data(xs,
