@@ -29,6 +29,11 @@ import os
 import random
 import scipy.stats as stats
 
+class ELBO_Error(Exception):
+    def __init__(self,message,ELBOs):
+        super().__init__(message)
+        self.ELBOs = ELBOs
+        
 def create_data(mu,n=1000,sigmas=[]):
     def create_datum():
         i = random.randrange(len(mu))
@@ -75,9 +80,13 @@ def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1,epsilon=0.01,min_iterations=5):
         s2       = 1/(1/sigma2 + phi.sum(0))
         ELBOs.append(getELBO())
         if len(ELBOs)>N:
-            raise Exception(f'ELBO has not converged to within {tolerance} after {N} iterations')
+            raise ELBO_Error(f'ELBO has not converged to within {tolerance} after {N} iterations',ELBOs)
+        
     return (ELBOs,phi,m,[math.sqrt(s) for s in s2])
 
+# plot_data
+#
+# Plot raw data and estimates of sufficient statistics
 def plot_data(xs,
               cs,
               mu      = [],
@@ -102,7 +111,7 @@ def plot_data(xs,
         x0s           = [xs[j] for j in range(len(xs)) if cs[j]==i ]
         n,bins,_      = plt.hist(x0s,
                             bins      = 25,
-                            label     = fr'$\mu=${mu[i]:.3f}, $\sigma=${sigmas[i]:.1f}',
+                            label     = f'Component {i+1}',
                             alpha     = 0.5,
                             facecolor = colours[i])
         x_values      = np.arange(min(xs), max(xs), 0.1)
@@ -112,25 +121,31 @@ def plot_data(xs,
         ys_cavi       = y_values_cavi.pdf(x_values)
         ax.plot(x_values,
                  [y*max(n)/max(ys) for y in ys],
-                 c = colours[i])
+                 c = colours[i],
+                 label     = fr'$\mu=${mu[i]:.3f}, $\sigma=${sigmas[i]:.1f}')
         
         ax.plot(x_values,
                 [y*max(n)/max(ys_cavi) for y in ys_cavi],
-                label     = fr'$\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f}',
+                label     = fr'Estimate: $\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f}',
                 c = colours[i],
                 linestyle='--')        
 
     ax.legend()
-    ax.set_title('Raw data')
+    ax.set_title('CAVI')
     ax.set_ylabel('N')
 
-def plot_ELBO(ELBOs,ax=None):
+# plotELBO
+#
+# Illustrate progress
+def plotELBO(ELBOs,
+             ax    = None,
+             title = 'Convergence'):
     ax.plot(ELBOs,label='ELBO')
     ax.set_xlim(0,len(ELBOs))
     ax.set_ylim(min(ELBOs),max(ELBOs)+1)
     ax.set_xlabel('Iteration')
     ax.set_ylabel(r'$\log(P)$')
-    ax.set_title('Convergence')
+    ax.set_title(title)
     ax.legend()
     
 if __name__=='__main__':
@@ -138,7 +153,7 @@ if __name__=='__main__':
         "text.usetex": True
     })         
     parser = argparse.ArgumentParser('CAVI')
-    parser.add_argument('--K',         type=int,   default=3,      help='Number of Gaussians')
+    parser.add_argument('--K',         type=int,   default=2,      help='Number of Gaussians')
     parser.add_argument('--n',         type=int,   default=1000,   help='Number of points')
     parser.add_argument('--N',         type=int,   default=25,     help='Number of iterations')
     parser.add_argument('--tolerance', type=float, default=1.0e-6, help='Convergence criterion')
@@ -151,22 +166,29 @@ if __name__=='__main__':
     mu            = sorted(np.random.uniform(low=0,high=5,size=args.K))
     cs,xs         = create_data(mu,sigmas=sigmas,n=args.n)
 
-    ELBOs,phi,m,s = cavi(x         = np.asarray(xs),
-                         K         = args.K,
-                         N         = args.N,
-                         tolerance = args.tolerance)
+    try:
+        ELBOs,phi,m,s = cavi(x         = np.asarray(xs),
+                             K         = args.K,
+                             N         = args.N,
+                             tolerance = args.tolerance)
     
-    plt.figure(figsize=(10,10))
-    plot_data(xs,cs,
-              mu     = mu,
-              sigmas = sigmas,
-              m      = m,
-              s      = s,
-              ax = plt.subplot(2,1,1))
+        plt.figure(figsize=(10,10))
+        plot_data(xs,cs,
+                  mu     = mu,
+                  sigmas = sigmas,
+                  m      = m,
+                  s      = s,
+                  ax = plt.subplot(2,1,1))
+        
+        plotELBO(ELBOs,
+                 ax = plt.subplot(2,1,2))
     
-    plot_ELBO(ELBOs,
-              ax=plt.subplot(2,1,2))
-
+    except ELBO_Error as e:
+        print (e)
+        plt.figure(figsize=(10,10))
+        plotELBO(e.ELBOs,
+                 ax    = plt.subplot(1,1,1),
+                 title = str(e))
+        
     plt.savefig(os.path.basename(__file__).split('.')[0] )
-    plt.show()
-    
+    plt.show()    
