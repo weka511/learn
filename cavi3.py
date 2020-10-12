@@ -60,7 +60,7 @@ def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1):
         return t1 + t2 #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
     
     phi   =  np.random.dirichlet([np.random.random()*np.random.randint(1, 10)]*K, len(x))
-    m     =  np.random.randint(int(min(x)), high=int(max(x)), size=K).astype(float) + max(x)*np.random.random(K)    
+    m      = np.array([np.quantile(x,q/K) for q in range(1,K+1)])
     s2    =  np.ones(K) * np.random.random(K)
     print('Init mean', m)
     print('Init s2', s2) 
@@ -123,7 +123,12 @@ def plot_data(xs,cs,mu=[],sigmas=[],m=0,s=1,colours=['r','g','b', 'c', 'm', 'y']
     plt.title('Raw data')
     plt.xlabel('X')
     plt.ylabel('N')
-    plt.savefig(os.path.basename(__file__).split('.')[0] )
+
+def plot_ELBO(ELBOs):
+    plt.plot(ELBOs,label='ELBO')
+    plt.xlim(1,len(ELBOs)+1)
+    plt.xlabel('Iteration')
+    plt.legend()
     
 if __name__=='__main__':
     plt.rcParams.update({
@@ -154,9 +159,8 @@ if __name__=='__main__':
               m      = m,
               s      = s)
     plt.subplot(2,1,2)
-    plt.plot(ELBOs,label='ELBO')
-    plt.xlim(0,len(ELBOs))
-    plt.legend()
-    
+    plot_ELBO(ELBOs)
+
+    plt.savefig(os.path.basename(__file__).split('.')[0] )
     plt.show()
     
