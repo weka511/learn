@@ -40,7 +40,7 @@ def create_data(mu,n=1000,sigmas=[]):
 # Perform Coordinate Ascent Mean-Field Variational Inference
 #
 # I have borrowed some ideas from Zhiya Zuo's blog--https://zhiyzuo.github.io/VI/
-def cavi(x,K=3,N=25,sigmas=1,tolerance=1e-6):
+def cavi(x,K=3,N=25,sigmas=1,tolerance=1e-6,sigma0=1):
     def get_uniform_vector():
         sample = [random.random() for _ in range(K)]
         return [s/sum(sample) for s in sample]
@@ -49,34 +49,49 @@ def cavi(x,K=3,N=25,sigmas=1,tolerance=1e-6):
     #
     # Calculate ELBO following Blei et al, equation (21)
     def calcELBO():
-        log_p_x     = 1 #TBP
-        log_p_mu    = 0 #TBP
-        log_p_sigma = 0 #TBP
-        log_q_mu    = 0 #TBP
-        log_q_sigma = 0 #TBP
+        t1 = np.log(s2) - m/sigma2
+        t1 = t1.sum()
+        t2 = -0.5*np.add.outer(x**2, s2+m**2)
+        t2 += np.outer(x, m)
+        t2 -= np.log(phi)
+        t2 *= phi
+        t2 = t2.sum()
+        return t1 + t2        
+        #log_p_x     = 1 #TBP
+        #log_p_mu    = 0 #TBP
+        #log_p_sigma = 0 #TBP
+        #log_q_mu    = 0 #TBP
+        #log_q_sigma = 0 #TBP
         
-        return log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
+        #return log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
     
-    phi   = [get_uniform_vector() for _ in x]
-    m     = [random.gauss(np.mean(x),sigma) for _ in range(K)]
-    s     = [random.random()*np.std(x) for _ in range(K)]
+    phi   =  np.random.dirichlet([np.random.random()*np.random.randint(1, 10)]*K, len(x))
+    #m     = [random.gauss(np.mean(x),sigma) for _ in range(K)]
+    m     = np.random.randint(int(min(x)), high=int(max(x)), size=K).astype(float) + max(x)*np.random.random(K)    
+    s2    =  np.ones(K) * np.random.random(K)
+    sigma2 = sigma0**2
     ELBOs = [1,2]
     
-    while (len(ELBOs)<N):#abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
+    while (abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
         # update cluster assignment
-        phi_update = [[math.exp(-0.5*m[k]*m[k] + s[k]*s[k] + x[i]*m[k]) for k in range(K)]  for i in range(len(x))]
-        denoms     = [sum([phi_update[i][k]                             for k in range(K)]) for i in range(len(x))]
-        phi        = [[phi_update[i][k]/denoms[i]                       for k in range(K)]  for i in range(len(x))]
+        t1 = np.outer(x, m)
+        t2 = -(0.5*m**2 + 0.5*s2)
+        exponent = t1 + t2[np.newaxis, :]
+        phi = np.exp(exponent)
+        phi = phi / phi.sum(1)[:, np.newaxis]        
         # update variational density
-        numerator   = [sum([phi[i][k]*x[i]              for i in range(len(x))]) for k in range(K)]
-        denominator = [(1/(sigma*sigma))+sum([phi[i][k] for i in range(len(x))]) for k in range(K)]
-        m           = [n/d for (n,d) in zip(numerator,denominator)]
-        s           = [1/d for d in denominator]
-        print (f'm={m}, s={s}')
+
+        m = (phi*x[:, np.newaxis]).sum(0) * (1/sigma2 + phi.sum(0))**(-1)
+        assert m.size == K
+        #print(self.m)
+        s2 = (1/sigma2 + phi.sum(0))**(-1)
+        assert s2.size == K
+        
+        print (f'm={m}, s2={s2}')
         ELBOs.append(calcELBO())
         if len(ELBOs)>N:
             raise Exception(f'ELBO has not converged to within {tolerance} after {N} iterations')
-    return (ELBOs,phi,m,[math.sqrt(ss) for ss in s])
+    return (ELBOs,phi,m,[math.sqrt(ss) for ss in s2])
 
 def plot_data(xs,cs,mu=[],sigmas=[],m=0,s=1,colours=['r','g','b', 'c', 'm', 'y']):
     plt.figure(figsize=(10,10))
@@ -85,6 +100,9 @@ def plot_data(xs,cs,mu=[],sigmas=[],m=0,s=1,colours=['r','g','b', 'c', 'm', 'y']
              label = 'Full Dataset',
              alpha = 0.5)
     
+    indices = np.argsort(m)
+    m       = [m[i] for i in indices]
+    s       = [s[i] for i in indices]    
     for i in range(len(mu)):
         x0s           = [xs[j] for j in range(len(xs)) if cs[j]==i ]
         n,bins,_      = plt.hist(x0s,
@@ -102,9 +120,10 @@ def plot_data(xs,cs,mu=[],sigmas=[],m=0,s=1,colours=['r','g','b', 'c', 'm', 'y']
                  c = colours[i])
         
         plt.plot(x_values,
-                 [y*max(n)/max(ys_cavi) for y in ys_cavi],
-                 c = colours[i],
-                 linestyle='--')        
+                [y*max(n)/max(ys_cavi) for y in ys_cavi],
+                label     = fr'$\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f}',
+                c = colours[i],
+                linestyle='--')        
 
     plt.legend()
     plt.title('Raw data')
@@ -129,7 +148,7 @@ if __name__=='__main__':
     mu        = sorted(np.random.normal(scale=sigma,size=args.K))
     cs,xs     = create_data(mu,sigmas=sigmas,n=args.n)
 
-    _,phi,m,s = cavi(xs,K=args.K,N=args.N,sigmas=sigmas)
+    _,phi,m,s = cavi(x = np.asarray(xs),K=args.K,N=args.N,sigmas=sigmas)
     plot_data(xs,cs,
               mu=mu,
               sigmas=sigmas,
