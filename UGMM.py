@@ -44,11 +44,12 @@ class UGMM(object):
             self.elbo_values.append(self.get_elbo())
             if iter_ % 5 == 0:
                 print(iter_, self.m_history[iter_])
+                print(iter_, self.s2_history[iter_])
             if np.abs(self.elbo_values[-2] - self.elbo_values[-1]) <= tol:
                 print('ELBO converged with ll %.3f at iteration %d'%(self.elbo_values[-1],
                                                                      iter_))
                 break
-
+       
         if iter_ == max_iter:
             print('ELBO ended with ll %.3f'%(self.elbo_values[-1]))
 
@@ -66,19 +67,15 @@ class UGMM(object):
  
 
     def _update_mu(self):
-        XX = self.X[:, np.newaxis]
-        print (X.shape,XX.shape)
         self.m = (self.phi*self.X[:, np.newaxis]).sum(0) * (1/self.sigma2 + self.phi.sum(0))**(-1)
         assert self.m.size == self.K
-        #print(self.m)
         self.s2 = (1/self.sigma2 + self.phi.sum(0))**(-1)
         assert self.s2.size == self.K
 
 
 num_components = 3
 mu_arr = np.random.choice(np.arange(-10, 10, 2),
-                          num_components) +\
-    np.random.random(num_components)
+                          num_components) +   np.random.random(num_components)
 
 
 SAMPLE = 1000
@@ -86,13 +83,14 @@ SAMPLE = 1000
 X = np.random.normal(loc=mu_arr[0], scale=1, size=SAMPLE)
 for i, mu in enumerate(mu_arr[1:]):
     X = np.append(X, np.random.normal(loc=mu, scale=1, size=SAMPLE))
-
-fig, ax = plt.subplots(figsize=(15, 4))
+plt.figure(figsize=(15, 4))
+ax = plt.subplot(2,1,1)
 sns.distplot(X[:SAMPLE], ax=ax, rug=True)
 sns.distplot(X[SAMPLE:SAMPLE*2], ax=ax, rug=True)
 sns.distplot(X[SAMPLE*2:], ax=ax, rug=True)
 
 ugmm = UGMM(X, 3)
 ugmm.fit()
-
+ax1=plt.subplot(2,1,2)
+ax1.plot(ugmm.elbo_values)
 plt.show()    
