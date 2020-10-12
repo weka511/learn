@@ -40,10 +40,11 @@ def create_data(mu,n=1000,sigmas=[]):
 # Perform Coordinate Ascent Mean-Field Variational Inference
 #
 # I have borrowed some ideas from Zhiya Zuo's blog--https://zhiyzuo.github.io/VI/
-def cavi(x,K=3,N=25,sigmas=1,tolerance=1e-6,sigma0=1):
+def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1):
     def get_uniform_vector():
         sample = [random.random() for _ in range(K)]
-        return [s/sum(sample) for s in sample]
+        Z      = sum(sample)
+        return [s/Z for s in sample]
        
     # calcELBO
     #
@@ -56,23 +57,17 @@ def cavi(x,K=3,N=25,sigmas=1,tolerance=1e-6,sigma0=1):
         t2 -= np.log(phi)
         t2 *= phi
         t2 = t2.sum()
-        return t1 + t2        
-        #log_p_x     = 1 #TBP
-        #log_p_mu    = 0 #TBP
-        #log_p_sigma = 0 #TBP
-        #log_q_mu    = 0 #TBP
-        #log_q_sigma = 0 #TBP
-        
-        #return log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
+        return t1 + t2 #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
     
     phi   =  np.random.dirichlet([np.random.random()*np.random.randint(1, 10)]*K, len(x))
-    #m     = [random.gauss(np.mean(x),sigma) for _ in range(K)]
-    m     = np.random.randint(int(min(x)), high=int(max(x)), size=K).astype(float) + max(x)*np.random.random(K)    
+    m     =  np.random.randint(int(min(x)), high=int(max(x)), size=K).astype(float) + max(x)*np.random.random(K)    
     s2    =  np.ones(K) * np.random.random(K)
-    sigma2 = sigma0**2
-    ELBOs = [1,2]
+    print('Init mean', m)
+    print('Init s2', s2) 
+    sigma2 = sigma**2
+    ELBOs = []
     
-    while (abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
+    while (len(ELBOs)<5 or ( abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance)):
         # update cluster assignment
         t1 = np.outer(x, m)
         t2 = -(0.5*m**2 + 0.5*s2)
@@ -83,7 +78,6 @@ def cavi(x,K=3,N=25,sigmas=1,tolerance=1e-6,sigma0=1):
 
         m = (phi*x[:, np.newaxis]).sum(0) * (1/sigma2 + phi.sum(0))**(-1)
         assert m.size == K
-        #print(self.m)
         s2 = (1/sigma2 + phi.sum(0))**(-1)
         assert s2.size == K
         
@@ -91,10 +85,10 @@ def cavi(x,K=3,N=25,sigmas=1,tolerance=1e-6,sigma0=1):
         ELBOs.append(calcELBO())
         if len(ELBOs)>N:
             raise Exception(f'ELBO has not converged to within {tolerance} after {N} iterations')
-    return (ELBOs,phi,m,[math.sqrt(ss) for ss in s2])
+    return (ELBOs,phi,m,[math.sqrt(s) for s in s2])
 
 def plot_data(xs,cs,mu=[],sigmas=[],m=0,s=1,colours=['r','g','b', 'c', 'm', 'y']):
-    plt.figure(figsize=(10,10))
+    ax = plt.subplot(2,1,1)
     plt.hist(xs,
              bins  = 25,
              label = 'Full Dataset',
@@ -136,27 +130,33 @@ if __name__=='__main__':
         "text.usetex": True
     })         
     parser = argparse.ArgumentParser('CAVI')
-    parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
-    parser.add_argument('--n', type=int, default=1000, help='Number of points')
-    parser.add_argument('--N', type=int, default=25, help='Number of iterations')
+    parser.add_argument('--K',         type=int,   default=3,      help='Number of Gaussians')
+    parser.add_argument('--n',         type=int,   default=1000,   help='Number of points')
+    parser.add_argument('--N',         type=int,   default=25,     help='Number of iterations')
+    parser.add_argument('--tolerance', type=float, default=1.0e-6, help='Convergence criterion')
     args = parser.parse_args()
     
     random.seed(1)
     
-    sigma     = 3
-    sigmas    = [0.5]*args.K
-    mu        = sorted(np.random.normal(scale=sigma,size=args.K))
+    sigma     = 1
+    sigmas    = [1.0]*args.K
+    mu        = sorted(np.random.uniform(low=0,high=5,size=args.K))
     cs,xs     = create_data(mu,sigmas=sigmas,n=args.n)
 
-    _,phi,m,s = cavi(x = np.asarray(xs),K=args.K,N=args.N,sigmas=sigmas)
+    ELBOs,phi,m,s = cavi(x         = np.asarray(xs),
+                         K         = args.K,
+                         N         = args.N,
+                         tolerance = args.tolerance)
+    plt.figure(figsize=(10,10))
     plot_data(xs,cs,
-              mu=mu,
-              sigmas=sigmas,
-              m=m,
-              s=s)
-    print (phi)
-    print (m)
-    print (s)
+              mu     = mu,
+              sigmas = sigmas,
+              m      = m,
+              s      = s)
+    plt.subplot(2,1,2)
+    plt.plot(ELBOs,label='ELBO')
+    plt.xlim(0,len(ELBOs))
+    plt.legend()
     
     plt.show()
     
