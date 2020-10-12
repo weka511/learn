@@ -20,6 +20,7 @@ Experiments in machine learning
 | gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html) |
 | mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)|
 | naive.py | Code from [How to Develop a Naive Bayes Classifier from Scratch in Python](https://machinelearningmastery.com/classification-as-conditional-probability-and-the-naive-bayes-algorithm/)|
+|UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)|
 
 
 ## Keras and Tensorflow explorations
@@ -38,14 +39,15 @@ Experiments in machine learning
 ## Variational Inference
 
 Programs written to understand Variational Inference, based on the following references:
- * [David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)
+ * [David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017)--Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)
+ * [Padhraic Smyth--Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning](https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf)
  
 | File  | Remarks |
 |---------------|-------------------------------------------------------------------------------------------|
 |cavi1.py|CAVI for Univariate Gaussian from [Univariate Gaussian Example](https://suzyahyah.github.io/bayesian%20inference/machine%20learning/variational%20inference/2019/03/20/CAVI.html)|
-|cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of [David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)|
-|em.py|Expectation Maximization--[ Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning--Padhraic Smyth ](https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf)|
-|UGMM.py|Code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)|
+|cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al|
+|em.py|Expectation Maximization|
+
 
 ## Free Energy
 
