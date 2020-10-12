@@ -1,22 +1,17 @@
-# Copyright (C) 2020 Greenweaves Software Limited
+#    Copyright (C) 2020 Greenweaves Software Limited
 
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
 
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
 
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #  Coordinate Ascent Mean-Field Variational Inference (CAVI) after
 #  David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians
@@ -64,20 +59,23 @@ def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1,epsilon=0.01,min_iterations=5):
         t2 = t2.sum()
         return t1 + t2 #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
     
-    phi    =  np.random.dirichlet([np.random.random()*np.random.randint(1, 10)]*K, len(x))
+    phi    = np.random.dirichlet([np.random.random()*np.random.randint(1, 10)]*K, len(x))
     m      = np.array([np.quantile(x,q/K) * (1+epsilon*np.random.random()) for q in range(1,K+1)])
-    s2     =  np.ones(K) * np.random.random(K)
+    s2     = np.ones(K) * np.random.random(K)
     sigma2 = sigma**2
     ELBOs  = []
     
     while (len(ELBOs)<min_iterations or abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
-        t1       = np.outer(x, m)
-        t2       = -(0.5*m**2 + 0.5*s2)
-        exponent = t1 + t2[np.newaxis, :]
-        phi      = np.exp(exponent)
-        phi      = phi / phi.sum(1)[:, np.newaxis]        
+        # Blei et al, equation (26)
+        e_mu     = np.outer(x, m)
+        e_mu2    = -(0.5*m**2 + 0.5*s2)
+        phi      = np.exp(e_mu + e_mu2[np.newaxis, :])
+        phi      = phi / phi.sum(1)[:, np.newaxis]
+        
+        # Blei et al, equation (34)
         m        = (phi*x[:, np.newaxis]).sum(0) / (1/sigma2 + phi.sum(0))
         s2       = 1/(1/sigma2 + phi.sum(0))
+        
         ELBOs.append(getELBO())
         if len(ELBOs)>N:
             raise ELBO_Error(f'ELBO has not converged to within {tolerance} after {N} iterations',ELBOs)
@@ -102,7 +100,6 @@ def plot_data(xs,
     
     ax.hist(xs,
              bins  = nbins,
-             label = 'Full Dataset',
              alpha = 0.5)
     
     m,s = sort_stats()
@@ -111,7 +108,6 @@ def plot_data(xs,
         x0s           = [xs[j] for j in range(len(xs)) if cs[j]==i ]
         n,bins,_      = plt.hist(x0s,
                             bins      = 25,
-                            label     = f'Component {i+1}',
                             alpha     = 0.5,
                             facecolor = colours[i])
         x_values      = np.arange(min(xs), max(xs), 0.1)
@@ -126,7 +122,7 @@ def plot_data(xs,
         
         ax.plot(x_values,
                 [y*max(n)/max(ys_cavi) for y in ys_cavi],
-                label     = fr'Estimate: $\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f}',
+                label     = fr'$\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f} (CAVI)',
                 c = colours[i],
                 linestyle='--')        
 
@@ -155,7 +151,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser('CAVI')
     parser.add_argument('--K',         type=int,   default=2,      help='Number of Gaussians')
     parser.add_argument('--n',         type=int,   default=1000,   help='Number of points')
-    parser.add_argument('--N',         type=int,   default=25,     help='Number of iterations')
+    parser.add_argument('--N',         type=int,   default=100,    help='Number of iterations')
     parser.add_argument('--tolerance', type=float, default=1.0e-6, help='Convergence criterion')
     args = parser.parse_args()
     
