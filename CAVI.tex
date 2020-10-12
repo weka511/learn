@@ -1,0 +1,57 @@
+% MIT License
+
+% Copyright (c) 2019-2020 Simon Crase
+
+% Permission is hereby granted, free of charge, to any person obtaining a copy
+% of this software and associated documentation files (the "Software"), to deal
+% in the Software without restriction, including without limitation the rights
+% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+% copies of the Software, and to permit persons to whom the Software is
+% furnished to do so, subject to the following conditions:
+
+% The above copyright notice and this permission notice shall be included in all
+% copies or substantial portions of the Software.
+
+% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+% SOFTWARE.
+
+\documentclass[]{article}
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\newcommand{\Expectation}{\mathbb{E}}
+\newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
+
+%opening
+\title{CAVI}
+\author{Simon Crase}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document aims to fill in the gaps between published papers, such as \cite{blei2017variational} and my code.
+\end{abstract}
+
+\tableofcontents
+\section{ELBO}
+From \cite{blei2017variational}
+\begin{align*}
+	ELBO(m,s^2,\phi) = \sum_{k=1}^{K}& \Expectation \big[ \log {p(\mu_k);m_k,s_k^2}\big]\\
+	+& \sum_{k=1}^{K}\bigg(\Expectation\big[\log{p(c_i);\phi_i}\big] + \Expectation\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big]\bigg)\\
+	-& \sum_{k=1}^K\Expectation\big[\log{q(c_i;\phi_i)}\big] - \sum_{k=1}^K\Expectation \big[\log{q(\mu_k;m_k,s^2_k)}\big] \numberthis \label{eq:ELBO}
+\end{align*}
+
+
+\bibliographystyle{unsrt}
+\addcontentsline{toc}{section}{Bibliography}
+\bibliography{learn}
+
+\end{document}
