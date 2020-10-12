@@ -40,16 +40,16 @@ def create_data(mu,n=1000,sigmas=[]):
 # Perform Coordinate Ascent Mean-Field Variational Inference
 #
 # I have borrowed some ideas from Zhiya Zuo's blog--https://zhiyzuo.github.io/VI/
-def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1):
+def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1,epsilon=0.01,min_iterations=5):
     def get_uniform_vector():
         sample = [random.random() for _ in range(K)]
         Z      = sum(sample)
         return [s/Z for s in sample]
        
-    # calcELBO
+    # getELBO
     #
     # Calculate ELBO following Blei et al, equation (21)
-    def calcELBO():
+    def getELBO():
         t1 = np.log(s2) - m/sigma2
         t1 = t1.sum()
         t2 = -0.5*np.add.outer(x**2, s2+m**2)
@@ -59,44 +59,45 @@ def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1):
         t2 = t2.sum()
         return t1 + t2 #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
     
-    phi   =  np.random.dirichlet([np.random.random()*np.random.randint(1, 10)]*K, len(x))
-    m      = np.array([np.quantile(x,q/K) for q in range(1,K+1)])
-    s2    =  np.ones(K) * np.random.random(K)
-    print('Init mean', m)
-    print('Init s2', s2) 
+    phi    =  np.random.dirichlet([np.random.random()*np.random.randint(1, 10)]*K, len(x))
+    m      = np.array([np.quantile(x,q/K) * (1+epsilon*np.random.random()) for q in range(1,K+1)])
+    s2     =  np.ones(K) * np.random.random(K)
     sigma2 = sigma**2
-    ELBOs = []
+    ELBOs  = []
     
-    while (len(ELBOs)<5 or ( abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance)):
-        # update cluster assignment
-        t1 = np.outer(x, m)
-        t2 = -(0.5*m**2 + 0.5*s2)
+    while (len(ELBOs)<min_iterations or abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
+        t1       = np.outer(x, m)
+        t2       = -(0.5*m**2 + 0.5*s2)
         exponent = t1 + t2[np.newaxis, :]
-        phi = np.exp(exponent)
-        phi = phi / phi.sum(1)[:, np.newaxis]        
-        # update variational density
-
-        m = (phi*x[:, np.newaxis]).sum(0) * (1/sigma2 + phi.sum(0))**(-1)
-        assert m.size == K
-        s2 = (1/sigma2 + phi.sum(0))**(-1)
-        assert s2.size == K
-        
-        print (f'm={m}, s2={s2}')
-        ELBOs.append(calcELBO())
+        phi      = np.exp(exponent)
+        phi      = phi / phi.sum(1)[:, np.newaxis]        
+        m        = (phi*x[:, np.newaxis]).sum(0) / (1/sigma2 + phi.sum(0))
+        s2       = 1/(1/sigma2 + phi.sum(0))
+        ELBOs.append(getELBO())
         if len(ELBOs)>N:
             raise Exception(f'ELBO has not converged to within {tolerance} after {N} iterations')
     return (ELBOs,phi,m,[math.sqrt(s) for s in s2])
 
-def plot_data(xs,cs,mu=[],sigmas=[],m=0,s=1,colours=['r','g','b', 'c', 'm', 'y']):
-    ax = plt.subplot(2,1,1)
-    plt.hist(xs,
-             bins  = 25,
+def plot_data(xs,
+              cs,
+              mu      = [],
+              sigmas  = [],
+              m       = 0,
+              s       = 1,
+              nbins   = 25,
+              colours = ['r','g','b', 'c', 'm', 'y'],
+              ax      = None):
+    def sort_stats():
+        indices = np.argsort(m)
+        return ([m[i] for i in indices], [s[i] for i in indices]) 
+    
+    ax.hist(xs,
+             bins  = nbins,
              label = 'Full Dataset',
              alpha = 0.5)
     
-    indices = np.argsort(m)
-    m       = [m[i] for i in indices]
-    s       = [s[i] for i in indices]    
+    m,s = sort_stats()
+       
     for i in range(len(mu)):
         x0s           = [xs[j] for j in range(len(xs)) if cs[j]==i ]
         n,bins,_      = plt.hist(x0s,
@@ -109,26 +110,28 @@ def plot_data(xs,cs,mu=[],sigmas=[],m=0,s=1,colours=['r','g','b', 'c', 'm', 'y']
         y_values_cavi = stats.norm(m[i], s[i])
         ys            = y_values.pdf(x_values)
         ys_cavi       = y_values_cavi.pdf(x_values)
-        plt.plot(x_values,
+        ax.plot(x_values,
                  [y*max(n)/max(ys) for y in ys],
                  c = colours[i])
         
-        plt.plot(x_values,
+        ax.plot(x_values,
                 [y*max(n)/max(ys_cavi) for y in ys_cavi],
                 label     = fr'$\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f}',
                 c = colours[i],
                 linestyle='--')        
 
-    plt.legend()
-    plt.title('Raw data')
-    plt.xlabel('X')
-    plt.ylabel('N')
+    ax.legend()
+    ax.set_title('Raw data')
+    ax.set_ylabel('N')
 
-def plot_ELBO(ELBOs):
-    plt.plot(ELBOs,label='ELBO')
-    plt.xlim(1,len(ELBOs)+1)
-    plt.xlabel('Iteration')
-    plt.legend()
+def plot_ELBO(ELBOs,ax=None):
+    ax.plot(ELBOs,label='ELBO')
+    ax.set_xlim(0,len(ELBOs))
+    ax.set_ylim(min(ELBOs),max(ELBOs)+1)
+    ax.set_xlabel('Iteration')
+    ax.set_ylabel(r'$\log(P)$')
+    ax.set_title('Convergence')
+    ax.legend()
     
 if __name__=='__main__':
     plt.rcParams.update({
@@ -143,23 +146,26 @@ if __name__=='__main__':
     
     random.seed(1)
     
-    sigma     = 1
-    sigmas    = [1.0]*args.K
-    mu        = sorted(np.random.uniform(low=0,high=5,size=args.K))
-    cs,xs     = create_data(mu,sigmas=sigmas,n=args.n)
+    sigma         = 1
+    sigmas        = [1.0]*args.K
+    mu            = sorted(np.random.uniform(low=0,high=5,size=args.K))
+    cs,xs         = create_data(mu,sigmas=sigmas,n=args.n)
 
     ELBOs,phi,m,s = cavi(x         = np.asarray(xs),
                          K         = args.K,
                          N         = args.N,
                          tolerance = args.tolerance)
+    
     plt.figure(figsize=(10,10))
     plot_data(xs,cs,
               mu     = mu,
               sigmas = sigmas,
               m      = m,
-              s      = s)
-    plt.subplot(2,1,2)
-    plot_ELBO(ELBOs)
+              s      = s,
+              ax = plt.subplot(2,1,1))
+    
+    plot_ELBO(ELBOs,
+              ax=plt.subplot(2,1,2))
 
     plt.savefig(os.path.basename(__file__).split('.')[0] )
     plt.show()
