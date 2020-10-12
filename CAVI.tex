@@ -21,10 +21,13 @@
 % SOFTWARE.
 
 \documentclass[]{article}
-\usepackage{url}
+
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{amsfonts}
+\usepackage[toc,acronym,nonumberlist]{glossaries}
+\usepackage{url}
+
 \newcommand{\Expectation}{\mathbb{E}}
 \newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
 
@@ -32,6 +35,11 @@
 \title{CAVI}
 \author{Simon Crase}
 
+\makeglossary
+
+\newacronym{gls:ELBO}{ELBO}{Evidence Lower Bound}
+\newacronym{gls:GMM}{GMM}{Gaussian Mixture Model}
+\newacronym{gls:CAVI}{CAVI}{Coordinate Ascent Variational Inference}
 \begin{document}
 
 \maketitle
@@ -40,15 +48,32 @@
 This document aims to fill in the gaps between published papers, such as \cite{blei2017variational} and my code.
 \end{abstract}
 
+
+
 \tableofcontents
-\section{ELBO}
-From \cite{blei2017variational}
+\section{Evidence Lower Bound}
+
+In this section we derive the \gls{gls:ELBO} for \gls{gls:CAVI}.
+From \cite[(13)]{blei2017variational}
+\begin{align*}
+	ELBO(q) =& \Expectation\big[\log{p(z,x)}\big] - \Expectation\big[\log{q(x)}\big]  \numberthis \label{eq:ELBO}
+\end{align*}
+For a \gls{gls:GMM}
+\begin{align*}
+	q(\mu,c) =& \prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i)\\
+	p(\mu,c,x) =& p(\mu) \prod_{i=1}^{n} p(c_i) p(x_i \mid c_i,\mu)
+\end{align*}
+From \cite[(21)]{blei2017variational}
 \begin{align*}
 	ELBO(m,s^2,\phi) = \sum_{k=1}^{K}& \Expectation \big[ \log {p(\mu_k);m_k,s_k^2}\big]\\
 	+& \sum_{k=1}^{K}\bigg(\Expectation\big[\log{p(c_i);\phi_i}\big] + \Expectation\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big]\bigg)\\
-	-& \sum_{k=1}^K\Expectation\big[\log{q(c_i;\phi_i)}\big] - \sum_{k=1}^K\Expectation \big[\log{q(\mu_k;m_k,s^2_k)}\big] \numberthis \label{eq:ELBO}
+	-& \sum_{k=1}^K\Expectation\big[\log{q(c_i;\phi_i)}\big] - \sum_{k=1}^K\Expectation \big[\log{q(\mu_k;m_k,s^2_k)}\big] \numberthis \label{eq:ELBO_GMM}
 \end{align*}
 
+% glossary : may need command makeglossaries.exe CAVI
+\printglossaries
+
+% bibliography
 
 \bibliographystyle{unsrt}
 \addcontentsline{toc}{section}{Bibliography}
