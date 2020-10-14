@@ -24,11 +24,20 @@ import os
 import random
 import scipy.stats as stats
 
+# ELBO_Error
+#
+# This class ellows us to package the ELBO with an exception,
+# e.g. for plotting
+
 class ELBO_Error(Exception):
     def __init__(self,message,ELBOs):
         super().__init__(message)
         self.ELBOs = ELBOs
-        
+
+# create_data
+#
+# Create test data following Gaussian Mixture Model
+
 def create_data(mu,n=1000,sigmas=[]):
     def create_datum():
         i = random.randrange(len(mu))
@@ -40,36 +49,40 @@ def create_data(mu,n=1000,sigmas=[]):
 # Perform Coordinate Ascent Mean-Field Variational Inference
 #
 # I have borrowed some ideas from Zhiya Zuo's blog--https://zhiyzuo.github.io/VI/
-def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1,epsilon=0.01,min_iterations=5):
-    def get_uniform_vector():
-        sample = [random.random() for _ in range(K)]
-        Z      = sum(sample)
-        return [s/Z for s in sample]
-       
+def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1,min_iterations=5):
+   
+    # init_means
+    #
+    # Initialize means to be roughly the 'K' quantiles, plus random noise
+    def init_means():
+        quantiles = [np.quantile(x,q/K) for q in range(1,K+1)]
+        epsilon   = min([a-b for (a,b) in zip(quantiles[1:],quantiles[:-1])] )/6
+        return np.array([q * np.random.normal(loc=1.0,scale=epsilon) for q in quantiles])
+    
     # getELBO
     #
     # Calculate ELBO following Blei et al, equation (21)
     def getELBO():
-        t1 = np.log(s2) - m/sigma2
-        t1 = t1.sum()
-        t2 = -0.5*np.add.outer(x**2, s2+m**2)
+        t1  = np.log(s2) - m/sigma2
+        t1  = t1.sum()
+        t2  = -0.5*np.add.outer(x**2, s2+m**2)
         t2 += np.outer(x, m)
         t2 -= np.log(phi)
         t2 *= phi
-        t2 = t2.sum()
+        t2  = t2.sum()
         return t1 + t2 #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
     
     phi    = np.random.dirichlet([np.random.random()*np.random.randint(1, 10)]*K, len(x))
-    m      = np.array([np.quantile(x,q/K) * (1+epsilon*np.random.random()) for q in range(1,K+1)])
-    s2     = np.ones(K) * np.random.random(K)
+    m      = init_means()
+    s2     = np.random.random(K)
     sigma2 = sigma**2
     ELBOs  = []
     
     while (len(ELBOs)<min_iterations or abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
         # Blei et al, equation (26)
-        e_mu     = np.outer(x, m)
-        e_mu2    = -(0.5*m**2 + 0.5*s2)
-        phi      = np.exp(e_mu + e_mu2[np.newaxis, :])
+        e_mu     = np.outer(x, m)                       # n x K
+        e_mu2    = -(0.5*m**2 + 0.5*s2)                 # K x 1
+        phi      = np.exp(e_mu + e_mu2[np.newaxis, :])  # n x K
         phi      = phi / phi.sum(1)[:, np.newaxis]
         
         # Blei et al, equation (34)
@@ -138,6 +151,7 @@ def plotELBO(ELBOs,
              title = 'Convergence'):
     ax.plot(ELBOs,label='ELBO')
     ax.set_xlim(0,len(ELBOs))
+    ax.set_xticks(range(0,len(ELBOs)))
     ax.set_ylim(min(ELBOs),max(ELBOs)+1)
     ax.set_xlabel('Iteration')
     ax.set_ylabel(r'$\log(P)$')
@@ -151,7 +165,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser('CAVI')
     parser.add_argument('--K',         type=int,   default=2,      help='Number of Gaussians')
     parser.add_argument('--n',         type=int,   default=1000,   help='Number of points')
-    parser.add_argument('--N',         type=int,   default=100,    help='Number of iterations')
+    parser.add_argument('--N',         type=int,   default=250,    help='Number of iterations')
     parser.add_argument('--tolerance', type=float, default=1.0e-6, help='Convergence criterion')
     args = parser.parse_args()
     
