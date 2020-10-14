@@ -1,17 +1,17 @@
 # Copyright (C) 2020 Greenweaves Software Limited
 
-# This is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
 
-# This software is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
 
-# You should have received a copy of the GNU General Public License
-# along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning 
 # Padhraic Smyth 
@@ -20,15 +20,15 @@
 import  argparse
 import fcsparser
 import matplotlib.pyplot as plt
-from matplotlib import rc
-from mpl_toolkits.mplot3d import Axes3D
+from   matplotlib import rc
+from   mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import os
-import  re
+import re
 import sys
 import time
 
-import em
+import emm
 import fcs
 
 rc('text', usetex=True)
@@ -36,25 +36,25 @@ cmap     = plt.cm.get_cmap('RdYlBu')
 
 d = 3
 
-parser   = argparse.ArgumentParser('Fit Gaussian Mixture Model to GCP wells')
+parser   = argparse.ArgumentParser('Group data into size clusters')
 
-parser.add_argument('-r','--root',
-                    default=r'\data\cytoflex\Melbourne',
-                    help='Root for fcs files')
-parser.add_argument('-p','--plate',
-                    default='all',
-                    nargs='+',
-                    help='Name of plate to be processed (omit for all)')
-parser.add_argument('-w','--well', 
-                    default=[],
-                    nargs='+',
-                    help='Names of wells to be processed (omit for all)')
-parser.add_argument('-K','--K',
-                    default=[6],
-                    type=int,
-                    nargs='+')
+parser.add_argument('--root',
+                    default = r'\data\cytoflex\Melbourne',
+                    help    = 'Root for fcs files')
+parser.add_argument('--plate',
+                    default = 'all',
+                    nargs   = '+',
+                    help    = 'Name of plate(s) to be processed (omit for all)')
+parser.add_argument('--well', 
+                    default = [],
+                    nargs   = '+',
+                    help    = 'Names of wells to be processed (omit for all)')
+parser.add_argument('--K',
+                    default = [6],
+                    type    = int,
+                    nargs   = '+')
 
-parser.add_argument('-s', '--show',
+parser.add_argument( '--show',
                     default=False,
                     action='store_true',
                     help='Display graphs')
@@ -95,7 +95,7 @@ for root, dirs, files in os.walk(args.root):
    
                         for K in args.K:
                             try:
-                                mus    = em.get_mus(xs,ys,zs,K=K,min_separation=10000000)
+                                mus    = emm.get_mus(xs,ys,zs,K=K,min_separation=10000000)
                                 alphas = [1/K for _ in range(K)]
                                 #Sigmas = [np.cov([xs,ys,zs],rowvar=True) for _ in range(K)]   
                                 Sigma = [[0 for _ in range(d)] for _ in range(d)]
@@ -105,7 +105,7 @@ for root, dirs, files in os.walk(args.root):
                                 
                                 Sigmas = [Sigma for _ in range(K)]  
                                 maximized,likelihoods,ws,alphas,mus,Sigmas = \
-                                    em.maximize_likelihood(
+                                    emm.maximize_likelihood(
                                         xs,ys,zs,
                                         mus    = mus,
                                         Sigmas = Sigmas,
