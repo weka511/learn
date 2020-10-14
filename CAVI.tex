@@ -1,75 +1,133 @@
-% MIT License
+%    Copyright (C) 2020 Greenweaves Software Limited
 
-% Copyright (c) 2019-2020 Simon Crase
+%   This program is free software: you can redistribute it and/or modify
+%   it under the terms of the GNU General Public License as published by
+%   the Free Software Foundation, either version 3 of the License, or
+%   (at your option) any later version.
 
-% Permission is hereby granted, free of charge, to any person obtaining a copy
-% of this software and associated documentation files (the "Software"), to deal
-% in the Software without restriction, including without limitation the rights
-% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-% copies of the Software, and to permit persons to whom the Software is
-% furnished to do so, subject to the following conditions:
+%  This program is distributed in the hope that it will be useful,
+%  but WITHOUT ANY WARRANTY; without even the implied warranty of
+%  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%  GNU General Public License for more details.
 
-% The above copyright notice and this permission notice shall be included in all
-% copies or substantial portions of the Software.
-
-% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-% SOFTWARE.
+%  You should have received a copy of the GNU General Public License
+%  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 \documentclass[]{article}
 
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{amsfonts}
+\usepackage[toc,page]{appendix}
+\usepackage{float}
+\usepackage{mathrsfs}
 \usepackage[toc,acronym,nonumberlist]{glossaries}
 \usepackage{url}
 
-\newcommand{\Expectation}{\mathbb{E}}
-\newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
+\newcommand{\ELBO[1]}        {\mathscr{L}}
+\newcommand{\Expectation} {\mathbb{E}}
+\newcommand{\KLD}[2]{D_{\mathrm{KL}} \left( \left. \left. #1 \right|\right| #2 \right) }
+\newcommand\numberthis    {\addtocounter{equation}{1}\tag{\theequation}}
+
 
 %opening
-\title{CAVI}
+\title{Coordinate Ascent Variational Inference}
 \author{Simon Crase}
 
-\makeglossary
+\makeglossaries
 
-\newacronym{gls:ELBO}{ELBO}{Evidence Lower Bound}
-\newacronym{gls:GMM}{GMM}{Gaussian Mixture Model}
-\newacronym{gls:CAVI}{CAVI}{Coordinate Ascent Variational Inference}
+\newacronym{gls:CAVI}{
+	CAVI} {
+	Coordinate Ascent Variational Inference
+}
+
+\newacronym{gls:ELBO}{
+	ELBO} {
+	Evidence Lower Bound
+}
+
+\newacronym{gls:GMM} {
+	GMM}  {
+	Gaussian Mixture Model
+}
+\newacronym{gls:VI}  {
+	VI}   {
+	Variational Inference
+}
+\newglossaryentry{gls:ELBOterm}{
+	name={Evidence Lower Bound},
+	description={Evidence Lower Bound (\ref{eq:ELBO})},
+	symbol={$\ELBO$}
+}
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-This document aims to fill in the gaps between published papers, such as \cite{blei2017variational} and my code.
+This document aims to fill in the gaps in derivations between published papers, such as \cite{blei2017variational}, and my code. It has been written to help ny understanding. It it is helpful to anyone else it is a bonus.
 \end{abstract}
 
 
 
 \tableofcontents
+\listoftables
 \section{Evidence Lower Bound}
 
 In this section we derive the \gls{gls:ELBO} for \gls{gls:CAVI}.
-From \cite[(13)]{blei2017variational}
+
+From \cite[Equation (13)]{blei2017variational}
 \begin{align*}
-	ELBO(q) =& \Expectation\big[\log{p(z,x)}\big] - \Expectation\big[\log{q(x)}\big]  \numberthis \label{eq:ELBO}
+	\ELBO{(q)} =& \Expectation_q\big[\log{p(z,x)}\big] - \Expectation_q\big[\log{q(x)}\big]  \numberthis \label{eq:ELBO}
 \end{align*}
-For a \gls{gls:GMM}
+For a \gls{gls:GMM}--From \cite[Equations (7) \& (16)]{blei2017variational}
 \begin{align*}
-	q(\mu,c) =& \prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i)\\
+	q(\mu,c) =& \prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i) \numberthis \label{eq:gmm_q}\\
 	p(\mu,c,x) =& p(\mu) \prod_{i=1}^{n} p(c_i) p(x_i \mid c_i,\mu)
 \end{align*}
-From \cite[(21)]{blei2017variational}
+From \cite[Equation (21)]{blei2017variational}
 \begin{align*}
-	ELBO(m,s^2,\phi) = \sum_{k=1}^{K}& \Expectation \big[ \log {p(\mu_k);m_k,s_k^2}\big]\\
+	\ELBO(m,s^2,\phi) = \sum_{k=1}^{K}& \Expectation \big[ \log {p(\mu_k);m_k,s_k^2}\big]\\
 	+& \sum_{k=1}^{K}\bigg(\Expectation\big[\log{p(c_i);\phi_i}\big] + \Expectation\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big]\bigg)\\
 	-& \sum_{k=1}^K\Expectation\big[\log{q(c_i;\phi_i)}\big] - \sum_{k=1}^K\Expectation \big[\log{q(\mu_k;m_k,s^2_k)}\big] \numberthis \label{eq:ELBO_GMM}
 \end{align*}
 
+From (\ref{eq:gmm_q})
+\begin{align*}
+	 \Expectation \big[ \log {p(\mu_k);m_k,s_k^2}\big] =& \int_{-\infty}^{\infty} q(\mu_k;m_k,s_k^2) \log {p(\mu_k)} \\
+	 =& \frac{1}{s\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)}\big[- \frac{num}{den}\big]
+\end{align*}
+\cite{fisz1963probability}
+\begin{align*}
+	\Expectation\big[\log{p(c_i);\phi_i}\big] =&
+\end{align*}
+
+\begin{align*}
+	\Expectation\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =&
+\end{align*}
+
+\begin{align*}
+	\sum_{k=1}^K\Expectation\big[\log{q(c_i;\phi_i)}\big] =&
+\end{align*}
+
+\begin{align*}
+ 	\sum_{k=1}^K\Expectation \big[\log{q(\mu_k;m_k,s^2_k)}\big] =& \frac{1}{s\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg)} \bigg[ \bigg] d\mu_k
+\end{align*}
+
+\begin{appendices}
+	\section{Notation}
+	\begin{table}[H]
+		\begin{center}
+			\caption{Notation}
+			\begin{tabular}{|l|l|}\hline
+				Symbol & Meaning \\ \hline
+				$\Expectation_q$& Expectation using distribution $q$ \\ \hline
+				\glssymbol{gls:ELBOterm}&\glsdesc{gls:ELBOterm}\\ \hline
+				$p$ &\\ \hline
+				$q$ &\\ \hline
+			\end{tabular}
+		\end{center}
+	\end{table}
+\end{appendices}
 % glossary : may need command makeglossaries.exe CAVI
 \printglossaries
 
