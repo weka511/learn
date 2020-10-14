@@ -45,7 +45,7 @@ parser.add_argument('--plate',
                     default = 'all',
                     nargs   = '+',
                     help    = 'Name of plate(s) to be processed (omit for all)')
-parser.add_argument('--well', 
+parser.add_argument('--wells', 
                     default = [],
                     nargs   = '+',
                     help    = 'Names of wells to be processed (omit for all)')
@@ -61,72 +61,58 @@ parser.add_argument( '--show',
 
 args   = parser.parse_args()
 
-for root, dirs, files in os.walk(args.root):
-    path  = root.split(os.sep)
-    match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)',path[-1])
-    if match:
-        plate = match.group(1)
-        if args.plate=='all' or plate in args.plate:
-            for file in files:
-                if re.match('.*(([A-H][1-9][01]?)|([A-F]12)).fcs',file):
-                    path     = os.path.join(root,file)
-                    meta, df = fcsparser.parse(path, reformat_meta=True)
-                    
-                    date     = meta['$DATE']
-                    tbnm     = meta['TBNM']
-                    btim     = meta['$BTIM']
-                    etim     = meta['$ETIM']
-                    cyt      = meta['$CYT']
-                    well     = fcs.get_well_name(tbnm)
-                    
-                    df1      = df[(200000          < df['FSC-H']) & \
-                                  (df['FSC-H']     < 1000000  )   & \
-                                  (75000           < df['SSC-H']) & \
-                                  (df['SSC-H']     < 1000000)     & \
-                                  (df['FSC-Width'] < 2000)]
-                    
-                    if well in args.well or len(args.well)==0:
- 
-                        start_time = time.time()                        
- 
-                        xs     = df1['FSC-H'].values
-                        ys     = df1['SSC-H'].values
-                        zs     = df1['FSC-Width'].values  
-   
-                        for K in args.K:
-                            try:
-                                mus    = emm.get_mus(xs,ys,zs,K=K,min_separation=10000000)
-                                alphas = [1/K for _ in range(K)]
-                                #Sigmas = [np.cov([xs,ys,zs],rowvar=True) for _ in range(K)]   
-                                Sigma = [[0 for _ in range(d)] for _ in range(d)]
-                                Sigma[0][0]= 1e10
-                                Sigma[1][1]= 1e10
-                                Sigma[2][2]= 1e4
-                                
-                                Sigmas = [Sigma for _ in range(K)]  
-                                maximized,likelihoods,ws,alphas,mus,Sigmas = \
-                                    emm.maximize_likelihood(
-                                        xs,ys,zs,
-                                        mus    = mus,
-                                        Sigmas = Sigmas,
-                                        alphas = alphas,
-                                        K      = K)
-                                plt.figure(figsize=(10,10))                       
-                                for k in range(K):
-                                    axk    = plt.subplot(3,3,k+1, projection='3d')
-                                    axk.scatter(xs,ys,zs,s=1,c=ws[k],cmap=cmap)
-                                elapsed_time = time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))
-                                plt.suptitle(f'{plate} {well} K={K}: elapsed {elapsed_time}')
-                                plt.savefig(
-                                    fcs.get_image_name(
-                                        script = os.path.basename(__file__).split('.')[0],
-                                        plate  = plate,
-                                        well   = well,
-                                        K      = K))                                
-                                print (f'{plate} {well} K={K}: elapsed {elapsed_time}')
-                                if not args.show:
-                                    plt.close()
-                            except:
-                                print (f'{plate} {well} K={K}: failed: {sys.exc_info()[0]}') 
+for plate,well,df,meta,location in fcs.fcs(args.root,
+                             plate = args.plate,
+                             wells = args.wells):
+      
+    df1      = df[(200000          < df['FSC-H']) & \
+                  (df['FSC-H']     < 1000000  )   & \
+                  (75000           < df['SSC-H']) & \
+                  (df['SSC-H']     < 1000000)     & \
+                  (df['FSC-Width'] < 2000)]
+    
+     
+    start_time = time.time()                        
+
+    xs     = df1['FSC-H'].values
+    ys     = df1['SSC-H'].values
+    zs     = df1['FSC-Width'].values  
+
+    for K in args.K:
+        try:
+            mus    = emm.get_mus(xs,ys,zs,K=K,min_separation=10000000)
+            alphas = [1/K for _ in range(K)]
+            #Sigmas = [np.cov([xs,ys,zs],rowvar=True) for _ in range(K)]   
+            Sigma = [[0 for _ in range(d)] for _ in range(d)]
+            Sigma[0][0]= 1e10
+            Sigma[1][1]= 1e10
+            Sigma[2][2]= 1e4
+            
+            Sigmas = [Sigma for _ in range(K)]  
+            maximized,likelihoods,ws,alphas,mus,Sigmas = \
+                emm.maximize_likelihood(
+                    xs,ys,zs,
+                    mus    = mus,
+                    Sigmas = Sigmas,
+                    alphas = alphas,
+                    K      = K)
+            plt.figure(figsize=(10,10))                       
+            for k in range(K):
+                axk    = plt.subplot(3,3,k+1, projection='3d')
+                axk.scatter(xs,ys,zs,s=1,c=ws[k],cmap=cmap)
+            elapsed_time = time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))
+            plt.suptitle(f'{plate} {well} K={K}: elapsed {elapsed_time}')
+            plt.savefig(
+                fcs.get_image_name(
+                    script = os.path.basename(__file__).split('.')[0],
+                    plate  = plate,
+                    well   = well,
+                    K      = K))                                
+            print (f'{plate} {well} K={K}: elapsed {elapsed_time}')
+            if not args.show:
+                plt.close()
+        except:
+            print (f'{plate} {well} K={K}: failed: {sys.exc_info()[0]}') 
+
 if args.show:
     plt.show()
