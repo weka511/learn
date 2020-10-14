@@ -11,7 +11,6 @@ Experiments in machine learning
 | mnist-test.py | Tests based on MNIST training set |
 | test.py  | Test network against MNIST test dataset |
 | train.py      | Train network using MNIST data |
-| versions.py |Check version numbers of libraries|
 
 ## Imported from elsewhere
 
