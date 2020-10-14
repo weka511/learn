@@ -29,7 +29,7 @@ from scipy import stats
 import scipy.stats as stats
 import math
 import sys
-import em
+import emm
 import fcs
 import standards
 
@@ -146,7 +146,7 @@ def get_selector(ws,q=0.5,K=0): # hyperparameter
 def filter_doublets(xs,ys,zs,mult=0.25):
     mu     = [np.mean(xs),np.mean(ys),np.mean(zs)]
     sigma  = [np.std(xs),np.std(ys),np.std(zs)]
-    return em.maximize_likelihood(
+    return emm.maximize_likelihood(
             xs,ys,zs,
             mus    = [[mu[i]+ direction*mult*sigma[i] for i in range(len(mu))] for direction in [-1,+1]],
             Sigmas = [np.cov([xs,ys,zs],rowvar=True),

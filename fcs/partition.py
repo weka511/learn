@@ -27,7 +27,6 @@ from scipy import stats
 from scipy.stats import multivariate_normal
 import sys
 
-import em
 import fcs
 import fcsparser
 import gcps
