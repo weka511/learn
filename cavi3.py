@@ -78,17 +78,18 @@ def cavi(x,K=3,N=25,tolerance=1e-12,sigma=1,min_iterations=5):
     sigma2 = sigma**2
     ELBOs  = []
     
+    # Perform update -- Blei et al, section 3.1
     while (len(ELBOs)<min_iterations or abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
         # Blei et al, equation (26)
-        e_mu     = np.outer(x, m)                       # n x K
-        e_mu2    = -(0.5*m**2 + 0.5*s2)                 # K x 1
-        phi      = np.exp(e_mu + e_mu2[np.newaxis, :])  # n x K
+        e_mu     = np.outer(x, m)                       # Expectation of mu - n x K
+        e_mu2    = -0.5*(m**2 + s2)                     # Expectation of mu*mu - K x 1
+        phi      = np.exp(e_mu + e_mu2[np.newaxis, :])  # Unnormalized - n x K
         phi      = phi / phi.sum(1)[:, np.newaxis]
         
         # Blei et al, equation (34)
-        m        = (phi*x[:, np.newaxis]).sum(0) / (1/sigma2 + phi.sum(0))
         s2       = 1/(1/sigma2 + phi.sum(0))
-        
+        m        = (phi*x[:, np.newaxis]).sum(0) * s2
+       
         ELBOs.append(getELBO())
         if len(ELBOs)>N:
             raise ELBO_Error(f'ELBO has not converged to within {tolerance} after {N} iterations',ELBOs)
@@ -149,9 +150,21 @@ def plot_data(xs,
 def plotELBO(ELBOs,
              ax    = None,
              title = 'Convergence'):
+    # get_tick_freq
+    #
+    # Used to avoid cluttering x axis if calculation has gone on for too many iterations
+    def get_tick_freq(maximum_ticks=25, modulus=10):
+        freq   = 1
+        nticks = len(ELBOs)
+        if nticks<= maximum_ticks: return nticks
+        while nticks>maximum_ticks:
+            freq   *= modulus
+            nticks /= modulus
+        return freq 
+    
     ax.plot(ELBOs,label='ELBO')
     ax.set_xlim(0,len(ELBOs))
-    ax.set_xticks(range(0,len(ELBOs)))
+    ax.set_xticks(range(0,len(ELBOs),get_tick_freq()))
     ax.set_ylim(min(ELBOs),max(ELBOs)+1)
     ax.set_xlabel('Iteration')
     ax.set_ylabel(r'$\log(P)$')
