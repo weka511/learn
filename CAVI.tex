@@ -87,9 +87,9 @@ The notation used in this document is defined in Table \ref{table:notation}.
 	=& \frac{\overbrace{p(x| z)}^\text{Likelihood}}{\underbrace{p(x)}_\text{Evidence}} \overbrace{p(z)}^\text{Prior}
 \end{align*}
 
-We introduce the Kullback-Leibler divergence\cite{wiki:kullback:leibler}, 
+The evidence is:
 \begin{align*}
-	p(z) =& \int p(x\mid z) p(z) dz\\
+	p(z) =& \int p(x\mid z) p(z) dz \text{. We introduce the Kullback-Leibler divergence\cite{wiki:kullback:leibler}}\\
 	\KLD{q(z)}{p(z\mid x)} \triangleq& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z\mid x)}) \\
 	=& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z, x)}) + \Expectation_q(\log{p(x)})\\
 	\Expectation_q(\log{p(x)})=&\KLD{q(z)}{p(z\mid x)}+\Expectation_q(\log{p(z, x)})-\Expectation_q(\log{q(z)})\\
@@ -109,13 +109,13 @@ In this section we derive the \gls{gls:ELBO} for \gls{gls:CAVI}.
 
 From \cite[Equation (13)]{blei2017variational}
 \begin{align*}
-	\ELBO{(q)} =& \Expectation_q\big[\log{p(z,x)}\big] - \Expectation_q\big[\log{q(x)}\big]  
+	\ELBO{(q)} =& \Expectation_q\big[\log{p(\vec{z},\vec{x})}\big] - \Expectation_q\big[\log{q(\vec{x})}\big]  
 \end{align*}
 
 For a \gls{gls:GMM}--From \cite[Equations (7) \& (16)]{blei2017variational}
 \begin{align*}
-	q(\mu,c) =& \prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i) \numberthis \label{eq:gmm_q}\\
-	p(\mu,c,x) =& p(\mu) \prod_{i=1}^{n} p(c_i) p(x_i \mid c_i,\mu)
+	q(\vec{\mu},\vec{c}) =& \prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i) \numberthis \label{eq:gmm_q}\\
+	p(\vec{\mu},\vec{c},\vec{x}) =& p(\vec{\mu}) \prod_{i=1}^{n} p(c_i) p(x_i \mid c_i,\vec{\mu})
 \end{align*}
 
 From \cite[Equation (21)]{blei2017variational}
@@ -127,16 +127,12 @@ From \cite[Equation (21)]{blei2017variational}
 
 From (\ref{eq:gmm_q}).
 \begin{align*}
-	 \Expectation_q \big[ \log {p(\mu_k);m_k,s_k^2}\big] =& \int_{-\infty}^{\infty} q(\mu_k;m_k,s_k^2) \log {p(\mu_k)} \\
-	 =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)\bigg]}\log{\bigg[\frac{1}{\sigma\sqrt{2\pi}} \exp{\big[- \frac{\mu_k^2}{2\sigma^2}\big]}\bigg]} d\mu_k\\
-	 =&\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)\bigg]}\bigg[ - \frac{\mu_k^2}{2\sigma^2}\bigg] d\mu_k+ C 
-\end{align*}
-
-Where $C$ is an additive constant which can be discarded--see Table \ref{table:notation}. Hence:
-\begin{align*}
-		 \Expectation_q \big[ \log {p(\mu_k);m_k,s_k^2}\big] =& - \frac{1}{s_k\sqrt{2\pi} 2 \sigma^2} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}(\mu_k+m_k)^2 d\mu_k\\
-		 =&- \frac{1}{s_k\sqrt{2\pi} 2 \sigma^2} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}(\mu_k^2 +2 \mu_k m_k + m_k^2) d\mu_k\\
-		 =&- \frac{1}{2 \sigma^2} \big[s_k^2 +  m_k^2\big] \text{, see  \cite[(5.7.5)]{fisz1963probability}} \numberthis \label{eq:ELBO:1}
+	 \Expectation_q \big[ \log {p(\mu_k);m_k,s_k^2}\big] =& \int_{-\infty}^{\infty} q(\mu_k;m_k,s_k^2) \log {p(\mu_k)}  d\mu_k\\
+	 =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)\bigg]}\log{\bigg[\frac{1}{\sqrt{2\pi}} \exp{\big[- \frac{\mu_k^2}{2}\big]}\bigg]} d\mu_k\\
+	 =&\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)\bigg]}\bigg[ - \frac{\mu_k^2}{2}\bigg] d\mu_k+ C \text{, see Table \ref{table:notation}}\\
+	 =& - \frac{1}{s_k\sqrt{2\pi} 2 } \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}(\mu_k+m_k)^2 d\mu_k\\
+	 =&- \frac{1}{s_k\sqrt{2\pi} 2 } \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}(\mu_k^2 +2 \mu_k m_k + m_k^2) d\mu_k\\
+	 =&- \frac{1}{2 } \big[s_k^2 +  m_k^2\big] \text{, see  \cite[(5.7.5)]{fisz1963probability}} \numberthis \label{eq:ELBO:1}
 \end{align*}
 
 \begin{align*}
@@ -146,17 +142,18 @@ Where $C$ is an additive constant which can be discarded--see Table \ref{table:n
 \end{align*}
 
 \begin{align*}
-	\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =& \Expectation_q\bigg[\sum_{i=1}^{n} \frac{-\mu_i}{2\sigma^2}+\sum_{i=1}^{n}\sum_{j=1}^{n} c_{ij}\big[\frac{-(x_i-\mu_j)^2}{2}\big]\bigg]\\
-	=&\Expectation_q\bigg[\sum_{i=1}^{n} \frac{-\mu_i}{2\sigma^2}\bigg]+\Expectation_q\bigg[\sum_{i=1}^{n}\sum_{j=1}^{n} c_{ij}\big[\frac{-(x_i-\mu_j)^2}{2}\big]\bigg] \numberthis \label{eq:ELBO:3}
+	\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =& \Expectation_q\bigg[\sum_{i=1}^{n} \frac{-\mu_i}{2}+\sum_{i=1}^{n}\sum_{j=1}^{n} c_{ij}\big[\frac{-(x_i-\mu_j)^2}{2}\big]\bigg]\\
+	=&\Expectation_q\bigg[\sum_{i=1}^{n} \frac{-\mu_i}{2}\bigg]+\Expectation_q\bigg[\sum_{i=1}^{n}\sum_{j=1}^{n} c_{ij}\big[\frac{-(x_i-\mu_j)^2}{2}\big]\bigg] \numberthis \label{eq:ELBO:3}
 \end{align*}
 
+We will spilt this expression and evaluate the components separately.
 \begin{align*}
-	\Expectation_q\bigg[\sum_{i=1}^{n} \frac{-\mu_i}{2\sigma^2}\bigg]=& 	\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)\bigg]}\bigg[\sum_{i=1}^{n} \frac{-\mu_i}{2\sigma^2}\bigg] d \mu_k\\
-	=& 	\frac{1}{s_k\sqrt{2\pi}} \sum_{i=1}^{n} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)\bigg]}\bigg[ \frac{-\mu_i}{2\sigma^2}\bigg] d \mu_k\\
-	=& 	\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)\bigg]}\bigg[ \frac{-\mu_k}{2\sigma^2}\bigg] d \mu_k + C\\
-	=& 	\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{\mu_k^2}{2 s_k^2}\big)\bigg]}\bigg[ \frac{-(\mu_k+m_k)}{2\sigma^2}\bigg] d \mu_k + C\\
-	=&m_k + C\\
-	=& m_k \numberthis \label{eq:ELBO:31}
+	\Expectation_q\bigg[\sum_{i=1}^{n} \frac{-\mu_i}{2}\bigg]=& 	\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}\bigg[\sum_{i=1}^{n} \frac{-\mu_i}{2}\bigg] d \mu_k\\
+	=& 	-\frac{1}{2}\frac{1}{s_k\sqrt{2\pi}} \sum_{i=1}^{n} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]} \mu_i d \mu_k\\
+	=& 	-\frac{1}{2} \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}\mu_k d \mu_k + C\\
+	=& -\frac{1}{2}	\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}(\mu_k+m_k) d \mu_k + C^\prime\\
+	=&-\frac{1}{2} m_k + C^{\prime\prime}\\
+	=& -\frac{1}{2} m_k \numberthis \label{eq:ELBO:31}
 \end{align*}
 
 \begin{align*}
@@ -165,7 +162,7 @@ Where $C$ is an additive constant which can be discarded--see Table \ref{table:n
 =&\frac{1}{s_k\sqrt{2\pi}} \sum_{i=1}^{n} c_{ik} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)\bigg]}\bigg[\big[\frac{-(x_i-\mu_k)^2}{2}\big]\bigg] d \mu_k + C\\
 =&\frac{1}{s_k\sqrt{2\pi}} \sum_{i=1}^{n} c_{ik} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{\mu_k^2}{2 s_k^2}\big)\bigg]}\bigg[\big[\frac{-[x_i-(\mu_k-m_k)]^2}{2}\big]\bigg] d \mu_k + C \numberthis \label{eq:ELBO:32}
 \end{align*}
-Now 
+This can in turn be split further. 
 \begin{align*}
 	\frac{1}{s_k\sqrt{2\pi}}& \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{\mu_k^2}{2 s_k^2}\big)\bigg]}\bigg[\frac{-[x_i-(\mu_k-m_k)]^2}{2}\bigg] d \mu_k\\
 	=&-\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{\mu_k^2}{2 s_k^2}\big)\bigg]}\bigg[[\mu_k-(x_i+m_k)]^2\bigg] d \mu_k\\
@@ -177,7 +174,7 @@ Now
 
 Substituting (\ref{eq:ELBO:33}) in (\ref{eq:ELBO:32})
 \begin{align*}
-	\Expectation_q\bigg[\sum_{i=1}^{n}\sum_{j=1}^{n} c_{ij}\big[\frac{-(x_i-\mu_j)^2}{2}\big]\bigg]=& \sum_{i=1}^{n} c_{ik} (x_k+m_k)^2 s_k^2 \text{, combing with (\ref{eq:ELBO:31}), (\ref{eq:ELBO:3}) becomes}\\
+	\Expectation_q\bigg[\sum_{i=1}^{n}\sum_{j=1}^{n} c_{ij}\big[\frac{-(x_i-\mu_j)^2}{2}\big]\bigg]=& \sum_{i=1}^{n} c_{ik} (x_k+m_k)^2 s_k^2 \text{, combining with (\ref{eq:ELBO:31}), (\ref{eq:ELBO:3}) becomes}\\
 	\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =& m_k + \sum_{i=1}^{n} c_{ik} (x_k+m_k)^2 s_k^2 \numberthis \label{eq:ELBO:3F}	
 \end{align*}
 
