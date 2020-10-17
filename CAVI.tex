@@ -71,7 +71,7 @@ The notation used in this document is defined in Table \ref{table:notation}.
 		\caption{Notation}\label{table:notation}
 		\begin{tabular}{|l|p{12cm}|}\hline
 			Symbol & Meaning \\ \hline
-			$C$&Any additive constant arising during the calculation of $\ELBO$. It can always be discarded, since we are interested in the values of parameters that maximize $\ELBO$, not the value of $\ELBO$. \\ \hline
+			$C$&Any additive constant arising during the calculation of $\ELBO$. It can always be discarded, since we are interested in the values of parameters that maximize $\ELBO$, not the value of $\ELBO$. In some places I have used $C^\prime$, $C^{\prime\prime}$, etc, to indicate different additive constants.\\ \hline
 			$\Expectation_q$& Expectation using distribution $q$ \\ \hline
 			\glssymbol{gls:ELBOterm}&\glsdesc{gls:ELBOterm}\\ \hline
 			$p(\vec{z},\vec{x})$ &Joint density of Observations, $\vec{x}$ and latent variables $\vec{z}$\\ \hline
@@ -101,6 +101,8 @@ Now we know that $\KLD{q(z)}{p(z\mid x)}\ge0$, with equality $iff$ $q=p$, so:
 \begin{align*}
 	\Expectation_q(\log{p(x)})\ge\ELBO[q]
 \end{align*}
+
+The object of \gls{gls:VI} is to find a $q$ that matches $p$ by maximizing $L$.
 
 \section{Coordinate Ascent Variational Inference}
 In this section we derive the \gls{gls:ELBO} for \gls{gls:CAVI}.
@@ -181,11 +183,16 @@ Substituting (\ref{eq:ELBO:33}) in (\ref{eq:ELBO:32})
 
 
 \begin{align*}
-	\sum_{k=1}^K\Expectation\big[\log{q(c_i;\phi_i)}\big] =& \sum_{k=1}^K\frac{1}{s\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg)}\big[\log{q(c_i;\phi_i)}\big] \numberthis \label{eq:ELBO:4}
+	\Expectation\big[\log{q(c_i;\phi_i)}\big] =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg)}\big[\log{q(c_i;\phi_i)}\big]\\
+	=& C \numberthis \label{eq:ELBO:4}
 \end{align*}
 
 \begin{align*}
- 	\sum_{k=1}^K\Expectation \big[\log{q(\mu_k;m_k,s^2_k)}\big] =& \frac{1}{s\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg)} \bigg[\log{q(\mu_k;m_k,s^2_k)} \bigg] d\mu_k \numberthis \label{eq:ELBO:5}
+ 	\Expectation \big[\log{q(\mu_k;m_k,s^2_k)}\big] =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg)} \bigg[\log{q(\mu_k;m_k,s^2_k)} \bigg] d\mu_k \\
+ 	 =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg)} \bigg[- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg] d\mu_k + C\\
+ 	  =& - \frac{1 }{2 s_k^2} \frac{1}{ s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k)^2}{2 s_k^2}\bigg)} \mu_k^2 d\mu_k + C\\
+ 	=& - \frac{s_k^2 }{2 s_k^2} \\
+ 	=& C \numberthis \label{eq:ELBO:5}
 \end{align*}
 
 We now substitute (\ref{eq:ELBO:1}), (\ref{eq:ELBO:2}), (\ref{eq:ELBO:3F}), (\ref{eq:ELBO:4}) and (\ref{eq:ELBO:5}) in (\ref{eq:ELBO_GMM}) 
