@@ -1,6 +1,22 @@
+#    Copyright (C) 2020 Greenweaves Software Limited
+
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# A generic Gibbs sampler based on:
+# Bayesian Inference: Gibbs Sampling -- http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html
+
 import numpy as np
-
-
 
 def gibbs(x,
           E         = 5200,
@@ -25,12 +41,31 @@ def gibbs(x,
 
 if __name__=='__main__':
     from scipy.stats import uniform, gamma, poisson
-    import matplotlib.pyplot as plt
-    
+    import matplotlib.pyplot as plt 
     from numpy import log,exp
     from numpy.random import multinomial
     import os
-    
+
+    def init():
+        return[int(round(uniform.rvs()*N)),
+               gamma.rvs(a,scale=1./b),
+               gamma.rvs(a,scale=1./b)]
+
+    def sample(i,gibbs_sample):
+        if i==0:
+            return gamma.rvs(a+sum(x[0:int(gibbs_sample[2])]),
+                             scale=1./(int(gibbs_sample[2])+b))
+        elif i==1:
+            return gamma.rvs(a+sum(x[int(gibbs_sample[2]):N]), 
+                             scale=1./(N-int(gibbs_sample[2])+b))
+        elif i==2:     
+            mult_n  = np.array([0]*N)
+            for i in range(N):
+                mult_n[i] = sum(x[0:i])*log(gibbs_sample[0]) - i*gibbs_sample[0]\
+                            + sum(x[i:N])*log(gibbs_sample[1]) - (N-i)*gibbs_sample[1]
+            mult_n = exp(mult_n-max(mult_n))
+            return np.where(multinomial(1,mult_n/sum(mult_n),size=1)==1)[1][0]    
+    np.random.seed(123456789)
     N              = 50
     a              = 2
     b              = 1
@@ -43,28 +78,7 @@ if __name__=='__main__':
     lambdas[n:N-1] = [lambda2]*(N-n)
 
     print (f'Change point={n}, lambdas=({lambda1},{lambda2})')    
-    def init():
-        return[int(round(uniform.rvs()*N)),
-               gamma.rvs(a,scale=1./b),
-               gamma.rvs(a,scale=1./b)]
-    
-    def sample(i,gibbs_sample):
-
-        if i==0:
-            n = int(gibbs_sample[2])
-            return gamma.rvs(a+sum(x[0:n]), scale=1./(n+b))
-        elif i==1:
-            n = int(gibbs_sample[2])
-            return gamma.rvs(a+sum(x[n:N]), scale=1./(N-n+b))
-        elif i==2:
-            lambda1 = gibbs_sample[0]
-            lambda2 = gibbs_sample[1]            
-            mult_n = np.array([0]*N)
-            for i in range(N):
-                mult_n[i] = sum(x[0:i])*log(lambda1) - i*lambda1 + sum(x[i:N])*log(lambda2) - (N-i)*lambda2
-            mult_n = exp(mult_n-max(mult_n))
-            n      = np.where(multinomial(1,mult_n/sum(mult_n),size=1)==1)[1][0]
-            return n
+  
  
     x             = poisson.rvs(lambdas)    
     chain         = gibbs(x,init = init, sample= sample)
