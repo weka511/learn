@@ -6,6 +6,7 @@ Experiments in machine learning
 | File  | Remarks |
 |---------------|--------------------------------------------|
 | backprop.py | Train neural network using Backpropagation (just an exercise) |
+|gibb2.py| A generic Gibbs sampler, based on [gibbs.py](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)|
 |learn.bib|Bibliography|
 | learn.wpr | Project file for Wing IDE |
 | mnist-test.py | Tests based on MNIST training set |
