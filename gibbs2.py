@@ -23,19 +23,20 @@ def gibbs(x,
           BURN_IN   = 200,
           frequency = 100,
           init      = lambda : [],
-          sample    = lambda i,gibbs_sample: []):
+          move      = lambda i,sample: [],
+          dtype     = np.dtype(float)):
     
-    gibbs_sample = init()
-    m            = len(gibbs_sample)
-    chain        = np.zeros((E-BURN_IN,m))
-    
+    sample = init()
+    m      = len(sample)
+    chain  = np.zeros((E-BURN_IN,m),dtype=dtype)
+      
     for e in range(E):
         if e%frequency==0:
             print (f'At iteration {e}')
         for i in range(m):
-            gibbs_sample[i]    = sample(i,gibbs_sample)
+            sample[i]    = move(i,sample)
         if e>=BURN_IN:
-            chain[e-BURN_IN,:] = gibbs_sample
+            chain[e-BURN_IN,:] = sample
             
     return chain
 
@@ -51,20 +52,21 @@ if __name__=='__main__':
                gamma.rvs(a,scale=1./b),
                gamma.rvs(a,scale=1./b)]
 
-    def sample(i,gibbs_sample):
+    def move(i,sample):
         if i==0:
-            return gamma.rvs(a+sum(x[0:int(gibbs_sample[2])]),
-                             scale=1./(int(gibbs_sample[2])+b))
+            return gamma.rvs(a+sum(x[0:int(sample[2])]),
+                             scale=1./(int(sample[2])+b))
         elif i==1:
-            return gamma.rvs(a+sum(x[int(gibbs_sample[2]):N]), 
-                             scale=1./(N-int(gibbs_sample[2])+b))
+            return gamma.rvs(a+sum(x[int(sample[2]):N]), 
+                             scale=1./(N-int(sample[2])+b))
         elif i==2:     
             mult_n  = np.array([0]*N)
             for i in range(N):
-                mult_n[i] = sum(x[0:i])*log(gibbs_sample[0]) - i*gibbs_sample[0]\
-                            + sum(x[i:N])*log(gibbs_sample[1]) - (N-i)*gibbs_sample[1]
+                mult_n[i] = sum(x[0:i])*log(sample[0]) - i*sample[0]\
+                            + sum(x[i:N])*log(sample[1]) - (N-i)*sample[1]
             mult_n = exp(mult_n-max(mult_n))
-            return np.where(multinomial(1,mult_n/sum(mult_n),size=1)==1)[1][0]    
+            return np.where(multinomial(1,mult_n/sum(mult_n),size=1)==1)[1][0] 
+        
     np.random.seed(123456789)
     N              = 50
     a              = 2
@@ -81,7 +83,7 @@ if __name__=='__main__':
   
  
     x             = poisson.rvs(lambdas)    
-    chain         = gibbs(x,init = init, sample= sample)
+    chain         = gibbs(x, init = init, move= move)
     chain_lambda1 = chain[:,0]
     chain_lambda2 = chain[:,1]
     chain_n       = chain[:,2]
