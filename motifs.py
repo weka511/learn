@@ -83,10 +83,13 @@ def FindMotifs(k,Dna,
     
 if __name__=='__main__':
     import argparse
+    import logomaker as lm
     import matplotlib.pyplot as plt
     import os
-    
+ 
     result = None
+    expected = []
+    
     parser = argparse.ArgumentParser('Find motifs using Gibbs sampler')
     parser.add_argument('data',        type=str, nargs='?')
     parser.add_argument('--path',      type=str, default = './datasets')
@@ -111,7 +114,6 @@ if __name__=='__main__':
             state    = 0
             k,t,N    = 0,0,0
             Dna      = []
-            expected = []
             for line in input:
                 if state==0:
                     if line.strip()=='Input': continue
@@ -140,6 +142,8 @@ if __name__=='__main__':
     best = np.argmin(scores)
     score,motifs = result[best] 
     
+    plt.figure(figsize=(10,10))
+    plt.subplot(2,1,1)
     plt.hist(scores)
     plt.xlabel('Scores')
     plt.xlim((min(scores)-0.5,max(scores)+0.5))
@@ -147,9 +151,17 @@ if __name__=='__main__':
     plt.savefig(os.path.basename(__file__).split('.')[0] )
  
     motifs.sort()
+ 
+    print ("Motifs")
+    for motif in motifs:
+        print (motif)
+        
     if len(expected)>0:
+        print ('Differences')
         for e,m in zip(expected,motifs):
             if e!=m:
                 print (e,m) 
+    ax=plt.subplot(2,1,2)           
+    lm.Logo(lm.alignment_to_matrix(motifs),ax=ax)
     plt.show()
 
