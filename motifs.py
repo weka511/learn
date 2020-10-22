@@ -142,26 +142,35 @@ if __name__=='__main__':
     best = np.argmin(scores)
     score,motifs = result[best] 
     
-    plt.figure(figsize=(10,10))
-    plt.subplot(2,1,1)
-    plt.hist(scores)
-    plt.xlabel('Scores')
-    plt.xlim((min(scores)-0.5,max(scores)+0.5))
-    plt.xticks(range(min(scores),max(scores)+1))
-    plt.savefig(os.path.basename(__file__).split('.')[0] )
- 
+    f, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(10,10))
+    f.tight_layout(pad=1.0)
+
+    ax1.hist(scores)
+    ax1.set_xlabel('Score')
+    ax1.set_title('Scores')
     motifs.sort()
  
     print ("Motifs")
     for motif in motifs:
         print (motif)
         
-    if len(expected)>0:
-        print ('Differences')
+    if len(expected)>0:  
+        differences = 0
         for e,m in zip(expected,motifs):
             if e!=m:
-                print (e,m) 
-    ax=plt.subplot(2,1,2)           
-    lm.Logo(lm.alignment_to_matrix(motifs),ax=ax)
+                if differences==0:
+                    print ('Differences')
+                print (e,m)
+                differences+=1
+        if differences==0:
+            print ('No differences detected') 
+            
+    lm.Logo(lm.alignment_to_matrix(motifs),ax=ax3)
+    
+    if len(expected)>0:
+        ax4.set_title("Expected")
+        lm.Logo(lm.alignment_to_matrix(expected),ax=ax4)
+    plt.savefig(os.path.basename(__file__).split('.')[0] )
+    
     plt.show()
 
