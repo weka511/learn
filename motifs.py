@@ -20,7 +20,7 @@ import gibbs2 as gibbs
 def FindMotifs(k,Dna,
                cromwell   = 1,
                E          = 5200,
-               BURN_IN    = 200,
+               BURN_IN    = 0,
                frequency  = 100,
                N_CHAINS   = 1):
     Bases = {'A':0, 'C':1, 'G':2, 'T':3}
@@ -82,20 +82,74 @@ def FindMotifs(k,Dna,
     return [create_chain() for _ in range(N_CHAINS)]
     
 if __name__=='__main__':
-    result = FindMotifs(8,
-                        [
-                            'CGCCCCTCTCGGGGGTGTTCAGTAAACGGCCA',
-                            'GGGCGAGGTATGTGTAAGTGCCAAGGTGCCAG',
-                            'TAGTACCGAGACCGAAAGAAGTATACAGGCGT',
-                            'TAGATCAAGTTTCAGGTGCACGTCGGTGAACC',
-                            'AATCCACCAGCTCCACGTGCAATGTTGGCCTA'    
-                            ],
-                        E         = 1000,
-                        BURN_IN   = 0,
-                        frequency = 0,
-                        N_CHAINS  = 25)
+    import argparse
+    import matplotlib.pyplot as plt
+    import os
     
-    for s,motifs in result:
-        print (s)
-        for m in motifs:
-            print (m)
+    result = None
+    parser = argparse.ArgumentParser('Find motifs using Gibbs sampler')
+    parser.add_argument('data',        type=str, nargs='?')
+    parser.add_argument('--path',      type=str, default = './datasets')
+    parser.add_argument('--starts',    type=int, default=20)
+    parser.add_argument('--frequency', type=int, default=0)
+    args   = parser.parse_args()
+    if args.data==None:
+        result = FindMotifs(8,
+                            [
+                                'CGCCCCTCTCGGGGGTGTTCAGTAAACGGCCA',
+                                'GGGCGAGGTATGTGTAAGTGCCAAGGTGCCAG',
+                                'TAGTACCGAGACCGAAAGAAGTATACAGGCGT',
+                                'TAGATCAAGTTTCAGGTGCACGTCGGTGAACC',
+                                'AATCCACCAGCTCCACGTGCAATGTTGGCCTA'    
+                                ],
+                            E         = 1000,
+                            BURN_IN   = 0,
+                            frequency = args.frequency,
+                            N_CHAINS  = args.starts)
+    else:
+        with open(os.path.join(args.path,args.data)) as input:
+            state    = 0
+            k,t,N    = 0,0,0
+            Dna      = []
+            expected = []
+            for line in input:
+                if state==0:
+                    if line.strip()=='Input': continue
+                    data  = line.strip().split()
+                    k     = int(data[0])
+                    t     = int(data[1])
+                    N     = int(data[2])
+                    state = 2
+                elif state==2:
+                    if len(Dna)<t:
+                        Dna.append(line.strip())
+                    else:
+                        state = 3
+                elif state==3:
+                    if line.strip()=='Output': continue
+                    expected.append(line.strip())
+                    
+        expected.sort()            
+        result = FindMotifs(k,
+                            Dna,
+                            E         = N,
+                            frequency = 0,
+                            N_CHAINS  = args.starts)
+    
+    scores = [score for score,_ in result]
+    best = np.argmin(scores)
+    score,motifs = result[best] 
+    
+    plt.hist(scores)
+    plt.xlabel('Scores')
+    plt.xlim((min(scores)-0.5,max(scores)+0.5))
+    plt.xticks(range(min(scores),max(scores)+1))
+    plt.savefig(os.path.basename(__file__).split('.')[0] )
+ 
+    motifs.sort()
+    if len(expected)>0:
+        for e,m in zip(expected,motifs):
+            if e!=m:
+                print (e,m) 
+    plt.show()
+
