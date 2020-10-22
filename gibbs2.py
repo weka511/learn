@@ -17,23 +17,28 @@
 # Bayesian Inference: Gibbs Sampling -- http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html
 
 import numpy as np
+import random
 
 def gibbs(x,
-          E         = 5200,
-          BURN_IN   = 200,
-          frequency = 100,
-          init      = lambda : [],
-          move      = lambda i,sample: [],
-          dtype     = np.dtype(float)):
+          E          = 5200,
+          BURN_IN    = 200,
+          frequency  = 100,
+          init       = lambda : [],
+          move       = lambda i,sample: [],
+          dtype      = np.dtype(float),
+          allindices = True):
     
+    def random_generator(n_items):
+        yield random.randrange(0,n_items)
+        
     sample = init()
     m      = len(sample)
     chain  = np.zeros((E-BURN_IN,m),dtype=dtype)
       
     for e in range(E):
-        if e%frequency==0:
+        if frequency>0 and e%frequency==0:
             print (f'At iteration {e}')
-        for i in range(m):
+        for i in (range(m) if allindices else random_generator(m)):
             sample[i]    = move(i,sample)
         if e>=BURN_IN:
             chain[e-BURN_IN,:] = sample

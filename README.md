@@ -49,6 +49,7 @@ Programs written to understand Variational Inference, based on the following ref
 |cavi1.py|CAVI for Univariate Gaussian from [Univariate Gaussian Example](https://suzyahyah.github.io/bayesian%20inference/machine%20learning/variational%20inference/2019/03/20/CAVI.html)|
 |cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al|
 |em.py|Expectation Maximization|
+|motifs.py|Gibbs sample for finding  Profile-randomly generated k-mer [Implement GibbsSampler](http://rosalind.info/problems/ba2g/)|
 
 
 ## Free Energy
