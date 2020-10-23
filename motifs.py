@@ -101,7 +101,8 @@ if __name__=='__main__':
     parser.add_argument('--path',       type=str, default = './datasets')
     parser.add_argument('--starts',     type=int, default=20)
     parser.add_argument('--frequency',  type=int, default=0)
-    parser.add_argument('--expected', type=str)
+    parser.add_argument('--expected',   type=str)
+    parser.add_argument('--output',     type=str)
     args   = parser.parse_args()
     if args.data==None:
         result = FindMotifs(8,
@@ -155,6 +156,13 @@ if __name__=='__main__':
     best = np.argmin(scores)
     score,motifs = result[best] 
     
+    if args.output:
+        with open(os.path.join(args.path,
+                               get_name_with_extension(args.output)),
+                  'w') as output_file:
+            for motif in motifs:
+                output_file.write(f'{motif}\n')
+            
     f, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(10,10))
     f.tight_layout(pad=1.0)
 
