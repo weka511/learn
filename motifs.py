@@ -186,7 +186,11 @@ if __name__=='__main__':
         if differences==0:
             print ('No differences detected') 
             
-    lm.Logo(lm.alignment_to_matrix(motifs),ax=ax3)
+    alignment_matrix    = lm.alignment_to_matrix(motifs)
+    most_frequent_bases = alignment_matrix.idxmax(axis=1)
+    consensus           = ''.join(most_frequent_bases.tolist())
+    ax1.set_title(consensus)
+    lm.Logo(alignment_matrix,ax=ax3)
     
     if len(expected)>0:
         ax4.set_title("Expected")
