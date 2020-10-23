@@ -87,14 +87,21 @@ if __name__=='__main__':
     import matplotlib.pyplot as plt
     import os
  
+    def get_name_with_extension(name,ext='txt'):
+        if len(os.path.splitext(name)[1])==0:
+            return f'{name}.{ext}'
+        else:
+            return name
+        
     result = None
     expected = []
     
     parser = argparse.ArgumentParser('Find motifs using Gibbs sampler')
-    parser.add_argument('data',        type=str, nargs='?')
-    parser.add_argument('--path',      type=str, default = './datasets')
-    parser.add_argument('--starts',    type=int, default=20)
-    parser.add_argument('--frequency', type=int, default=0)
+    parser.add_argument('data',         type=str, nargs='?')
+    parser.add_argument('--path',       type=str, default = './datasets')
+    parser.add_argument('--starts',     type=int, default=20)
+    parser.add_argument('--frequency',  type=int, default=0)
+    parser.add_argument('--expected', type=str)
     args   = parser.parse_args()
     if args.data==None:
         result = FindMotifs(8,
@@ -110,7 +117,8 @@ if __name__=='__main__':
                             frequency = args.frequency,
                             N_CHAINS  = args.starts)
     else:
-        with open(os.path.join(args.path,args.data)) as input:
+        with open(os.path.join(args.path,
+                               get_name_with_extension(args.data))) as input:
             state    = 0
             k,t,N    = 0,0,0
             Dna      = []
@@ -130,7 +138,12 @@ if __name__=='__main__':
                 elif state==3:
                     if line.strip()=='Output': continue
                     expected.append(line.strip())
-                    
+        
+        if args.expected!=None:
+            with open(os.path.join(args.path,
+                                   get_name_with_extension(args.expected))) as expected_file: 
+                expected = [line.strip() for line in expected_file]
+                
         expected.sort()            
         result = FindMotifs(k,
                             Dna,
