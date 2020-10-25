@@ -170,34 +170,27 @@ From  (\ref{eq:gmm_p})
 \end{align*}
 Whence:
 \begin{align*}
-	\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =& - \frac{1}{2} c_{ij} \sum_{i=1}^{n} \Expectation_q\bigg[\sum_{j=1}^{n} (x_i-\mu_j)^2\bigg] + C \numberthis \label{eq:ELBO:3}
+	\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =& - \frac{1}{2} c_{ij} \sum_{i=1}^{n} \sum_{j=1}^{n} \Expectation_q\bigg[ (x_i-\mu_j)^2\bigg] + C \numberthis \label{eq:ELBO:3}
 \end{align*}
 
-
+I will calculate each term within the summation separately.  
 
 \begin{align*}
-\Expectation_q\big[(x_i-\mu_j)^2\big]
-=&\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}(x_i-\mu_j)^2 d \mu_k\\
-=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}(x_i-\mu_j)^2 d \mu_k\\
-=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}(x_i-\mu_j)^2 d \mu_k + C\\
-=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}[x_i-(\mu_k+m_k)]^2 d \mu_k + C^\prime \\
-=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}[(x_i-m_k)-\mu_k)]^2 d \mu_k\\
-=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}\big[(x_i-m_k)^2-2(x_i-m_k)\mu_k+\mu_k^2\big] d \mu_k\\
-=& (x_i-m_k)^2 + s_k^2 \text{, from Lemma \ref{lemma:gaussian}}\numberthis \label{eq:ELBO:32}
+	\Expectation_q\big[(x_i-\mu_j)^2\big]
+	=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}(x_i-\mu_k)^2 d \mu_k + C\\
+	=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}[x_i-(\mu_k+m_k)]^2 d \mu_k + C^\prime \\
+	=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}[(x_i-m_k)-\mu_k)]^2 d \mu_k\\
+	=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}\big[(x_i-m_k)^2-2(x_i-m_k)\mu_k+\mu_k^2\big] d \mu_k\\
+	=& (x_i-m_k)^2 + s_k^2 \text{, from Lemma \ref{lemma:gaussian}, so  (\ref{eq:ELBO:3}) yields}\\
+	\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =&  -\frac{1}{2} \sum_{i=k}^{n} c_{ik} \big[s_k^2 + (x_k-m_k)^2 \big] \numberthis \label{eq:ELBO:3F}
 \end{align*}
-
-
-Substituting (\ref{eq:ELBO:32}) in (\ref{eq:ELBO:3})
+$\prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i)$
 \begin{align*}
-		\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =& \Expectation_q\bigg[\sum_{i=1}^{n}\sum_{j=1}^{n} c_{ij}\big[\frac{-(x_i-\mu_j)^2}{2}\big]\bigg]\\=& -\frac{1}{2} \sum_{i=1}^{n} c_{ik} \big[s_k^2 + (x_k-m_k)^2 \big] \numberthis \label{eq:ELBO:3F}
-\end{align*}
-
-\begin{align*}
-	\Expectation\big[\log{q(c_i;\phi_i)}\big] =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg)}\big[\log{q(c_i;\phi_i)}\big]\\
+	\Expectation_q\big[\log{q(c_i;\phi_i)}\big] =& \prod_{i=1}^{n}q(c_i;\phi_i) \big[\log{q(c_i;\phi_i)}\big]\\
 	=& C \numberthis \label{eq:ELBO:4}
 \end{align*}
 
-\begin{align*}
+\begin{align*} 
  	\Expectation \big[\log{q(\mu_k;m_k,s^2_k)}\big] =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg)} \bigg[\log{q(\mu_k;m_k,s^2_k)} \bigg] d\mu_k \\
  	 =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg)} \bigg[- \frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg] d\mu_k + C\\
  	  =& - \frac{1 }{2 s_k^2} \frac{1}{ s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg(- \frac{(\mu_k)^2}{2 s_k^2}\bigg)} \mu_k^2 d\mu_k + C\\
