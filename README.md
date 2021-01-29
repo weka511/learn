@@ -5,6 +5,7 @@ Experiments in machine learning
 
 | File  | Remarks |
 |---------------|--------------------------------------------|
+|hpa-scc|Human Protein Atlas - Single Cell Classification (kaggle)|
 | backprop.py | Train neural network using Backpropagation (just an exercise) |
 |gibb2.py| A generic Gibbs sampler, based on [gibbs.py](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)|
 |learn.bib|Bibliography|
