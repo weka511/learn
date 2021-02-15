@@ -1,4 +1,4 @@
-# https://www.tensorflow.org/tutorials/keras/classification
+# Faskion Items Demo -- https://www.tensorflow.org/tutorials/keras/classification
 import tensorflow
 from tensorflow import keras
 from tensorflow.keras import Sequential,regularizers

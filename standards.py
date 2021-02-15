@@ -15,7 +15,8 @@
 
 # Functions to look up reference standards
 
-import os, re
+import os
+import re
 
 # create_standards
 #

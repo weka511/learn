@@ -13,12 +13,15 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+import argparse
 import fcsparser
+
+from matplotlib import rc
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.stats as stats
-import os
+import os 
 import re
+import scipy.stats as stats
 
 
 #  get_bounds
@@ -111,16 +114,86 @@ def consolidate(n,bins,minimum=5):
         bins1[-1]=bins[-1] 
     return n1,bins1
 
+# fcs
+#
+# A generator: it allows us to iterate through plates and wells
+
+def fcs(root,
+        plate = 'all',
+        wells = 'all',
+        locations = [
+            'Albuquerque',
+            'London',
+            'Melbourne',
+            'NewDelhi']):
+    def parse_wells():
+        if isinstance(wells,str) or len(wells)==1:
+            return (re.compile(
+                          '.*([A-H][1]?[0-9]).fcs'  if wells=='all'       else \
+                          '.*([A-H]12).fcs'         if wells== 'controls' else \
+                          '.*([GH]12).fcs' ) ,       # GCPs
+                    [])
+        else:
+            re_w = re.compile('.*([A-H][1]?[0-9])')
+            for w in wells:
+                if not re_w.match(w):
+                    raise Exception(f'{w} is not a valid well')            
+            return (re.compile('.*([A-H][1]?[0-9]).fcs'),wells)
+        
+ 
+
+    # get_well
+    #
+    # Used to extract well number from file name
+    
+    def get_well(file_name):
+        match   = re_wells.match(file_name)
+        matched = match and (len(well_list)==0 or match.group(1) in well_list)
+        return match.group(1) if matched else None
+    
+    def get_location(path):
+        for component in path:
+            if component in locations:
+                return component
+    
+    # gcps_first
+    #
+    # Used to sort wells so GCPs come first (as we may want some data from GCPs before we process other wells)
+    def gcps_first(couple):
+        _,well_name = couple
+        if well_name == 'G12': return -2
+        if well_name == 'H12': return -1
+        row    = ord(well_name[0])-ord('A')
+        column = int(well_name[1:])
+        return 12 * row + column
+    
+    re_plate =  re.compile('.*(((PAP)|(RTI))[A-Z]*[0-9]+[r]?)')
+    
+    re_wells,well_list = parse_wells() 
+    
+    for root, dirs, files in os.walk(root):   
+        path     = root.split(os.sep)
+        match    = re_plate.match(path[-1])
+        location = get_location(path)
+        if match:
+            this_plate = match.group(1)
+            if plate == 'all' or 'all' in plate or this_plate in plate:
+                for file,well in sorted([(file,get_well(file)) for file in files if get_well(file) != None],
+                                     key = gcps_first):
+                    path     = os.path.join(root,file)
+                    meta, df = fcsparser.parse(path, reformat_meta=True)
+                    yield this_plate,well,df,meta,location
+                if this_plate in plate: return
+                
 if __name__=='__main__':
-    import os, re, argparse
-    from matplotlib import rc
+
     rc('text', usetex=True)
     
     parser = argparse.ArgumentParser('Plot GCP wells')
     parser.add_argument('-r','--root',default=r'\data\cytoflex\Melbourne')
     parser.add_argument('-p','--plate',nargs='+',default='all')
     args   = parser.parse_args()
-    
+
     for root, dirs, files in os.walk(args.root):
         path  = root.split(os.sep)
         match = re.match('.*(((PAP)|(RTI))[A-Z]*[0-9]+)',path[-1])

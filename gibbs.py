@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy import log,exp
 from numpy.random import multinomial
+import os
 
 # Gibbs sampler
 def gibbs(x, E = 5200, BURN_IN = 200,  frequency=100):
@@ -92,5 +93,5 @@ ax4.set_title('$\lambda_2$')
 ax5.hist(chain_n,50)
 ax5.set_title('n')
 ax5.set_xlim([1,50])
-
+plt.savefig(os.path.basename(__file__).split('.')[0] )
 plt.show()

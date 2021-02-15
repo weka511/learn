@@ -99,3 +99,30 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+
+# Jabref
+*.bib.bak
+*.bib.sav
+
+# Tex stuff
+*.aux
+*.fff
+*.bbl
+*.blg
+*.synctex.gz
+
+*.toc
+*.loe
+*.lof
+*.lot
+*.glo
+*.ist
+*.out
+*.acn
+*.acr
+*.alg
+*.glg
+*.gls
+*.glsdefs
+*.loa

@@ -122,7 +122,30 @@ def create_model(args, num_classes = 5):
 
       
     return product
-
+ # product = Sequential(
+        # purgeNones([
+            # Rescaling(1./255),
+            # Conv2D(32, 11, activation='relu'),
+            # MaxPooling2D(),
+            # Conv2D(32, 5, activation='relu'),
+            # MaxPooling2D(),
+            # Conv2D(32, 3, activation='relu'),
+            # MaxPooling2D(),
+            # Conv2D(32, 3, activation='relu'),
+            # MaxPooling2D(),
+            # Conv2D(32, 3, activation='relu'),
+            # MaxPooling2D(),
+            # Flatten(),
+            # Dropout(args.dropout) if args.dropout else None,
+            # Dense(128,
+                  # activation='relu',
+                  # kernel_regularizer=create_regularizer()),
+            # Dense(128,
+                  # activation='relu',
+                  # kernel_regularizer=create_regularizer()),
+            # Dropout(args.dropout) if args.dropout else None,
+            # Dense(num_classes)
+    # ]))  
 
 # scheduler
 #

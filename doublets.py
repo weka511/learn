@@ -13,16 +13,23 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+import argparse
 import fcsparser
-import fcs 
-import numpy as np
+import fcs
 import math
+import matplotlib.pyplot as plt
+from   matplotlib import rc
+from   mpl_toolkits.mplot3d import Axes3D
+import numpy as np
+import os
+import random
+import re
 from scipy.stats import multivariate_normal
-    
+import sys
+import emm
+
 if __name__=='__main__':
-    import os, re, argparse,sys,matplotlib.pyplot as plt,random,em
-    from matplotlib import rc
-    from mpl_toolkits.mplot3d import Axes3D
+    
     rc('text', usetex=True)
     
     parser   = argparse.ArgumentParser('Fit Gaussian Mixture Model to GCP wells')
@@ -116,7 +123,7 @@ if __name__=='__main__':
                             Sigmas = [np.cov([xs,ys,zs],rowvar=True),
                                       np.cov([xs,ys,zs],rowvar=True)]
   
-                            outcome,likelihoods,ws,alphas,mus,Sigmas = em.maximize_likelihood(
+                            outcome,likelihoods,ws,alphas,mus,Sigmas = emm.maximize_likelihood(
                                                                            xs,ys,zs,
                                                                            mus=mus,
                                                                            Sigmas=Sigmas,

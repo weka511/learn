@@ -14,14 +14,21 @@
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
 
+import argparse
 
-from scipy import stats
-import fcsparser
+import re
 import math
+from matplotlib import rc
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 import numpy as np
+import os
+from scipy import stats
 from scipy.stats import multivariate_normal
-import em
+import sys
+
 import fcs
+import fcsparser
 import gcps
 import standards
 
@@ -116,14 +123,6 @@ def get_distance(pt,mu,Sigma,d=3):
     return math.sqrt(sum([(pt[i]-mu[i]) * Sigma[i][j] * (pt[j]-mu[j]) for i in range(d) for j in range(d)]))
 
 if __name__=='__main__':
-    import argparse
-    import sys
-    import os
-    import re
-    from matplotlib import rc
-    from mpl_toolkits.mplot3d import Axes3D
-    import matplotlib.pyplot as plt
-    
     rc('text', usetex=True)
     
     parser   = argparse.ArgumentParser('Fit Gaussian Mixture Model to GCP wells')
