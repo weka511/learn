@@ -43,11 +43,19 @@ Experiments in machine learning
 |tf1.py|[Tensorflow Tutorial](https://www.tensorflow.org/tutorials/quickstart/beginner)|
 |tf2.py|Modification of tf1 to use Convolutional layer|
 
+
+## Pytorch Learnings
+
+| File  | Remarks |
+|---------------|--------------------------------------------|
+|torch-nn.py|[train](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)|
+|torch-nn1.py|[test](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)|
+
 ## Variational Inference
 
 Programs written to understand Variational Inference, based on the following references:
  * [David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians](http://www.cs.columbia.edu/~blei/fogm/2018F/materials/BleiKucukelbirMcAuliffe2017.pdf)
- 
+
 | File  | Remarks |
 |---------------|-------------------------------------------------------------------------------------------|
 |cavi1.py|CAVI for Univariate Gaussian from [Univariate Gaussian Example](https://suzyahyah.github.io/bayesian%20inference/machine%20learning/variational%20inference/2019/03/20/CAVI.html)|
