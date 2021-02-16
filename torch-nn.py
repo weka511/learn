@@ -82,6 +82,8 @@ if __name__=='__main__':
     net       = Net()
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum)
+    losses    = []
+
     for epoch in range(args.n):  # loop over the dataset multiple times
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
@@ -99,11 +101,15 @@ if __name__=='__main__':
             if i % 2000 == 1999:    # print every 2000 mini-batches
                 print('[%d, %5d] loss: %.3f' %
                       (epoch + 1, i + 1, running_loss / 2000))
+                losses.append(running_loss/2000)
                 running_loss = 0.0
 
     print('Finished Training')
     PATH = './cifar_net.pth'
     torch.save(net.state_dict(), PATH)
 
-    if args.show:
-        plt.show()
+    fig = plt.figure(figsize=(10,10))
+    plt.plot(losses)
+    plt.title('Training Loss')
+
+    plt.show()
