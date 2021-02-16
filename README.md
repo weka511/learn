@@ -43,7 +43,6 @@ Experiments in machine learning
 | File  | Remarks |
 |---------------|--------------------------------------------|
 |torch-nn.py|[train](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)|
-|torch-nn1.py|[test](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)|
 
 ## Variational Inference
 

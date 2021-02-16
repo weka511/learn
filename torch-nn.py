@@ -67,8 +67,19 @@ def train(args,trainloader):
     plt.plot(losses)
     plt.title('Training Loss')
 
-def test(args,testloader):
+def test(args):
 
+    testset     = torchvision.datasets.CIFAR10(root  = './data',
+                                           train     = False,
+                                           download  = True,
+                                           transform = transform)
+
+    testloader = torch.utils.data.DataLoader(testset,
+                                             batch_size  = 4,
+                                             shuffle     = False,
+                                             num_workers = 0)
+
+    classes    = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
     dataiter = iter(testloader)
     images, labels = dataiter.next()
 
@@ -142,17 +153,7 @@ if __name__=='__main__':
                                               shuffle     = True,
                                               num_workers = 0)
 
-    testset     = torchvision.datasets.CIFAR10(root  = './data',
-                                           train     = False,
-                                           download  = True,
-                                           transform = transform)
 
-    testloader = torch.utils.data.DataLoader(testset,
-                                             batch_size  = 4,
-                                             shuffle     = False,
-                                             num_workers = 0)
-
-    classes    = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
     if args.show:
         # get some random training images
@@ -168,6 +169,6 @@ if __name__=='__main__':
         train(args,trainloader)
 
     if args.test:
-        test(args,testloader)
+        test(args)
 
     plt.show()
