@@ -85,15 +85,12 @@ if __name__=='__main__':
     for epoch in range(args.n):  # loop over the dataset multiple times
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
-            # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data
-
-            # zero the parameter gradients
-            optimizer.zero_grad()
+            inputs, labels = data # get the inputs; data is a list of [inputs, labels]
+            optimizer.zero_grad()  # zero the parameter gradients
 
             # forward + backward + optimize
             outputs = net(inputs)
-            loss = criterion(outputs, labels)
+            loss    = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
 
