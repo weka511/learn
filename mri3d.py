@@ -1,4 +1,5 @@
-from matplotlib.pyplot import axes, cm, figure, savefig, show, title
+from argparse          import ArgumentParser
+from matplotlib.pyplot import axes, close, cm, figure, savefig, show, title
 from pydicom           import dcmread
 from os                import sep, listdir, walk
 from os.path           import join, normpath
@@ -22,12 +23,11 @@ class MRI_Series:
             m = match(r'\D*(\d+)\D+',s)
             if m:
                 return int(m.group(1))
-        self.dirpath = dirpath
-        seqs         = sorted([extract_digits(name) for name in filenames])
-        self.N       = seqs[-1]
-        self.missing_images = set([i for i in range(1,self.N) if i not in seqs])
-        # if len(seqs) + seqs[0] -1 < self.N:
-            # self.missing_images = set([i+1 for i in range(seqs[-1]) if i+1 not in seqs])
+
+        self.dirpath          = dirpath
+        seqs                  = sorted([extract_digits(name) for name in filenames])
+        self.N                = seqs[-1]
+        self.missing_images   = set([i for i in range(1,self.N) if i not in seqs])
         dcim                  = dcmread(join(dirpath,filenames[0]))
         self.image_plane      = self.get_image_plane(dcim.ImageOrientationPatient)
         self.description      = dcim.SeriesDescription
@@ -78,8 +78,6 @@ class MRI_Study:
                 path_components = normpath(dirpath).split(sep)
                 series = self.series[path_components[-1]]
                 series.add_images(dirpath,filenames)
-                # if len(series.missing_images)>0:
-                    # warn(f'Study {name} {series.name} has images missing: {series.missing_images}')
 
     def get_series(self):
         for name in ['FLAIR', 'T1w', 'T1wCE', 'T2w']:
@@ -132,15 +130,26 @@ def plot_orbit(study):
     title(dcim.PatientID)
     ax.legend()
     savefig(f'{dcim.PatientID}')
+    return fig
 
 if __name__=='__main__':
-    training = Labelled_MRI_Dataset(r'D:\data\rsna','train')
-    # test     = MRI_Dataset(r'D:\data\rsna','test')
-    # plot_orbit(training.studies['00000'])
-    # show()
-    for study in training.get_studies():
-        image_planes = study.get_image_planes()
-        if len(set(image_planes))==1:
-            print (study, image_planes[0])
-            plot_orbit(study)
-    show()
+
+    parser = ArgumentParser()
+    parser.add_argument('--path',   default=r'D:\data\rsna')
+    parser.add_argument('--output', default='unique.csv')
+    parser.add_argument('--show',   default=False, action='store_true')
+    args = parser.parse_args()
+
+    training = Labelled_MRI_Dataset(args.path,'train')
+    with open(args.output,'w') as out:
+        for study in training.get_studies():
+            image_planes = study.get_image_planes()
+            if len(set(image_planes))==1:
+                print (study, image_planes[0])
+                out.write(f'{study}, {image_planes[0]}\n')
+                fig = plot_orbit(study)
+                if not args.show:
+                    close(fig)
+                break
+    if args.show:
+        show()
