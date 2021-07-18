@@ -150,6 +150,6 @@ if __name__=='__main__':
                 fig = plot_orbit(study)
                 if not args.show:
                     close(fig)
-                break
+
     if args.show:
         show()
