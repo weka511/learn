@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-from numpy import array, copy, dot, equal, fill_diagonal, outer, zeros
+from numpy  import array, copy, dot, equal, fill_diagonal, outer, zeros
 from random import shuffle
 
 def theta(x):
@@ -32,12 +32,12 @@ class Hopfield:
         print (self.W)
 
     def evaluate(self,y):
-        y0 = copy(y)
+        y0   = copy(y)
         y1,E = self.step(y0)
         Es   = [E]
         while True:
             if equal(y1,y0).all(): return y0,Es
-            y0 = copy(y1)
+            y0   = copy(y1)
             y1,E = self.step(y0)
             Es.append(E)
 
@@ -49,16 +49,35 @@ class Hopfield:
             product = theta(dot(self.W[i,:],y))
             if y[i]*product < 0:
                 deltaE += y[i]*product
-                y[i]*=-1
+                y[i]   *= -1
         return y,deltaE
 
+    def get_energy(self,y):
+        return - dot(y,dot(y,self.W))
+
+def gray(N):
+    k = 1
+    g=[[0],[1]]
+    while k < N:
+        g = [[0] + gg for gg in g] + [[1] + gg for gg in g[::-1]]
+        k+= 1
+    return g
+
+
 if __name__=='__main__':
+
     hopfield = Hopfield(9)
     hopfield.store(array([ 1, -1,  1, -1, 1, -1,  1, -1,  1]))
     hopfield.store(array([ 1,  1, -1, -1, 1,  1, -1, -1,  1]))
     hopfield.store(array([-1,  1, -1, -1, 1, -1, -1,  1, -1]))
     hopfield.zero_diagonal()
+    print(hopfield.get_energy([ 1, -1,  1, -1, 1, -1,  1, -1,  1]))
+    print(hopfield.get_energy([ 1,  1, -1, -1, 1,  1, -1, -1,  1]))
+    print(hopfield.get_energy([-1,  1, -1, -1, 1, -1, -1,  1, -1]))
+    for gg in gray(9):
+        y = [-1 + 2*x for x in gg]
+        print (y, hopfield.get_energy(y))
 
-    y = array([1, 1, 1, 1, 1, 1, 1, 1, 1])
-    print (hopfield.evaluate(y))
-
+    y0 = array([1, 1, 1, 1, 1, 1, 1, 1, 1])
+    y, dE = hopfield.evaluate(y.copy())
+    print (y,dE, hopfield.get_energy(y), hopfield.get_energy(y0))
