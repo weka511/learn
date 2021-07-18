@@ -25,17 +25,18 @@ class MRI_Series:
         self.dirpath = dirpath
         seqs         = sorted([extract_digits(name) for name in filenames])
         self.N       = seqs[-1]
-        if len(seqs) + seqs[0] -1 < self.N:
-            self.missing_images = set([i+1 for i in range(seqs[-1]) if i+1 not in seqs])
+        self.missing_images = set([i for i in range(1,self.N) if i not in seqs])
+        # if len(seqs) + seqs[0] -1 < self.N:
+            # self.missing_images = set([i+1 for i in range(seqs[-1]) if i+1 not in seqs])
         dcim                  = dcmread(join(dirpath,filenames[0]))
         self.image_plane      = self.get_image_plane(dcim.ImageOrientationPatient)
         self.description      = dcim.SeriesDescription
         self.patient_position = dcim.PatientPosition
 
-    def images(self):
+    def dcmread(self,stop_before_pixels=False):
         for i in range(1,len(self)+1):
             if i not in self.missing_images:
-                yield  dcmread(join(self.dirpath,f'Image-{i}.dcm'))
+                yield  dcmread(join(self.dirpath,f'Image-{i}.dcm'),stop_before_pixels=stop_before_pixels)
 
     # get_image_plane
     #
@@ -68,7 +69,8 @@ class MRI_Series:
 
 class MRI_Study:
     def __init__(self,name,path):
-        self.series = None
+        self.series        = None
+        self.name          = name
         for dirpath, dirnames, filenames in walk(path):
             if self.series == None:
                 self.series = {series_name: MRI_Series(series_name) for series_name in dirnames}
@@ -76,16 +78,30 @@ class MRI_Study:
                 path_components = normpath(dirpath).split(sep)
                 series = self.series[path_components[-1]]
                 series.add_images(dirpath,filenames)
-                if len(series.missing_images)>0:
-                    warn(f'Study {name} {series.name} has images missing: {series.missing_images}')
+                # if len(series.missing_images)>0:
+                    # warn(f'Study {name} {series.name} has images missing: {series.missing_images}')
 
     def get_series(self):
         for name in ['FLAIR', 'T1w', 'T1wCE', 'T2w']:
             yield self.series[name]
 
+    def get_image_planes(self):
+        def get_image_plane(series):
+            path_name   = next(series.image_files())
+            dcim        = dcmread(path_name,stop_before_pixels=True)
+            return  series.get_image_plane(dcim.ImageOrientationPatient)
+        return [get_image_plane(series)  for series in self.series.values()]
+
+    def __str__(self):
+        return self.name
+
 class MRI_Dataset:
     def __init__(self,path,folder):
         self.studies = {name:MRI_Study(name,join(path,folder,name)) for name in listdir(join(path,folder))}
+
+    def get_studies(self):
+        for study in self.studies.values():
+            yield study
 
 class Labelled_MRI_Dataset(MRI_Dataset):
     def __init__(self,path,folder,labels='train_labels.csv'):
@@ -101,7 +117,7 @@ def plot_orbit(study):
         ys = []
         zs = []
         s  = []
-        for dcim in series.images():
+        for dcim in series.dcmread():
             xs.append(dcim.ImagePositionPatient[0] )
             ys.append(dcim.ImagePositionPatient[1] )
             zs.append(dcim.ImagePositionPatient[2] )
@@ -119,6 +135,12 @@ def plot_orbit(study):
 
 if __name__=='__main__':
     training = Labelled_MRI_Dataset(r'D:\data\rsna','train')
-    test     = MRI_Dataset(r'D:\data\rsna','test')
-    plot_orbit(training.studies['00000'])
+    # test     = MRI_Dataset(r'D:\data\rsna','test')
+    # plot_orbit(training.studies['00000'])
+    # show()
+    for study in training.get_studies():
+        image_planes = study.get_image_planes()
+        if len(set(image_planes))==1:
+            print (study, image_planes[0])
+            plot_orbit(study)
     show()
