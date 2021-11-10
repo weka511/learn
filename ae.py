@@ -1,11 +1,12 @@
 # snarfed from https://medium.com/pytorch/implementing-an-autoencoder-in-pytorch-19baa22647d1
 
-from matplotlib.pyplot      import figure, show
+from matplotlib.pyplot      import figure, imshow, show, title
 from argparse               import ArgumentParser
-from torch                  import device, relu
+from torch                  import device, no_grad, relu
 from torch.cuda             import is_available
 from torch.nn               import Linear, Module, MSELoss
 from torch.optim            import Adam
+from torchvision.utils      import make_grid
 from torch.utils.data       import DataLoader
 from torchvision.datasets   import MNIST
 from torchvision.transforms import Compose, ToTensor
@@ -39,6 +40,7 @@ if __name__=='__main__':
                         type    = int,
                         default = 25,
                         help    = 'Number of Epochs')
+
     args          = parser.parse_args()
     dev           = device("cuda" if is_available() else "cpu")
     model         = AutoEncoder(input_shape=784).to(dev)
@@ -70,8 +72,8 @@ if __name__=='__main__':
         for batch_features, _ in train_loader:
             batch_features = batch_features.view(-1, 784).to(dev)
             optimizer.zero_grad()
-            outputs = model(batch_features)
-            train_loss = criterion(outputs, batch_features)
+            outputs        = model(batch_features)
+            train_loss     = criterion(outputs, batch_features)
             train_loss.backward()
             optimizer.step()
             loss += train_loss.item()
@@ -83,4 +85,16 @@ if __name__=='__main__':
     ax  = fig.subplots()
     ax.plot(Losses)
     ax.set_ylim(bottom=0)
+    ax.set_title(f'Losses after {args.N} epochs')
+    ax.set_ylabel('MSELoss')
+
+    fig           = figure(figsize=(10,10))
+    with no_grad():
+        for batch_features, _ in test_loader:
+            batch_features = batch_features.view(-1, 784).to(dev)
+            outputs        = model(batch_features)
+            images         = outputs.view(-1,1,28,28)
+            imshow(make_grid(images).permute(1, 2, 0))
+            title(f'Reconstructed images after {args.N} epochs')
+
     show()
