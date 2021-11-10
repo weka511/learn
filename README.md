@@ -3,23 +3,24 @@ Experiments in machine learning
 
 ## General
 
- File  | Remarks 
+ File  | Remarks
 ---------------|--------------------------------------------
- backprop.py | Train neural network using Backpropagation (just an exercise) 
+ae.py|Simple autoencoder tutorial
+backprop.py | Train neural network using Backpropagation (just an exercise)
 gibb2.py| A generic Gibbs sampler, based on [gibbs.py](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 hopfield.py | Hopfield network
 learn.bib|Bibliography
- learn.wpr | Project file for Wing IDE 
- mnist-test.py | Tests based on MNIST training set 
- test.py  | Test network against MNIST test dataset 
- train.py      | Train network using MNIST data 
+ learn.wpr | Project file for Wing IDE
+ mnist-test.py | Tests based on MNIST training set
+ test.py  | Test network against MNIST test dataset
+ train.py      | Train network using MNIST data
 
 ## Imported from elsewhere
 
- File  | Remarks 
+ File  | Remarks
 -------------------------|------------------------------------------------------------------------------------
  bayes1.py |Simple  demo for pymc3-Code from [Estimating Probabilities with Bayesian Modeling in Python](https://towardsdatascience.com/estimating-probabilities-with-bayesian-modeling-in-python-7144be007815)
- gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html) 
+ gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
  mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
  naive.py | Code from [How to Develop a Naive Bayes Classifier from Scratch in Python](https://machinelearningmastery.com/classification-as-conditional-probability-and-the-naive-bayes-algorithm/)
 UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
@@ -31,7 +32,7 @@ UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
 ---------------|--------------------------------------------
 catdog1.py|Load data from cat and dog training set, after [How to Classify Photos of Dogs and Cats (with 97% accuracy)](https://machinelearningmastery.com/how-to-develop-a-convolutional-neural-network-to-classify-photos-of-dogs-and-cats/)
 fashion.py| [Fashion items demo](https://www.tensorflow.org/tutorials/keras/classification)
-flowers.py|Script to read data and train--combination of Lenet5 and getdata 
+flowers.py|Script to read data and train--combination of Lenet5 and getdata
 getdata.py|Script to read data and train (demo/tutorial)
 LeNet5.py|LeNet-5 CNN in keras
 losses.R|Plot loss and accuracy for Training and Validation data from logfiles
@@ -80,7 +81,7 @@ Apply machine learning to Flow Cytometry data
 ---------------|--------------------------------------------|----------
 doublets.py |Remove doublets from GCPs and denoise data|emm
 em.py|Expectation Maximization--[Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning, Padhraic Smyth ](https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf)
-fcs.py|Investigate fitting normal curves to scattering. Also serves as a repository for common code 
+fcs.py|Investigate fitting normal curves to scattering. Also serves as a repository for common code
 fcsWidths.py|Plot FSC Width. Remove doublets from GCP wells, and perform regression on Red.|fcs gcps standards
 gcps.py|Model GCPs with Gaussian Mixture Model |emm standards
 partition.py|Partition data using G12/H12|em fcs gcps standards
