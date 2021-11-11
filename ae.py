@@ -3,9 +3,9 @@
 from matplotlib.pyplot      import close, figure, imshow, savefig, show, title
 from argparse               import ArgumentParser
 from os.path                import join
-from torch                  import device, no_grad, relu
+from torch                  import device, no_grad
 from torch.cuda             import is_available
-from torch.nn               import Linear, Module, MSELoss, Sequential
+from torch.nn               import Linear, Module, MSELoss, ReLU, Sequential
 from torch.optim            import Adam
 from torchvision.utils      import make_grid
 from torch.utils.data       import DataLoader
@@ -13,38 +13,35 @@ from torchvision.datasets   import MNIST
 from torchvision.transforms import Compose, ToTensor
 
 class AutoEncoder(Module):
+
+    @staticmethod
+    def build_layer(sizes,
+                    non_linearity = None):
+        linears = [Linear(m,n) for m,n in zip(sizes[:-1],sizes[1:])]
+        if non_linearity==None:
+            return Sequential(*linears)
+        else:
+            return Sequential(*[item for pair in [(layer,non_linearity) for layer in linears] for item in pair])
+
     def __init__(self,
-                 input_shape   = 784,
-                 encoder_sizes = [28*28,400,200,100,50,25,6],
-                 decoder_sizes = None):
+                 encoder_sizes         = [28*28,400,200,100,50,25,6],
+                 encoder_non_linearity = None,
+                 decoder_sizes         = None,
+                 decoder_non_linearity = ReLU(inplace=True)):
         super().__init__()
         if decoder_sizes==None:
             decoder_sizes = encoder_sizes[::-1]
 
-        self.encoder = Sequential(*[Linear(m,n) for m,n in zip(encoder_sizes[:-1],encoder_sizes[1:])])
-        self.decoder = Sequential(*[Linear(m,n) for m,n in zip(decoder_sizes[:-1],decoder_sizes[1:])])
-        # self.layers  = Sequential(*(self.encoder + self.decoder))
-        # self.encoder_hidden_layer = Linear(in_features  = input_shape,
-                                           # out_features = 128)
-        # self.encoder_output_layer = Linear(in_features  = 128,
-                                           # out_features = 64)
-        # self.decoder_hidden_layer = Linear(in_features  = 64,
-                                           # out_features = 128)
-        # self.decoder_output_layer = Linear(in_features  = 128,
-                                           # out_features = input_shape)
+        self.encoder = AutoEncoder.build_layer(encoder_sizes,
+                                               non_linearity = encoder_non_linearity)
+        self.decoder = AutoEncoder.build_layer(decoder_sizes,
+                                               non_linearity = decoder_non_linearity)
+
 
     def forward(self, x):
         x = self.encoder(x)
         return self.decoder(x)
-        # activation    = self.encoder_hidden_layer(features)
-        # activation    = relu(activation)
-        # code          = self.encoder_output_layer(activation)
-        # code          = relu(code)
-        # activation    = self.decoder_hidden_layer(code)
-        # activation    = relu(activation)
-        # activation    = self.decoder_output_layer(activation)
-        # reconstructed = relu(activation)
-        # return reconstructed
+
 
 def train(loader,model,optimizer,criterion,
           N   = 25,
@@ -123,7 +120,7 @@ def parse_args():
 if __name__=='__main__':
     args          = parse_args()
     dev           = device("cuda" if is_available() else "cpu")
-    model         = AutoEncoder(input_shape=784).to(dev)
+    model         = AutoEncoder().to(dev)
     optimizer     = Adam(model.parameters(), lr=args.lr)
     criterion     = MSELoss()
     transform     = Compose([ToTensor()])
