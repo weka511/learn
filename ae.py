@@ -5,7 +5,7 @@ from argparse               import ArgumentParser
 from os.path                import join
 from torch                  import device, no_grad, relu
 from torch.cuda             import is_available
-from torch.nn               import Linear, Module, MSELoss
+from torch.nn               import Linear, Module, MSELoss, Sequential
 from torch.optim            import Adam
 from torchvision.utils      import make_grid
 from torch.utils.data       import DataLoader
@@ -13,27 +13,38 @@ from torchvision.datasets   import MNIST
 from torchvision.transforms import Compose, ToTensor
 
 class AutoEncoder(Module):
-    def __init__(self, input_shape=784):
+    def __init__(self,
+                 input_shape   = 784,
+                 encoder_sizes = [28*28,400,200,100,50,25,6],
+                 decoder_sizes = None):
         super().__init__()
-        self.encoder_hidden_layer = Linear(in_features  = input_shape,
-                                           out_features = 128)
-        self.encoder_output_layer = Linear(in_features  = 128,
-                                           out_features = 64)
-        self.decoder_hidden_layer = Linear(in_features  = 64,
-                                           out_features = 128)
-        self.decoder_output_layer = Linear(in_features  = 128,
-                                           out_features = input_shape)
+        if decoder_sizes==None:
+            decoder_sizes = encoder_sizes[::-1]
 
-    def forward(self, features):
-        activation    = self.encoder_hidden_layer(features)
-        activation    = relu(activation)
-        code          = self.encoder_output_layer(activation)
-        code          = relu(code)
-        activation    = self.decoder_hidden_layer(code)
-        activation    = relu(activation)
-        activation    = self.decoder_output_layer(activation)
-        reconstructed = relu(activation)
-        return reconstructed
+        self.encoder = Sequential(*[Linear(m,n) for m,n in zip(encoder_sizes[:-1],encoder_sizes[1:])])
+        self.decoder = Sequential(*[Linear(m,n) for m,n in zip(decoder_sizes[:-1],decoder_sizes[1:])])
+        # self.layers  = Sequential(*(self.encoder + self.decoder))
+        # self.encoder_hidden_layer = Linear(in_features  = input_shape,
+                                           # out_features = 128)
+        # self.encoder_output_layer = Linear(in_features  = 128,
+                                           # out_features = 64)
+        # self.decoder_hidden_layer = Linear(in_features  = 64,
+                                           # out_features = 128)
+        # self.decoder_output_layer = Linear(in_features  = 128,
+                                           # out_features = input_shape)
+
+    def forward(self, x):
+        x = self.encoder(x)
+        return self.decoder(x)
+        # activation    = self.encoder_hidden_layer(features)
+        # activation    = relu(activation)
+        # code          = self.encoder_output_layer(activation)
+        # code          = relu(code)
+        # activation    = self.decoder_hidden_layer(code)
+        # activation    = relu(activation)
+        # activation    = self.decoder_output_layer(activation)
+        # reconstructed = relu(activation)
+        # return reconstructed
 
 def train(loader,model,optimizer,criterion,
           N   = 25,
