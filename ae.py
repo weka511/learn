@@ -17,7 +17,9 @@
 
 from argparse               import ArgumentParser
 from matplotlib.pyplot      import close, figure, imshow, savefig, show, title
+from matplotlib.lines       import Line2D
 from os.path                import join
+from re                     import split
 from torch                  import device, no_grad
 from torch.cuda             import is_available
 from torch.nn               import Linear, Module, MSELoss, ReLU, Sequential
@@ -140,6 +142,7 @@ def plot_losses(Losses,
 def plot_encoding(loader,model,
                 figs = './figs',
                 dev = 'cpu'):
+    colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1]
     save_decode  = model.decode
     model.decode = False
     with no_grad():
@@ -156,19 +159,21 @@ def plot_encoding(loader,model,
                 for batch_features, labels in loader:
                     batch_features = batch_features.view(-1, 784).to(dev)
                     outputs        = model(batch_features)
-                    ls             = labels.tolist()
+                    label_indices  = labels.tolist()
                     encoded        = outputs.tolist()
                     for k in range(len(labels)):
-                        cs.append(ls[k])
+                        cs.append(colours[label_indices[k]])
                         xs.append(encoded[k][2*index])
                         ys.append(encoded[k][2*index+1])
 
                 ax[i][j].set_title(f'{2*index}-{2*index+1}')
                 scatter = ax[i][j].scatter(xs,ys,c=cs,s=1)
-                legend  = ax[i][j].legend(*scatter.legend_elements(),
-                                    title="Labels")
-                ax[i][j].add_artist(legend)
 
+    ax[0][0].legend(handles=[Line2D([], [],
+                                    color  = colours[k],
+                                    marker = 's',
+                                    ls     = '',
+                                    label  = f'{k}') for k in range(10)])
     savefig(join(figs,'encoding'))
     if not args.show:
         close (fig)
@@ -200,6 +205,30 @@ def parse_args():
                         nargs = '*',
                         default = [])
     return parser.parse_args()
+
+# create_xkcd_colours
+#
+# Create list of XKCD colours
+#
+# Parameters:
+#     file_name Where XKCD colours live
+#     prefix    Use to prefix each colour with "xkcd:"
+#     filter    Allows us to exclude some colours based on RGB values
+
+def create_xkcd_colours(file_name = 'rgb.txt',
+                        prefix    = 'xkcd:',
+                        filter    = lambda R,G,B:True):
+    with open(file_name) as colours:
+        for row in colours:
+            parts = split(r'\s+#',row.strip())
+            if len(parts)>1:
+                rgb  = int(parts[1],16)
+                B    = rgb%256
+                rest = (rgb-B)//256
+                G    = rest%256
+                R    = (rest-G)//256
+                if filter(R,G,B):
+                    yield f'{prefix}{parts[0]}'
 
 if __name__=='__main__':
     args          = parse_args()
