@@ -1,4 +1,19 @@
-# snarfed from https://medium.com/pytorch/implementing-an-autoencoder-in-pytorch-19baa22647d1
+# Copyright (C) 2021 Greenweaves Software Limited
+
+# This is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This software is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
+
+# Based on https://medium.com/pytorch/implementing-an-autoencoder-in-pytorch-19baa22647d1
 
 from argparse               import ArgumentParser
 from matplotlib.pyplot      import close, figure, imshow, savefig, show, title
@@ -58,7 +73,8 @@ class AutoEncoder(Module):
     def forward(self, x):
         if self.encode:
             x = self.encoder(x)
-        if self.decoder:
+
+        if self.decode:
             x = self.decoder(x)
         return x
 
@@ -121,6 +137,44 @@ def plot_losses(Losses,
     if not args.show:
         close (fig)
 
+def plot_encoding(loader,model,
+                figs = './figs',
+                dev = 'cpu'):
+    save_decode  = model.decode
+    model.decode = False
+    with no_grad():
+        fig     = figure(figsize=(10,10))
+        ax      = fig.subplots(nrows=2,ncols=2)
+        for i in range(2):
+            for j in range(2):
+                if i==1 and j==1: break
+                index = 2*i + j
+                xs = []
+                ys = []
+                cs = []
+
+                for batch_features, labels in loader:
+                    batch_features = batch_features.view(-1, 784).to(dev)
+                    outputs        = model(batch_features)
+                    ls             = labels.tolist()
+                    encoded        = outputs.tolist()
+                    for k in range(len(labels)):
+                        cs.append(ls[k])
+                        xs.append(encoded[k][2*index])
+                        ys.append(encoded[k][2*index+1])
+
+                ax[i][j].set_title(f'{2*index}-{2*index+1}')
+                scatter = ax[i][j].scatter(xs,ys,c=cs,s=1)
+                legend  = ax[i][j].legend(*scatter.legend_elements(),
+                                    title="Labels")
+                ax[i][j].add_artist(legend)
+
+    savefig(join(figs,'encoding'))
+    if not args.show:
+        close (fig)
+
+    model.decode = save_decode
+
 def parse_args():
     '''Extract command line arguments'''
     parser        = ArgumentParser('Autoencoder')
@@ -141,7 +195,7 @@ def parse_args():
                         help    = 'path for figures')
     parser.add_argument('--encoder',
                         nargs = '+',
-                        default = [784,1000,500,250,30])
+                        default = [28*28,400,200,100,50,25,6])
     parser.add_argument('--decoder',
                         nargs = '*',
                         default = [])
@@ -177,10 +231,14 @@ if __name__=='__main__':
     Losses = train(train_loader,model,optimizer,criterion,
                    N   = args.N,
                    dev = dev)
+
     plot_losses(Losses,
                 N    = args.N,
                 show = args.show,
                 figs = args.figs)
+
+    plot_encoding(test_loader,model)
+
     reconstruct(test_loader,model,
                 N=args.N,
                 show = args.show,

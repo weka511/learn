@@ -83,11 +83,14 @@ def train(args):
     for epoch in range(args.n):  # loop over the dataset multiple times
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
+            if i>2: break
             inputs, labels = data # get the inputs; data is a list of [inputs, labels]
             optimizer.zero_grad()  # zero the parameter gradients
 
             # forward + backward + optimize
             outputs = net(inputs)
+            print (outputs)
+            print (labels)
             loss    = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
