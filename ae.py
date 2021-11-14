@@ -140,9 +140,22 @@ def plot_losses(Losses,
         close (fig)
 
 def plot_encoding(loader,model,
-                figs = './figs',
-                dev = 'cpu'):
-    colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1]
+                figs    = './figs',
+                dev     = 'cpu',
+                colours = []):
+    '''Plot the encoding layer
+
+       Since this is multi,dimensional, we will break it into 2D plots
+    '''
+    def extract_batch(batch_features, labels):
+        '''Extract xs, ys, and colours for one batch'''
+
+        batch_features = batch_features.view(-1, 784).to(dev)
+        encoded        = model(batch_features).tolist()
+        return list(zip(*([encoded[k][2*index] for k in range(len(labels))],
+                          [encoded[k][2*index+1] for k in range(len(labels))],
+                          [colours[labels.tolist()[k]] for k in range(len(labels))])))
+
     save_decode  = model.decode
     model.decode = False
     with no_grad():
@@ -151,23 +164,10 @@ def plot_encoding(loader,model,
         for i in range(2):
             for j in range(2):
                 if i==1 and j==1: break
-                index = 2*i + j
-                xs = []
-                ys = []
-                cs = []
-
-                for batch_features, labels in loader:
-                    batch_features = batch_features.view(-1, 784).to(dev)
-                    outputs        = model(batch_features)
-                    label_indices  = labels.tolist()
-                    encoded        = outputs.tolist()
-                    for k in range(len(labels)):
-                        cs.append(colours[label_indices[k]])
-                        xs.append(encoded[k][2*index])
-                        ys.append(encoded[k][2*index+1])
-
+                index    = 2*i + j
+                xs,ys,cs = tuple(zip(*[xyc for batch_features, labels in loader for xyc in extract_batch(batch_features, labels)]))
                 ax[i][j].set_title(f'{2*index}-{2*index+1}')
-                scatter = ax[i][j].scatter(xs,ys,c=cs,s=1)
+                ax[i][j].scatter(xs,ys,c=cs,s=1)
 
     ax[0][0].legend(handles=[Line2D([], [],
                                     color  = colours[k],
@@ -206,18 +206,16 @@ def parse_args():
                         default = [])
     return parser.parse_args()
 
-# create_xkcd_colours
-#
-# Create list of XKCD colours
-#
-# Parameters:
-#     file_name Where XKCD colours live
-#     prefix    Use to prefix each colour with "xkcd:"
-#     filter    Allows us to exclude some colours based on RGB values
 
 def create_xkcd_colours(file_name = 'rgb.txt',
                         prefix    = 'xkcd:',
                         filter    = lambda R,G,B:True):
+    '''  Create list of XKCD colours
+         Keyword Parameters:
+            file_name Where XKCD colours live
+            prefix    Use to prefix each colour with "xkcd:"
+            filter    Allows us to exclude some colours based on RGB values
+    '''
     with open(file_name) as colours:
         for row in colours:
             parts = split(r'\s+#',row.strip())
@@ -266,10 +264,11 @@ if __name__=='__main__':
                 show = args.show,
                 figs = args.figs)
 
-    plot_encoding(test_loader,model)
+    plot_encoding(test_loader,model,
+                  colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1])
 
     reconstruct(test_loader,model,
-                N=args.N,
+                N    = args.N,
                 show = args.show,
                 name = 'test',
                 figs = args.figs)
