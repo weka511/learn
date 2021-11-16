@@ -180,16 +180,15 @@ def plot_losses(Losses,
     ax.set_ylim(bottom=0)
     ax.set_title(f'Losses after {N} epochs')
     ax.set_ylabel('MSELoss')
-    textstr = '\n'.join([f'lr = {lr}',
-                         f'encoder = {encoder}',
-                         f'decoder = {decoder}',
-                         f'nonlinearity = {nonlinearity}'
-                        ])
-
-    ax.text(0.05, 0.95, textstr,
+    ax.text(0.95, 0.95, '\n'.join([f'lr = {lr}',
+                                   f'encoder = {encoder}',
+                                   f'decoder = {decoder}',
+                                   f'nonlinearity = {nonlinearity}'
+                                   ]),
             transform         = ax.transAxes,
             fontsize          = 14,
             verticalalignment = 'top',
+            horizontalalignment = 'right',
             bbox              = dict(boxstyle  = 'round',
                                      facecolor = 'wheat',
                                      alpha     = 0.5))
