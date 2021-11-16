@@ -144,7 +144,7 @@ def reconstruct(loader,model,criterion,
         ax[0].set_title('Raw images')
         scaled_decoded = decoded/decoded.max()
         ax[1].imshow(make_grid(scaled_decoded.view(-1,1,28,28)).permute(1, 2, 0))
-        ax[1].set_title(f'Reconstructed images after {N} epochs')
+        ax[1].set_title(f'Reconstructed images after {N} epochs; loss={loss:.3f}')
         savefig(join(figs,f'{prefix}-comparison-{i}'))
         if not show:
             close (fig)
