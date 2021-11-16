@@ -19,10 +19,12 @@ from argparse               import ArgumentParser
 from matplotlib.pyplot      import close, figure, imshow, savefig, show, title
 from matplotlib.lines       import Line2D
 from os.path                import join
+from random                 import sample
 from re                     import split
+from sklearn.metrics        import silhouette_score
 from torch                  import device, no_grad
 from torch.cuda             import is_available
-from torch.nn               import Linear, Module, MSELoss, ReLU, Sequential
+from torch.nn               import Linear, Module, MSELoss, ReLU, Sequential, Sigmoid
 from torch.optim            import Adam
 from torch.utils.data       import DataLoader
 from torchvision.datasets   import MNIST
@@ -40,7 +42,7 @@ class AutoEncoder(Module):
         Positional arguments:
             sizes   List of sizes for each Linear Layer
         Keyword arguments:
-            non_linearity
+            non_linearity  Object used to introduce non-linearity between layers
         '''
         linears = [Linear(m,n) for m,n in zip(sizes[:-1],sizes[1:])]
         if non_linearity==None:
@@ -50,15 +52,15 @@ class AutoEncoder(Module):
 
     def __init__(self,
                  encoder_sizes         = [28*28,400,200,100,50,25,6],
-                 encoder_non_linearity = None,
+                 encoder_non_linearity = ReLU(inplace=True),
                  decoder_sizes         = [],
                  decoder_non_linearity = ReLU(inplace=True)):
         '''
         Keyword arguments:
             encoder_sizes            List of sizes for each Linear Layer in encoder
-            encoder_non_linearity
+            encoder_non_linearity    Object used to introduce non-linearity between encoder layers
             decoder_sizes            List of sizes for each Linear Layer in decoder
-            decoder_non_linearity
+            decoder_non_linearity    Object used to introduce non-linearity between decoder layers
         '''
         super().__init__()
         if len(decoder_sizes)==0:
@@ -73,6 +75,10 @@ class AutoEncoder(Module):
 
 
     def forward(self, x):
+        '''Propagate value through network
+
+           Computaion is cotrolled by self.encode and self.decode
+        '''
         if self.encode:
             x = self.encoder(x)
 
@@ -84,7 +90,17 @@ class AutoEncoder(Module):
 def train(loader,model,optimizer,criterion,
           N   = 25,
           dev = 'cpu'):
-    '''Train network'''
+    '''Train network
+
+       Parameters:
+           loader       Used to get data
+           model        Model to be trained
+           optimizer    Used to minimze errors
+           criterion    Used to compute errors
+      Keyword parameters:
+          N             Number of epochs
+          dev           Device - cpu or cuda
+    '''
     Losses        = []
 
     for epoch in range(N):
@@ -102,32 +118,61 @@ def train(loader,model,optimizer,criterion,
         print(f'epoch : {epoch+1}/{args.N}, loss = {Losses[-1]:.6f}')
 
     return Losses
-def reconstruct(loader,model,
-                N    = 25,
-                name = 'test',
-                show = False,
-                figs = './figs'):
-    '''Reconstruct images from encoding'''
+def reconstruct(loader,model,criterion,
+                N        = 25,
+                prefix   = 'test',
+                show     = False,
+                figs     = './figs',
+                n_images = -1):
+    '''Reconstruct images from encoding
+
+       Parameters:
+           loader
+           model
+       Keyword Parameters:
+           N        Number of epochs used for training (used in image title only)
+           prefix   Prefix file names with this string
+           show     Used to display images
+           figs     Directory for storing images
+    '''
+
+    def plot(original=None,decoded=None):
+        '''Plot original images and decoded images'''
+        fig = figure(figsize=(10,10))
+        ax    = fig.subplots(nrows=2)
+        ax[0].imshow(make_grid(original.view(-1,1,28,28)).permute(1, 2, 0))
+        ax[0].set_title('Raw images')
+        scaled_decoded = decoded/decoded.max()
+        ax[1].imshow(make_grid(scaled_decoded.view(-1,1,28,28)).permute(1, 2, 0))
+        ax[1].set_title(f'Reconstructed images after {N} epochs')
+        savefig(join(figs,f'{prefix}-comparison-{i}'))
+        if not show:
+            close (fig)
+
+    samples = [] if n_images==-1 else sample(range(len(loader)//loader.batch_size),
+                                             k = n_images)
+    loss = 0.0
     with no_grad():
         for i,(batch_features, _) in enumerate(loader):
-            fig            = figure(figsize=(10,10))
-            ax             = fig.subplots(nrows=2)
             batch_features = batch_features.view(-1, 784).to(dev)
-            images         = batch_features.view(-1,1,28,28)
-            ax[0].imshow(make_grid(images).permute(1, 2, 0))
-            ax[0].set_title('Raw images')
             outputs        = model(batch_features)
-            images         = outputs.view(-1,1,28,28)
-            ax[1].imshow(make_grid(images).permute(1, 2, 0))
-            ax[1].set_title(f'Reconstructed images after {N} epochs')
-            savefig(join(figs,f'{name}-{i}'))
-            if not show:
-                close (fig)
+            test_loss      = criterion(outputs, batch_features)
+            loss          += test_loss.item()
+            if len(samples)==0 or i in samples:
+                plot(original=batch_features,
+                     decoded=outputs)
+
+    print (f'Test loss={loss:.3f}')
 
 def plot_losses(Losses,
-                N    = 25,
-                show = False,
-                figs = './figs'):
+                lr           = 0.001,
+                encoder      = [],
+                decoder      = [],
+                nonlinearity = [],
+                N            = 25,
+                show         = False,
+                figs         = './figs',
+                prefix       = 'ae'):
     '''Plot curve of training losses'''
     fig = figure(figsize=(10,10))
     ax  = fig.subplots()
@@ -135,14 +180,29 @@ def plot_losses(Losses,
     ax.set_ylim(bottom=0)
     ax.set_title(f'Losses after {N} epochs')
     ax.set_ylabel('MSELoss')
-    savefig(join(figs,'autoencoder-losses'))
-    if not args.show:
+    textstr = '\n'.join([f'lr = {lr}',
+                         f'encoder = {encoder}',
+                         f'decoder = {decoder}',
+                         f'nonlinearity = {nonlinearity}'
+                        ])
+
+    ax.text(0.05, 0.95, textstr,
+            transform         = ax.transAxes,
+            fontsize          = 14,
+            verticalalignment = 'top',
+            bbox              = dict(boxstyle  = 'round',
+                                     facecolor = 'wheat',
+                                     alpha     = 0.5))
+    savefig(join(figs,f'{prefix}-losses'))
+    if not show:
         close (fig)
 
 def plot_encoding(loader,model,
                 figs    = './figs',
                 dev     = 'cpu',
-                colours = []):
+                colours = [],
+                show    = False,
+                prefix  = 'ae'):
     '''Plot the encoding layer
 
        Since this is multi,dimensional, we will break it into 2D plots
@@ -174,15 +234,15 @@ def plot_encoding(loader,model,
                                     marker = 's',
                                     ls     = '',
                                     label  = f'{k}') for k in range(10)])
-    savefig(join(figs,'encoding'))
-    if not args.show:
+    savefig(join(figs,f'{prefix}-encoding'))
+    if not show:
         close (fig)
 
     model.decode = save_decode
 
 def parse_args():
     '''Extract command line arguments'''
-    parser        = ArgumentParser('Autoencoder')
+    parser  = ArgumentParser('Autoencoder')
     parser.add_argument('--N',
                         type    = int,
                         default = 25,
@@ -199,11 +259,25 @@ def parse_args():
                         default = './figs',
                         help    = 'path for figures')
     parser.add_argument('--encoder',
-                        nargs = '+',
-                        default = [28*28,400,200,100,50,25,6])
+                        nargs   = '+',
+                        default = [28*28,400,200,100,50,25,6],
+                        help    = 'Sizes of each layer in encoder')
     parser.add_argument('--decoder',
-                        nargs = '*',
-                        default = [])
+                        nargs   = '*',
+                        default = [],
+                        help    = 'Sizes of each layer in decoder (omit for mirroer image of encoder)')
+    parser.add_argument('--nonlinearity',
+                        nargs   = '+',
+                        default = ['relu'],
+                        help    = 'Non lineraities between layers')
+    parser.add_argument('--nimages',
+                        type    = int,
+                        default = 5,
+                        help    = 'Number of Images to display')
+    parser.add_argument('--prefix',
+                        default = 'ae',
+                        help    = 'Prefix for image file names')
+
     return parser.parse_args()
 
 
@@ -228,12 +302,30 @@ def create_xkcd_colours(file_name = 'rgb.txt',
                 if filter(R,G,B):
                     yield f'{prefix}{parts[0]}'
 
+def get_non_linearity(params):
+    '''Determine which non linearity is to be used for both encoder and decoder'''
+    def get_one(param):
+        '''Determine which non linearity is to be used for either encoder or decoder'''
+        param = param.lower()
+        if param=='relu': return ReLU()
+        if param=='sigmoid': return Sigmoid()
+        return None
+
+    decoder_non_linearity = get_one(params[0])
+    encoder_non_linearity = getnl(params[a]) if len(params)>1 else decoder_non_linearity
+
+    return encoder_non_linearity,decoder_non_linearity
+
 if __name__=='__main__':
     args          = parse_args()
     dev           = device("cuda" if is_available() else "cpu")
-    model         = AutoEncoder(encoder_sizes=args.encoder,
-                                decoder_sizes=args.decoder).to(dev)
-    optimizer     = Adam(model.parameters(), lr=args.lr)
+    encoder_non_linearity,decoder_non_linearity = get_non_linearity(args.nonlinearity)
+    model         = AutoEncoder(encoder_sizes         = args.encoder,
+                                encoder_non_linearity = encoder_non_linearity,
+                                decoder_non_linearity = decoder_non_linearity,
+                                decoder_sizes         = args.decoder).to(dev)
+    optimizer     = Adam(model.parameters(),
+                         lr = args.lr)
     criterion     = MSELoss()
     transform     = Compose([ToTensor()])
 
@@ -245,6 +337,7 @@ if __name__=='__main__':
                           train     = False,
                           transform = transform,
                           download  = True)
+
     train_loader  = DataLoader(train_dataset,
                                batch_size  = 128,
                                shuffle     = True,
@@ -260,18 +353,26 @@ if __name__=='__main__':
                    dev = dev)
 
     plot_losses(Losses,
-                N    = args.N,
-                show = args.show,
-                figs = args.figs)
+                lr           = args.lr,
+                encoder      = args.encoder,
+                decoder      = args.decoder,
+                nonlinearity = args.nonlinearity,
+                N            = args.N,
+                show         = args.show,
+                figs         = args.figs,
+                prefix       = args.prefix)
+
+    reconstruct(test_loader,model,criterion,
+                N        = args.N,
+                show     = args.show,
+                figs     = args.figs,
+                n_images = args.nimages,
+                prefix   = args.prefix)
 
     plot_encoding(test_loader,model,
-                  colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1])
-
-    reconstruct(test_loader,model,
-                N    = args.N,
-                show = args.show,
-                name = 'test',
-                figs = args.figs)
+                  show    = args.show,
+                  colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1],
+                  prefix  = args.prefix)
 
     if args.show:
         show()
