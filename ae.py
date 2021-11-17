@@ -158,7 +158,11 @@ def reconstruct(loader,model,criterion,
             outputs        = model(batch_features)
             test_loss      = criterion(outputs, batch_features)
             loss          += test_loss.item()
+
+        for i,(batch_features, _) in enumerate(loader):
             if len(samples)==0 or i in samples:
+                batch_features = batch_features.view(-1, 784).to(dev)
+                outputs        = model(batch_features)
                 plot(original=batch_features,
                      decoded=outputs)
 
