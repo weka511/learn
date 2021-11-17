@@ -63,12 +63,13 @@ class AutoEncoder(Module):
             decoder_non_linearity    Object used to introduce non-linearity between decoder layers
         '''
         super().__init__()
-        if len(decoder_sizes)==0:
-            decoder_sizes = encoder_sizes[::-1]
+        self.encoder_sizes = encoder_sizes
+        self.decoder_sizes = encoder_sizes[::-1] if len(decoder_sizes)==0 else decoder_sizes
 
-        self.encoder = AutoEncoder.build_layer(encoder_sizes,
+
+        self.encoder = AutoEncoder.build_layer(self.encoder_sizes,
                                                non_linearity = encoder_non_linearity)
-        self.decoder = AutoEncoder.build_layer(decoder_sizes,
+        self.decoder = AutoEncoder.build_layer(self.decoder_sizes,
                                                non_linearity = decoder_non_linearity)
         self.encode  = True
         self.decode  = True
@@ -77,7 +78,7 @@ class AutoEncoder(Module):
     def forward(self, x):
         '''Propagate value through network
 
-           Computaion is cotrolled by self.encode and self.decode
+           Computation is cotrolled by self.encode and self.decode
         '''
         if self.encode:
             x = self.encoder(x)
@@ -169,33 +170,35 @@ def reconstruct(loader,model,criterion,
     print (f'Test loss={loss:.3f}')
 
 def plot_losses(Losses,
-                lr           = 0.001,
-                encoder      = [],
-                decoder      = [],
-                nonlinearity = [],
-                N            = 25,
-                show         = False,
-                figs         = './figs',
-                prefix       = 'ae'):
+                lr                   = 0.001,
+                encoder              = [],
+                decoder              = [],
+                encoder_nonlinearity = [],
+                decoder_nonlinearity = [],
+                N                    = 25,
+                show                 = False,
+                figs                 = './figs',
+                prefix             = 'ae'):
     '''Plot curve of training losses'''
     fig = figure(figsize=(10,10))
     ax  = fig.subplots()
     ax.plot(Losses)
     ax.set_ylim(bottom=0)
-    ax.set_title(f'Losses after {N} epochs')
+    ax.set_title(f'Training Losses after {N} epochs')
     ax.set_ylabel('MSELoss')
     ax.text(0.95, 0.95, '\n'.join([f'lr = {lr}',
                                    f'encoder = {encoder}',
                                    f'decoder = {decoder}',
-                                   f'nonlinearity = {nonlinearity}'
+                                   f'encoder nonlinearity = {encoder_nonlinearity}',
+                                   f'decoder nonlinearity = {decoder_nonlinearity}'
                                    ]),
-            transform         = ax.transAxes,
-            fontsize          = 14,
-            verticalalignment = 'top',
+            transform           = ax.transAxes,
+            fontsize            = 14,
+            verticalalignment   = 'top',
             horizontalalignment = 'right',
-            bbox              = dict(boxstyle  = 'round',
-                                     facecolor = 'wheat',
-                                     alpha     = 0.5))
+            bbox                = dict(boxstyle  = 'round',
+                                       facecolor = 'wheat',
+                                       alpha     = 0.5))
     savefig(join(figs,f'{prefix}-losses'))
     if not show:
         close (fig)
@@ -356,14 +359,15 @@ if __name__=='__main__':
                    dev = dev)
 
     plot_losses(Losses,
-                lr           = args.lr,
-                encoder      = args.encoder,
-                decoder      = args.decoder,
-                nonlinearity = args.nonlinearity,
-                N            = args.N,
-                show         = args.show,
-                figs         = args.figs,
-                prefix       = args.prefix)
+                lr                   = args.lr,
+                encoder              = model.encoder_sizes,
+                decoder              = model.decoder_sizes,
+                encoder_nonlinearity = encoder_non_linearity,
+                decoder_nonlinearity = decoder_non_linearity,
+                N                    = args.N,
+                show                 = args.show,
+                figs                 = args.figs,
+                prefix               = args.prefix)
 
     reconstruct(test_loader,model,criterion,
                 N        = args.N,
