@@ -145,7 +145,7 @@ def reconstruct(loader,model,criterion,
         ax[0].set_title('Raw images')
         scaled_decoded = decoded/decoded.max()
         ax[1].imshow(make_grid(scaled_decoded.view(-1,1,28,28)).permute(1, 2, 0))
-        ax[1].set_title(f'Reconstructed images after {N} epochs; loss={loss:.3f}')
+        ax[1].set_title(f'Reconstructed images after {N} epochs')
         savefig(join(figs,f'{prefix}-comparison-{i}'))
         if not show:
             close (fig)
@@ -159,26 +159,25 @@ def reconstruct(loader,model,criterion,
             outputs        = model(batch_features)
             test_loss      = criterion(outputs, batch_features)
             loss          += test_loss.item()
-
-        for i,(batch_features, _) in enumerate(loader):
             if len(samples)==0 or i in samples:
-                batch_features = batch_features.view(-1, 784).to(dev)
-                outputs        = model(batch_features)
                 plot(original=batch_features,
-                     decoded=outputs)
+                    decoded=outputs)
 
-    print (f'Test loss={loss:.3f}')
+
+    return loss
+
 
 def plot_losses(Losses,
                 lr                   = 0.001,
                 encoder              = [],
                 decoder              = [],
-                encoder_nonlinearity = [],
-                decoder_nonlinearity = [],
+                encoder_nonlinearity = None,
+                decoder_nonlinearity = None,
                 N                    = 25,
                 show                 = False,
                 figs                 = './figs',
-                prefix             = 'ae'):
+                prefix               = 'ae',
+                test_loss            = 0):
     '''Plot curve of training losses'''
     fig = figure(figsize=(10,10))
     ax  = fig.subplots()
@@ -190,7 +189,8 @@ def plot_losses(Losses,
                                    f'encoder = {encoder}',
                                    f'decoder = {decoder}',
                                    f'encoder nonlinearity = {encoder_nonlinearity}',
-                                   f'decoder nonlinearity = {decoder_nonlinearity}'
+                                   f'decoder nonlinearity = {decoder_nonlinearity}',
+                                   f'test loss = {test_loss:.3f}'
                                    ]),
             transform           = ax.transAxes,
             fontsize            = 14,
@@ -358,6 +358,15 @@ if __name__=='__main__':
                    N   = args.N,
                    dev = dev)
 
+    test_loss = reconstruct(test_loader,model,criterion,
+                            N        = args.N,
+                            show     = args.show,
+                            figs     = args.figs,
+                            n_images = args.nimages,
+                            prefix   = args.prefix)
+
+    print (f'Test loss={test_loss:.3f}')
+
     plot_losses(Losses,
                 lr                   = args.lr,
                 encoder              = model.encoder_sizes,
@@ -367,14 +376,8 @@ if __name__=='__main__':
                 N                    = args.N,
                 show                 = args.show,
                 figs                 = args.figs,
-                prefix               = args.prefix)
-
-    reconstruct(test_loader,model,criterion,
-                N        = args.N,
-                show     = args.show,
-                figs     = args.figs,
-                n_images = args.nimages,
-                prefix   = args.prefix)
+                prefix               = args.prefix,
+                test_loss            = test_loss)
 
     plot_encoding(test_loader,model,
                   show    = args.show,
