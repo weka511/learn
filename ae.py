@@ -22,6 +22,7 @@ from os.path                import join
 from random                 import sample
 from re                     import split
 from sklearn.metrics        import silhouette_score
+from time                   import time
 from torch                  import device, no_grad
 from torch.cuda             import is_available
 from torch.nn               import Linear, Module, MSELoss, ReLU, Sequential, Sigmoid
@@ -34,6 +35,21 @@ from torchvision.utils      import make_grid
 class AutoEncoder(Module):
     '''A class that implements an AutoEncoder
     '''
+    @staticmethod
+    def get_non_linearity(params):
+        '''Determine which non linearity is to be used for both encoder and decoder'''
+        def get_one(param):
+            '''Determine which non linearity is to be used for either encoder or decoder'''
+            param = param.lower()
+            if param=='relu': return ReLU()
+            if param=='sigmoid': return Sigmoid()
+            return None
+
+        decoder_non_linearity = get_one(params[0])
+        encoder_non_linearity = getnl(params[a]) if len(params)>1 else decoder_non_linearity
+
+        return encoder_non_linearity,decoder_non_linearity
+
     @staticmethod
     def build_layer(sizes,
                     non_linearity = None):
@@ -65,7 +81,7 @@ class AutoEncoder(Module):
         super().__init__()
         self.encoder_sizes = encoder_sizes
         self.decoder_sizes = encoder_sizes[::-1] if len(decoder_sizes)==0 else decoder_sizes
-
+        assert self.encoder_sizes[-1] == self.decoder_sizes[0],'Encoder should match decoder'
 
         self.encoder = AutoEncoder.build_layer(self.encoder_sizes,
                                                non_linearity = encoder_non_linearity)
@@ -78,7 +94,7 @@ class AutoEncoder(Module):
     def forward(self, x):
         '''Propagate value through network
 
-           Computation is cotrolled by self.encode and self.decode
+           Computation is controlled by self.encode and self.decode
         '''
         if self.encode:
             x = self.encoder(x)
@@ -87,6 +103,8 @@ class AutoEncoder(Module):
             x = self.decoder(x)
         return x
 
+    def n_encoded(self):
+        return self.encoder_sizes[-1]
 
 def train(loader,model,optimizer,criterion,
           N   = 25,
@@ -116,7 +134,7 @@ def train(loader,model,optimizer,criterion,
             loss += train_loss.item()
 
         Losses.append(loss / len(loader))
-        print(f'epoch : {epoch+1}/{args.N}, loss = {Losses[-1]:.6f}')
+        print(f'epoch : {epoch+1}/{N}, loss = {Losses[-1]:.6f}')
 
     return Losses
 def reconstruct(loader,model,criterion,
@@ -213,7 +231,7 @@ def plot_encoding(loader,model,
 
        Since this is multi,dimensional, we will break it into 2D plots
     '''
-    def extract_batch(batch_features, labels):
+    def extract_batch(batch_features, labels,index):
         '''Extract xs, ys, and colours for one batch'''
 
         batch_features = batch_features.view(-1, 784).to(dev)
@@ -231,9 +249,10 @@ def plot_encoding(loader,model,
             for j in range(2):
                 if i==1 and j==1: break
                 index    = 2*i + j
-                xs,ys,cs = tuple(zip(*[xyc for batch_features, labels in loader for xyc in extract_batch(batch_features, labels)]))
-                ax[i][j].set_title(f'{2*index}-{2*index+1}')
-                ax[i][j].scatter(xs,ys,c=cs,s=1)
+                if 2*index+1 < model.n_encoded():
+                    xs,ys,cs = tuple(zip(*[xyc for batch_features, labels in loader for xyc in extract_batch(batch_features, labels,index)]))
+                    ax[i][j].set_title(f'{2*index}-{2*index+1}')
+                    ax[i][j].scatter(xs,ys,c=cs,s=1)
 
     ax[0][0].legend(handles=[Line2D([], [],
                                     color  = colours[k],
@@ -266,12 +285,12 @@ def parse_args():
                         help    = 'path for figures')
     parser.add_argument('--encoder',
                         nargs   = '+',
-                        default = [28*28,400,200,100,50,25,6],
+                        default = [28*28, 400, 200, 100, 50, 25, 6],
                         help    = 'Sizes of each layer in encoder')
     parser.add_argument('--decoder',
                         nargs   = '*',
                         default = [],
-                        help    = 'Sizes of each layer in decoder (omit for mirroer image of encoder)')
+                        help    = 'Sizes of each layer in decoder (omit if decoder is a mirror image of encoder)')
     parser.add_argument('--nonlinearity',
                         nargs   = '+',
                         default = ['relu'],
@@ -308,24 +327,12 @@ def create_xkcd_colours(file_name = 'rgb.txt',
                 if filter(R,G,B):
                     yield f'{prefix}{parts[0]}'
 
-def get_non_linearity(params):
-    '''Determine which non linearity is to be used for both encoder and decoder'''
-    def get_one(param):
-        '''Determine which non linearity is to be used for either encoder or decoder'''
-        param = param.lower()
-        if param=='relu': return ReLU()
-        if param=='sigmoid': return Sigmoid()
-        return None
 
-    decoder_non_linearity = get_one(params[0])
-    encoder_non_linearity = getnl(params[a]) if len(params)>1 else decoder_non_linearity
-
-    return encoder_non_linearity,decoder_non_linearity
 
 if __name__=='__main__':
     args          = parse_args()
     dev           = device("cuda" if is_available() else "cpu")
-    encoder_non_linearity,decoder_non_linearity = get_non_linearity(args.nonlinearity)
+    encoder_non_linearity,decoder_non_linearity = AutoEncoder.get_non_linearity(args.nonlinearity)
     model         = AutoEncoder(encoder_sizes         = args.encoder,
                                 encoder_non_linearity = encoder_non_linearity,
                                 decoder_non_linearity = decoder_non_linearity,
@@ -347,8 +354,7 @@ if __name__=='__main__':
     train_loader  = DataLoader(train_dataset,
                                batch_size  = 128,
                                shuffle     = True,
-                               num_workers = 4,
-                               pin_memory  = True)
+                               num_workers = 4)
     test_loader   = DataLoader(test_dataset,
                                batch_size  = 32,
                                shuffle     = False,
@@ -358,6 +364,7 @@ if __name__=='__main__':
                    N   = args.N,
                    dev = dev)
 
+    start = time()
     test_loss = reconstruct(test_loader,model,criterion,
                             N        = args.N,
                             show     = args.show,
@@ -365,7 +372,7 @@ if __name__=='__main__':
                             n_images = args.nimages,
                             prefix   = args.prefix)
 
-    print (f'Test loss={test_loss:.3f}')
+    print (f'Test loss={test_loss:.3f}, {time() - start:.0f} sec')
 
     plot_losses(Losses,
                 lr                   = args.lr,
