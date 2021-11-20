@@ -106,164 +106,194 @@ class AutoEncoder(Module):
     def n_encoded(self):
         return self.encoder_sizes[-1]
 
-def train(loader,model,optimizer,criterion,
-          N   = 25,
-          dev = 'cpu'):
-    '''Train network
+class Trainer:
+    def __init__(self,model,
+                 lr        = 0.001,
+                 criterion = MSELoss(),
+                 dev       = 'cpu'):
+                self.model     = model
+                self.lr        = lr
+                self.criterion = criterion
+                self.optimizer = Adam(model.parameters(), lr = lr)
+                self.dev       = dev
+                self.reconstruction_loss = 0
 
-       Parameters:
-           loader       Used to get data
-           model        Model to be trained
-           optimizer    Used to minimze errors
-           criterion    Used to compute errors
-      Keyword parameters:
-          N             Number of epochs
-          dev           Device - cpu or cuda
-    '''
-    Losses        = []
+    def train(self, loader, N   = 25):
+        '''Train network
 
-    for epoch in range(N):
-        loss = 0
-        for batch_features, _ in loader:
-            batch_features = batch_features.view(-1, 784).to(dev)
-            optimizer.zero_grad()
-            outputs        = model(batch_features)
-            train_loss     = criterion(outputs, batch_features)
-            train_loss.backward()
-            optimizer.step()
-            loss += train_loss.item()
+           Parameters:
+               loader       Used to get data
+               model        Model to be trained
+               optimizer    Used to minimze errors
+               criterion    Used to compute errors
+          Keyword parameters:
+              N             Number of epochs
+              dev           Device - cpu or cuda
+        '''
+        Losses        = []
 
-        Losses.append(loss / len(loader))
-        print(f'epoch : {epoch+1}/{N}, loss = {Losses[-1]:.6f}')
+        for epoch in range(N):
+            loss = 0
+            for batch_features, _ in loader:
+                batch_features = batch_features.view(-1, 784).to(self.dev)
+                self.optimizer.zero_grad()
+                outputs        = self.model(batch_features)
+                train_loss     = self.criterion(outputs, batch_features)
+                train_loss.backward()
+                self.optimizer.step()
+                loss += train_loss.item()
 
-    return Losses
-def reconstruct(loader,model,criterion,
-                N        = 25,
+            Losses.append(loss / len(loader))
+            print(f'epoch : {epoch+1}/{N}, loss = {Losses[-1]:.6f}')
+
+        return Losses
+
+    def reconstruct(self,loader,
+                    N        = 25,
+                    prefix   = 'test',
+                    show     = False,
+                    figs     = './figs',
+                    n_images = -1):
+        '''Reconstruct images from encoding
+
+           Parameters:
+               loader
+               model
+           Keyword Parameters:
+               N        Number of epochs used for training (used in image title only)
+               prefix   Prefix file names with this string
+               show     Used to display images
+               figs     Directory for storing images
+        '''        self.reconstruction_loss = 0.0
+        with no_grad():
+            for i,(batch_features, _) in enumerate(loader):
+                batch_features = batch_features.view(-1, 784).to(dev)
+                outputs        = self.model(batch_features)
+                test_loss      = self.criterion(outputs, batch_features)
+                self.reconstruction_loss += test_loss.item()
+                yield i,batch_features, outputs
+
+class Plot:
+    def __init__(self,show,figs,prefix,name,nrows=1,ncols=1):
+        self.fig    = figure(figsize=(10,10))
+        self.ax     = self.fig.subplots(nrows=nrows,ncols=ncols)
+        self.show   = show
+        self.figs   = figs
+        self.prefix = prefix
+        self.name   = name
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        savefig(join(self.figs,f'{self.prefix}-{self.name}'))
+        if not self.show:
+            close (self.fig)
+
+class Displayer:
+
+    def __init__(self,
+                 trainer = None,
                 prefix   = 'test',
                 show     = False,
-                figs     = './figs',
-                n_images = -1):
-    '''Reconstruct images from encoding
+                figs     = './figs'):
+        self.trainer = trainer
+        self.prefix  = prefix
+        self.show    = show
+        self.figs    = figs
 
-       Parameters:
-           loader
-           model
-       Keyword Parameters:
-           N        Number of epochs used for training (used in image title only)
-           prefix   Prefix file names with this string
-           show     Used to display images
-           figs     Directory for storing images
-    '''
+    def reconstruct(self,loader,n_images = -1,N=-1):
+        '''Reconstruct images from encoding
 
-    def plot(original=None,decoded=None):
-        '''Plot original images and decoded images'''
-        fig = figure(figsize=(10,10))
-        ax    = fig.subplots(nrows=2)
-        ax[0].imshow(make_grid(original.view(-1,1,28,28)).permute(1, 2, 0))
-        ax[0].set_title('Raw images')
-        scaled_decoded = decoded/decoded.max()
-        ax[1].imshow(make_grid(scaled_decoded.view(-1,1,28,28)).permute(1, 2, 0))
-        ax[1].set_title(f'Reconstructed images after {N} epochs')
-        savefig(join(figs,f'{prefix}-comparison-{i}'))
-        if not show:
-            close (fig)
+           Parameters:
+               loader
+               model
+           Keyword Parameters:
+               N        Number of epochs used for training (used in image title only)
+               prefix   Prefix file names with this string
+               show     Used to display images
+               figs     Directory for storing images
+        '''
 
-    samples = [] if n_images==-1 else sample(range(len(loader)//loader.batch_size),
-                                             k = n_images)
-    loss = 0.0
-    with no_grad():
-        for i,(batch_features, _) in enumerate(loader):
-            batch_features = batch_features.view(-1, 784).to(dev)
-            outputs        = model(batch_features)
-            test_loss      = criterion(outputs, batch_features)
-            loss          += test_loss.item()
+        samples = [] if n_images==-1 else sample(range(len(loader)//loader.batch_size),
+                                                 k = n_images)
+        for i,batch_features, decoded in self.trainer.reconstruct(loader,N=N):
             if len(samples)==0 or i in samples:
-                plot(original=batch_features,
-                    decoded=outputs)
+                with Plot(self.show,self.figs,self.prefix,f'comparison-{i}',nrows=2) as plot:
+                    plot.ax[0].imshow(make_grid(batch_features.view(-1,1,28,28)).permute(1, 2, 0))
+                    plot.ax[0].set_title('Raw images')
+                    scaled_decoded = decoded/decoded.max()
+                    plot.ax[1].imshow(make_grid(scaled_decoded.view(-1,1,28,28)).permute(1, 2, 0))
+                    plot.ax[1].set_title(f'Reconstructed images after {N} epochs')
+
+        return trainer.reconstruction_loss
 
 
-    return loss
+    def plot_losses(self,Losses,
+                    lr                   = 0.001,
+                    encoder              = [],
+                    decoder              = [],
+                    encoder_nonlinearity = None,
+                    decoder_nonlinearity = None,
+                    N                    = 25,
+                    test_loss            = 0):
+        '''Plot curve of training losses'''
+        with Plot(self.show,self.figs,self.prefix,f'losses') as plot:
+            plot.ax.plot(Losses)
+            plot.ax.set_ylim(bottom=0)
+            plot.ax.set_title(f'Training Losses after {N} epochs')
+            plot.ax.set_ylabel('MSELoss')
+            plot.ax.text(0.95, 0.95, '\n'.join([f'lr = {lr}',
+                                           f'encoder = {encoder}',
+                                           f'decoder = {decoder}',
+                                           f'encoder nonlinearity = {encoder_nonlinearity}',
+                                           f'decoder nonlinearity = {decoder_nonlinearity}',
+                                           f'test loss = {test_loss:.3f}'
+                                           ]),
+                    transform           =  plot.ax.transAxes,
+                    fontsize            = 14,
+                    verticalalignment   = 'top',
+                    horizontalalignment = 'right',
+                    bbox                = dict(boxstyle  = 'round',
+                                               facecolor = 'wheat',
+                                               alpha     = 0.5))
 
 
-def plot_losses(Losses,
-                lr                   = 0.001,
-                encoder              = [],
-                decoder              = [],
-                encoder_nonlinearity = None,
-                decoder_nonlinearity = None,
-                N                    = 25,
-                show                 = False,
-                figs                 = './figs',
-                prefix               = 'ae',
-                test_loss            = 0):
-    '''Plot curve of training losses'''
-    fig = figure(figsize=(10,10))
-    ax  = fig.subplots()
-    ax.plot(Losses)
-    ax.set_ylim(bottom=0)
-    ax.set_title(f'Training Losses after {N} epochs')
-    ax.set_ylabel('MSELoss')
-    ax.text(0.95, 0.95, '\n'.join([f'lr = {lr}',
-                                   f'encoder = {encoder}',
-                                   f'decoder = {decoder}',
-                                   f'encoder nonlinearity = {encoder_nonlinearity}',
-                                   f'decoder nonlinearity = {decoder_nonlinearity}',
-                                   f'test loss = {test_loss:.3f}'
-                                   ]),
-            transform           = ax.transAxes,
-            fontsize            = 14,
-            verticalalignment   = 'top',
-            horizontalalignment = 'right',
-            bbox                = dict(boxstyle  = 'round',
-                                       facecolor = 'wheat',
-                                       alpha     = 0.5))
-    savefig(join(figs,f'{prefix}-losses'))
-    if not show:
-        close (fig)
+    def plot_encoding(self,loader,model,
+                      dev     = 'cpu',
+                      colours = []):
+        '''Plot the encoding layer
 
-def plot_encoding(loader,model,
-                figs    = './figs',
-                dev     = 'cpu',
-                colours = [],
-                show    = False,
-                prefix  = 'ae'):
-    '''Plot the encoding layer
+           Since this is multi,dimensional, we will break it into 2D plots
+        '''
+        def extract_batch(batch_features, labels,index):
+            '''Extract xs, ys, and colours for one batch'''
 
-       Since this is multi,dimensional, we will break it into 2D plots
-    '''
-    def extract_batch(batch_features, labels,index):
-        '''Extract xs, ys, and colours for one batch'''
+            batch_features = batch_features.view(-1, 784).to(dev)
+            encoded        = model(batch_features).tolist()
+            return list(zip(*([encoded[k][2*index] for k in range(len(labels))],
+                              [encoded[k][2*index+1] for k in range(len(labels))],
+                              [colours[labels.tolist()[k]] for k in range(len(labels))])))
 
-        batch_features = batch_features.view(-1, 784).to(dev)
-        encoded        = model(batch_features).tolist()
-        return list(zip(*([encoded[k][2*index] for k in range(len(labels))],
-                          [encoded[k][2*index+1] for k in range(len(labels))],
-                          [colours[labels.tolist()[k]] for k in range(len(labels))])))
+        save_decode  = model.decode
+        model.decode = False
+        with no_grad(), Plot(self.show,self.figs,self.prefix,f'encoding',nrows=2,ncols=2) as plot:
+            for i in range(2):
+                for j in range(2):
+                    if i==1 and j==1: break
+                    index    = 2*i + j
+                    if 2*index+1 < model.n_encoded():
+                        xs,ys,cs = tuple(zip(*[xyc for batch_features, labels in loader for xyc in extract_batch(batch_features, labels,index)]))
+                        plot.ax[i][j].set_title(f'{2*index}-{2*index+1}')
+                        plot.ax[i][j].scatter(xs,ys,c=cs,s=1)
 
-    save_decode  = model.decode
-    model.decode = False
-    with no_grad():
-        fig     = figure(figsize=(10,10))
-        ax      = fig.subplots(nrows=2,ncols=2)
-        for i in range(2):
-            for j in range(2):
-                if i==1 and j==1: break
-                index    = 2*i + j
-                if 2*index+1 < model.n_encoded():
-                    xs,ys,cs = tuple(zip(*[xyc for batch_features, labels in loader for xyc in extract_batch(batch_features, labels,index)]))
-                    ax[i][j].set_title(f'{2*index}-{2*index+1}')
-                    ax[i][j].scatter(xs,ys,c=cs,s=1)
+        plot.ax[0][0].legend(handles=[Line2D([], [],
+                                        color  = colours[k],
+                                        marker = 's',
+                                        ls     = '',
+                                        label  = f'{k}') for k in range(10)])
 
-    ax[0][0].legend(handles=[Line2D([], [],
-                                    color  = colours[k],
-                                    marker = 's',
-                                    ls     = '',
-                                    label  = f'{k}') for k in range(10)])
-    savefig(join(figs,f'{prefix}-encoding'))
-    if not show:
-        close (fig)
-
-    model.decode = save_decode
+        model.decode = save_decode
 
 def parse_args():
     '''Extract command line arguments'''
@@ -337,9 +367,7 @@ if __name__=='__main__':
                                 encoder_non_linearity = encoder_non_linearity,
                                 decoder_non_linearity = decoder_non_linearity,
                                 decoder_sizes         = args.decoder).to(dev)
-    optimizer     = Adam(model.parameters(),
-                         lr = args.lr)
-    criterion     = MSELoss()
+
     transform     = Compose([ToTensor()])
 
     train_dataset = MNIST(root="~/torch_datasets",
@@ -359,37 +387,32 @@ if __name__=='__main__':
                                batch_size  = 32,
                                shuffle     = False,
                                num_workers = 4)
-
-    Losses = train(train_loader,model,optimizer,criterion,
-                   N   = args.N,
-                   dev = dev)
-
     start = time()
-    test_loss = reconstruct(test_loader,model,criterion,
-                            N        = args.N,
-                            show     = args.show,
-                            figs     = args.figs,
-                            n_images = args.nimages,
-                            prefix   = args.prefix)
+
+    trainer = Trainer(model)
+    Losses = trainer.train(train_loader, N   = args.N)
+    displayer = Displayer(trainer = trainer,
+                          show     = args.show,
+                          figs     = args.figs,
+                          prefix   = args.prefix)
+
+    test_loss = displayer.reconstruct(test_loader,
+                                      N        = args.N,
+                                      n_images = args.nimages)
 
     print (f'Test loss={test_loss:.3f}, {time() - start:.0f} sec')
 
-    plot_losses(Losses,
+    displayer.plot_losses(Losses,
                 lr                   = args.lr,
                 encoder              = model.encoder_sizes,
                 decoder              = model.decoder_sizes,
                 encoder_nonlinearity = encoder_non_linearity,
                 decoder_nonlinearity = decoder_non_linearity,
                 N                    = args.N,
-                show                 = args.show,
-                figs                 = args.figs,
-                prefix               = args.prefix,
                 test_loss            = test_loss)
 
-    plot_encoding(test_loader,model,
-                  show    = args.show,
-                  colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1],
-                  prefix  = args.prefix)
+    displayer.plot_encoding(test_loader,model,
+                  colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1])
 
     if args.show:
         show()
