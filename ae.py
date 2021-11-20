@@ -107,6 +107,7 @@ class AutoEncoder(Module):
         return self.encoder_sizes[-1]
 
 class Trainer:
+    '''This class encapsulates criterion, optimizer, and the process of training'''
     def __init__(self,model,
                  lr        = 0.001,
                  criterion = MSELoss(),
@@ -173,7 +174,19 @@ class Trainer:
                 self.reconstruction_loss += test_loss.item()
                 yield i,batch_features, outputs
 
+class Timer:
+    '''Work out elapsed time'''
+    def __init__(self):
+        self.start = time()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        print(f'Elapsed ={time() - self.start:.0f} seconds')
+
 class Plot:
+    '''Performs book keeping for plotting'''
     def __init__(self,show,figs,prefix,name,nrows=1,ncols=1):
         self.fig    = figure(figsize=(10,10))
         self.ax     = self.fig.subplots(nrows=nrows,ncols=ncols)
@@ -191,7 +204,7 @@ class Plot:
             close (self.fig)
 
 class Displayer:
-
+    '''Display plots'''
     def __init__(self,
                  trainer = None,
                 prefix   = 'test',
@@ -387,32 +400,32 @@ if __name__=='__main__':
                                batch_size  = 32,
                                shuffle     = False,
                                num_workers = 4)
-    start = time()
+    with Timer():
 
-    trainer = Trainer(model)
-    Losses = trainer.train(train_loader, N   = args.N)
-    displayer = Displayer(trainer = trainer,
-                          show     = args.show,
-                          figs     = args.figs,
-                          prefix   = args.prefix)
+        trainer   = Trainer(model)
+        Losses    = trainer.train(train_loader, N = args.N)
+        displayer = Displayer(trainer = trainer,
+                              show     = args.show,
+                              figs     = args.figs,
+                              prefix   = args.prefix)
 
-    test_loss = displayer.reconstruct(test_loader,
-                                      N        = args.N,
-                                      n_images = args.nimages)
+        test_loss = displayer.reconstruct(test_loader,
+                                          N        = args.N,
+                                          n_images = args.nimages)
 
-    print (f'Test loss={test_loss:.3f}, {time() - start:.0f} sec')
+        print (f'Test loss={test_loss:.3f}')
 
-    displayer.plot_losses(Losses,
-                lr                   = args.lr,
-                encoder              = model.encoder_sizes,
-                decoder              = model.decoder_sizes,
-                encoder_nonlinearity = encoder_non_linearity,
-                decoder_nonlinearity = decoder_non_linearity,
-                N                    = args.N,
-                test_loss            = test_loss)
+        displayer.plot_losses(Losses,
+                    lr                   = args.lr,
+                    encoder              = model.encoder_sizes,
+                    decoder              = model.decoder_sizes,
+                    encoder_nonlinearity = encoder_non_linearity,
+                    decoder_nonlinearity = decoder_non_linearity,
+                    N                    = args.N,
+                    test_loss            = test_loss)
 
-    displayer.plot_encoding(test_loader,model,
-                  colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1])
+        displayer.plot_encoding(test_loader,model,
+                      colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1])
 
     if args.show:
         show()
