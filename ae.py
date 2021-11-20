@@ -83,10 +83,13 @@ class AutoEncoder(Module):
         self.decoder_sizes = encoder_sizes[::-1] if len(decoder_sizes)==0 else decoder_sizes
         assert self.encoder_sizes[-1] == self.decoder_sizes[0],'Encoder should match decoder'
 
+        self.encoder_non_linearity = encoder_non_linearity
+        self.decoder_non_linearity = decoder_non_linearity
+
         self.encoder = AutoEncoder.build_layer(self.encoder_sizes,
-                                               non_linearity = encoder_non_linearity)
+                                               non_linearity = self.encoder_non_linearity)
         self.decoder = AutoEncoder.build_layer(self.decoder_sizes,
-                                               non_linearity = decoder_non_linearity)
+                                               non_linearity = self.decoder_non_linearity)
         self.encode  = True
         self.decode  = True
 
@@ -107,7 +110,14 @@ class AutoEncoder(Module):
         return self.encoder_sizes[-1]
 
 class Trainer:
-    '''This class encapsulates criterion, optimizer, and the process of training'''
+    '''This class encapsulates criterion, optimizer, and the process of training
+       Parameters:
+           model
+        Keyword parameters:
+            lr        Learning Rate
+            criterion Criterion for judging giidness of fit
+            dev       device for computation
+    '''
     def __init__(self,model,
                  lr        = 0.001,
                  criterion = MSELoss(),
@@ -149,22 +159,11 @@ class Trainer:
 
         return Losses
 
-    def reconstruct(self,loader,
-                    N        = 25,
-                    prefix   = 'test',
-                    show     = False,
-                    figs     = './figs',
-                    n_images = -1):
+    def reconstruct(self,loader):
         '''Reconstruct images from encoding
 
            Parameters:
-               loader
-               model
-           Keyword Parameters:
-               N        Number of epochs used for training (used in image title only)
-               prefix   Prefix file names with this string
-               show     Used to display images
-               figs     Directory for storing images
+               loader       Used to load images from file
         '''        self.reconstruction_loss = 0.0
         with no_grad():
             for i,(batch_features, _) in enumerate(loader):
@@ -174,8 +173,20 @@ class Trainer:
                 self.reconstruction_loss += test_loss.item()
                 yield i,batch_features, outputs
 
+    def get_params(self):
+        '''Get list of lines to be displayed in legend'''
+        return [f'lr = {self.lr}',
+                f'encoder = {self.model.encoder}',
+                f'decoder = {self.model.decoder}',
+                f'encoder nonlinearity = {self.model.encoder_non_linearity}',
+                f'decoder nonlinearity = {self.model.decoder_non_linearity}'
+                ]
+
 class Timer:
-    '''Work out elapsed time'''
+    '''Work out elapsed time
+
+    This class implements the Context Manager protocol, so it can be used with a 'with' statement
+    '''
     def __init__(self):
         self.start = time()
 
@@ -183,10 +194,15 @@ class Timer:
         return self
 
     def __exit__(self, type, value, traceback):
-        print(f'Elapsed ={time() - self.start:.0f} seconds')
+        print(self)
+
+    def __str__(self):
+        return f'Elapsed ={time() - self.start:.0f} seconds'
 
 class Plot:
-    '''Performs book keeping for plotting'''
+    '''Performs book keeping for plotting
+
+    Keep track of figure and exes objects, and also save figure in plotfile.'''
     def __init__(self,show,figs,prefix,name,nrows=1,ncols=1):
         self.fig    = figure(figsize=(10,10))
         self.ax     = self.fig.subplots(nrows=nrows,ncols=ncols)
@@ -206,31 +222,41 @@ class Plot:
 class Displayer:
     '''Display plots'''
     def __init__(self,
-                 trainer = None,
-                prefix   = 'test',
-                show     = False,
-                figs     = './figs'):
+                 trainer  = None,
+                 prefix   = 'test',
+                 show     = False,
+                 figs     = './figs'):
         self.trainer = trainer
         self.prefix  = prefix
         self.show    = show
         self.figs    = figs
+
+    def display(self):
+        test_loss = self.reconstruct(test_loader,
+                                     N        = args.N,
+                                     n_images = args.nimages)
+
+        print (f'Test loss={test_loss:.3f}')
+
+        self.plot_losses(Losses,
+                         N                    = args.N,
+                         test_loss            = test_loss)
+
+        self.plot_encoding(test_loader,
+                      colours = [colour for colour in self.create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1])
 
     def reconstruct(self,loader,n_images = -1,N=-1):
         '''Reconstruct images from encoding
 
            Parameters:
                loader
-               model
            Keyword Parameters:
                N        Number of epochs used for training (used in image title only)
-               prefix   Prefix file names with this string
-               show     Used to display images
-               figs     Directory for storing images
         '''
 
         samples = [] if n_images==-1 else sample(range(len(loader)//loader.batch_size),
                                                  k = n_images)
-        for i,batch_features, decoded in self.trainer.reconstruct(loader,N=N):
+        for i,batch_features, decoded in self.trainer.reconstruct(loader):
             if len(samples)==0 or i in samples:
                 with Plot(self.show,self.figs,self.prefix,f'comparison-{i}',nrows=2) as plot:
                     plot.ax[0].imshow(make_grid(batch_features.view(-1,1,28,28)).permute(1, 2, 0))
@@ -243,11 +269,6 @@ class Displayer:
 
 
     def plot_losses(self,Losses,
-                    lr                   = 0.001,
-                    encoder              = [],
-                    decoder              = [],
-                    encoder_nonlinearity = None,
-                    decoder_nonlinearity = None,
                     N                    = 25,
                     test_loss            = 0):
         '''Plot curve of training losses'''
@@ -256,13 +277,7 @@ class Displayer:
             plot.ax.set_ylim(bottom=0)
             plot.ax.set_title(f'Training Losses after {N} epochs')
             plot.ax.set_ylabel('MSELoss')
-            plot.ax.text(0.95, 0.95, '\n'.join([f'lr = {lr}',
-                                           f'encoder = {encoder}',
-                                           f'decoder = {decoder}',
-                                           f'encoder nonlinearity = {encoder_nonlinearity}',
-                                           f'decoder nonlinearity = {decoder_nonlinearity}',
-                                           f'test loss = {test_loss:.3f}'
-                                           ]),
+            plot.ax.text(0.95, 0.95, '\n'.join(self.trainer.get_params() + [f'test loss = {test_loss:.3f}'] ),
                     transform           =  plot.ax.transAxes,
                     fontsize            = 14,
                     verticalalignment   = 'top',
@@ -272,7 +287,7 @@ class Displayer:
                                                alpha     = 0.5))
 
 
-    def plot_encoding(self,loader,model,
+    def plot_encoding(self,loader,
                       dev     = 'cpu',
                       colours = []):
         '''Plot the encoding layer
@@ -283,19 +298,19 @@ class Displayer:
             '''Extract xs, ys, and colours for one batch'''
 
             batch_features = batch_features.view(-1, 784).to(dev)
-            encoded        = model(batch_features).tolist()
+            encoded        = self.trainer.model(batch_features).tolist()
             return list(zip(*([encoded[k][2*index] for k in range(len(labels))],
                               [encoded[k][2*index+1] for k in range(len(labels))],
                               [colours[labels.tolist()[k]] for k in range(len(labels))])))
 
-        save_decode  = model.decode
-        model.decode = False
+        save_decode  = self.trainer.model.decode
+        self.trainer.model.decode = False
         with no_grad(), Plot(self.show,self.figs,self.prefix,f'encoding',nrows=2,ncols=2) as plot:
             for i in range(2):
                 for j in range(2):
                     if i==1 and j==1: break
                     index    = 2*i + j
-                    if 2*index+1 < model.n_encoded():
+                    if 2*index+1 < self.trainer.model.n_encoded():
                         xs,ys,cs = tuple(zip(*[xyc for batch_features, labels in loader for xyc in extract_batch(batch_features, labels,index)]))
                         plot.ax[i][j].set_title(f'{2*index}-{2*index+1}')
                         plot.ax[i][j].scatter(xs,ys,c=cs,s=1)
@@ -306,7 +321,29 @@ class Displayer:
                                         ls     = '',
                                         label  = f'{k}') for k in range(10)])
 
-        model.decode = save_decode
+        self.trainer.model.decode = save_decode
+
+    def create_xkcd_colours(self,
+                            file_name = 'rgb.txt',
+                            prefix    = 'xkcd:',
+                            filter    = lambda R,G,B:True):
+        '''  Create list of XKCD colours
+             Keyword Parameters:
+                file_name Where XKCD colours live
+                prefix    Use to prefix each colour with "xkcd:"
+                filter    Allows us to exclude some colours based on RGB values
+        '''
+        with open(file_name) as colours:
+            for row in colours:
+                parts = split(r'\s+#',row.strip())
+                if len(parts)>1:
+                    rgb  = int(parts[1],16)
+                    B    = rgb%256
+                    rest = (rgb-B)//256
+                    G    = rest%256
+                    R    = (rest-G)//256
+                    if filter(R,G,B):
+                        yield f'{prefix}{parts[0]}'
 
 def parse_args():
     '''Extract command line arguments'''
@@ -348,37 +385,13 @@ def parse_args():
 
     return parser.parse_args()
 
-
-def create_xkcd_colours(file_name = 'rgb.txt',
-                        prefix    = 'xkcd:',
-                        filter    = lambda R,G,B:True):
-    '''  Create list of XKCD colours
-         Keyword Parameters:
-            file_name Where XKCD colours live
-            prefix    Use to prefix each colour with "xkcd:"
-            filter    Allows us to exclude some colours based on RGB values
-    '''
-    with open(file_name) as colours:
-        for row in colours:
-            parts = split(r'\s+#',row.strip())
-            if len(parts)>1:
-                rgb  = int(parts[1],16)
-                B    = rgb%256
-                rest = (rgb-B)//256
-                G    = rest%256
-                R    = (rest-G)//256
-                if filter(R,G,B):
-                    yield f'{prefix}{parts[0]}'
-
-
-
 if __name__=='__main__':
     args          = parse_args()
     dev           = device("cuda" if is_available() else "cpu")
-    encoder_non_linearity,decoder_non_linearity = AutoEncoder.get_non_linearity(args.nonlinearity)
+    enl,dnl       = AutoEncoder.get_non_linearity(args.nonlinearity)
     model         = AutoEncoder(encoder_sizes         = args.encoder,
-                                encoder_non_linearity = encoder_non_linearity,
-                                decoder_non_linearity = decoder_non_linearity,
+                                encoder_non_linearity = enl,
+                                decoder_non_linearity = dnl,
                                 decoder_sizes         = args.decoder).to(dev)
 
     transform     = Compose([ToTensor()])
@@ -401,7 +414,6 @@ if __name__=='__main__':
                                shuffle     = False,
                                num_workers = 4)
     with Timer():
-
         trainer   = Trainer(model)
         Losses    = trainer.train(train_loader, N = args.N)
         displayer = Displayer(trainer = trainer,
@@ -409,23 +421,9 @@ if __name__=='__main__':
                               figs     = args.figs,
                               prefix   = args.prefix)
 
-        test_loss = displayer.reconstruct(test_loader,
-                                          N        = args.N,
-                                          n_images = args.nimages)
+        displayer.display()
 
-        print (f'Test loss={test_loss:.3f}')
 
-        displayer.plot_losses(Losses,
-                    lr                   = args.lr,
-                    encoder              = model.encoder_sizes,
-                    decoder              = model.decoder_sizes,
-                    encoder_nonlinearity = encoder_non_linearity,
-                    decoder_nonlinearity = decoder_non_linearity,
-                    N                    = args.N,
-                    test_loss            = test_loss)
-
-        displayer.plot_encoding(test_loader,model,
-                      colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1])
 
     if args.show:
         show()
