@@ -109,6 +109,14 @@ class AutoEncoder(Module):
     def n_encoded(self):
         return self.encoder_sizes[-1]
 
+    def get_params(self):
+        '''Get list of lines to be displayed in legend'''
+        return [f'encoder = {self.encoder_sizes}',
+                f'decoder = {self.decoder_sizes}',
+                f'encoder nonlinearity = {self.encoder_non_linearity}',
+                f'decoder nonlinearity = {self.decoder_non_linearity}'
+                ]
+
 class Trainer:
     '''This class encapsulates criterion, optimizer, and the process of training
        Parameters:
@@ -175,12 +183,7 @@ class Trainer:
 
     def get_params(self):
         '''Get list of lines to be displayed in legend'''
-        return [f'lr = {self.lr}',
-                f'encoder = {self.model.encoder}',
-                f'decoder = {self.model.decoder}',
-                f'encoder nonlinearity = {self.model.encoder_non_linearity}',
-                f'decoder nonlinearity = {self.model.decoder_non_linearity}'
-                ]
+        return [f'lr = {self.lr}'] + self.model.get_params()
 
 class Timer:
     '''Work out elapsed time
