@@ -173,7 +173,7 @@ class Trainer:
                 loss += train_loss.item()
 
             Losses.append(loss / len(loader))
-            print(f'epoch : {epoch + start + 1}/{N}, loss = {Losses[-1]:.6f}')
+            print(f'epoch : {epoch + 1}/{N + start}, loss = {Losses[-1]:.6f}')
 
             if epoch>0 and epoch%self.frequency==0:
                 self.save_checkpoint(epoch,loss)
@@ -187,6 +187,12 @@ class Trainer:
         return Losses
 
     def save_checkpoint(self,epoch,loss):
+        '''Save state in checkpoint file. If there are too many checkpoint fles, remove until short enough.
+
+           Parameters:
+               epoch
+               loss
+        '''
         save({
             'epoch'                : epoch,
             'model_state_dict'     : self.model.state_dict(),
@@ -202,12 +208,20 @@ class Trainer:
             checkpoint_files.pop()
 
     def get_checkpoint_filename(self,epoch):
-        '''Determine name of checkpoint file'''
+        '''Determine name of checkpoint file
+
+        Parameters:
+            epoch
+        '''
         return f'{self.model.name}-{epoch:06d}.{self.check_point_type}'
 
     def load(self,epoch):
-        '''Load previous state from checkpoint file'''
-        filename  = self.get_checkpoint_filename(epoch)
+        '''Load previous state from checkpoint file
+
+           Parameters:
+               epoch
+        '''
+        filename   = self.get_checkpoint_filename(epoch)
         checkpoint = load(filename)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -251,7 +265,7 @@ class Timer:
         return (int)(time() - self.start)
 
     def __str__(self):
-        return f'Elapsed ={int(self):.0f} seconds'
+        return f'Elapsed ={int(self)} seconds'
 
 class Plot:
     '''Performs book keeping for plotting
@@ -497,8 +511,6 @@ if __name__=='__main__':
                               batch    = args.batch)
 
         displayer.display()
-
-
 
     if args.show:
         show()
