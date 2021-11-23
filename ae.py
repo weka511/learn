@@ -16,14 +16,16 @@
 # Based on https://medium.com/pytorch/implementing-an-autoencoder-in-pytorch-19baa22647d1
 
 from argparse               import ArgumentParser
+from glob                   import glob
 from matplotlib.pyplot      import close, figure, imshow, savefig, show, title
 from matplotlib.lines       import Line2D
-from os.path                import join
+from os                     import remove
+from os.path                import exists, join
 from random                 import sample
 from re                     import split
 from sklearn.metrics        import silhouette_score
 from time                   import time
-from torch                  import device, no_grad
+from torch                  import device, load, no_grad, save
 from torch.cuda             import is_available
 from torch.nn               import Linear, Module, MSELoss, ReLU, Sequential, Sigmoid
 from torch.optim            import Adam
@@ -79,9 +81,11 @@ class AutoEncoder(Module):
             decoder_non_linearity    Object used to introduce non-linearity between decoder layers
         '''
         super().__init__()
+        self.name          = self.__class__.__name__
         self.encoder_sizes = encoder_sizes
         self.decoder_sizes = encoder_sizes[::-1] if len(decoder_sizes)==0 else decoder_sizes
         assert self.encoder_sizes[-1] == self.decoder_sizes[0],'Encoder should match decoder'
+        assert self.encoder_sizes[0]  == self.decoder_sizes[-1],'Encoder should match decoder'
 
         self.encoder_non_linearity = encoder_non_linearity
         self.decoder_non_linearity = decoder_non_linearity
@@ -92,7 +96,6 @@ class AutoEncoder(Module):
                                                non_linearity = self.decoder_non_linearity)
         self.encode  = True
         self.decode  = True
-
 
     def forward(self, x):
         '''Propagate value through network
@@ -127,15 +130,23 @@ class Trainer:
             dev       device for computation
     '''
     def __init__(self,model,
-                 lr        = 0.001,
-                 criterion = MSELoss(),
-                 dev       = 'cpu'):
-                self.model     = model
-                self.lr        = lr
-                self.criterion = criterion
-                self.optimizer = Adam(model.parameters(), lr = lr)
-                self.dev       = dev
+                 lr               = 0.001,
+                 criterion        = MSELoss(),
+                 dev              = 'cpu',
+                 check_point_type = 'pt',
+                 frequency        = 16,
+                 max_checkpoints  = 3):
+                self.model               = model
+                self.lr                  = lr
+                self.criterion           = criterion
+                self.optimizer           = Adam(model.parameters(), lr = lr)
+                self.dev                 = dev
                 self.reconstruction_loss = 0
+                self.check_point_type    = check_point_type
+                self.frequency           = frequency
+                self.stop_file           = 'stop.txt'
+                self.max_checkpoints     = max_checkpoints
+                self.check_point_index   = 0
 
     def train(self, loader, N   = 25):
         '''Train network
@@ -149,8 +160,8 @@ class Trainer:
               N             Number of epochs
               dev           Device - cpu or cuda
         '''
-        Losses        = []
-
+        Losses            = []
+        self.check_point_index = 0
         for epoch in range(N):
             loss = 0
             for batch_features, _ in loader:
@@ -164,9 +175,42 @@ class Trainer:
 
             Losses.append(loss / len(loader))
             print(f'epoch : {epoch+1}/{N}, loss = {Losses[-1]:.6f}')
-
+            checkpointed = False
+            if epoch>0 and epoch%self.frequency==0:
+                self.save_checkpoint(epoch,loss)
+                checkpointed = True
+                if exists(self.stop_file):
+                    print ('Stopping')
+                    remove(self.stop_file)
+                    return Losses
+            if not checkpointed:
+                self.save_checkpoint(epoch,loss)
         return Losses
 
+    def save_checkpoint(self,epoch,loss):
+        self.check_point_index +=1
+        save({
+            'epoch'                : epoch,
+            'model_state_dict'     : self.model.state_dict(),
+            'optimizer_state_dict' : self.optimizer.state_dict(),
+            'loss'                 : loss,
+            },
+             f'{self.model.name}-{self.check_point_index:06d}.{self.check_point_type}')
+        checkpoint_file = sorted(glob(f'{self.model.name}-*.{self.check_point_type}'),reverse=True)
+
+        while self.max_checkpoints < len(checkpoint_file):
+            remove(checkpoint_file[-1])
+            checkpoint_file.pop()
+
+    def load(self,train=True,path=''):
+        checkpoint = torch.load(path)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        epoch = checkpoint['epoch']
+        loss = checkpoint['loss']
+ #       model.eval()
+
+  #      model.train()
     def reconstruct(self,loader):
         '''Reconstruct images from encoding
 
@@ -199,8 +243,11 @@ class Timer:
     def __exit__(self, type, value, traceback):
         print(self)
 
+    def __int__(self):
+        return time() - self.start
+
     def __str__(self):
-        return f'Elapsed ={time() - self.start:.0f} seconds'
+        return f'Elapsed ={int(self):.0f} seconds'
 
 class Plot:
     '''Performs book keeping for plotting
@@ -228,11 +275,13 @@ class Displayer:
                  trainer  = None,
                  prefix   = 'test',
                  show     = False,
-                 figs     = './figs'):
+                 figs     = './figs',
+                 batch    = 128):
         self.trainer = trainer
         self.prefix  = prefix
         self.show    = show
         self.figs    = figs
+        self.batch   = batch
 
     def display(self):
         test_loss = self.reconstruct(test_loader,
@@ -280,7 +329,7 @@ class Displayer:
             plot.ax.set_ylim(bottom=0)
             plot.ax.set_title(f'Training Losses after {N} epochs')
             plot.ax.set_ylabel('MSELoss')
-            plot.ax.text(0.95, 0.95, '\n'.join(self.trainer.get_params() + [f'test loss = {test_loss:.3f}'] ),
+            plot.ax.text(0.95, 0.95, '\n'.join(self.trainer.get_params() + [f'test loss = {test_loss:.3f}',f'Batch size = {self.batch}'] ),
                     transform           =  plot.ax.transAxes,
                     fontsize            = 14,
                     verticalalignment   = 'top',
@@ -318,11 +367,11 @@ class Displayer:
                         plot.ax[i][j].set_title(f'{2*index}-{2*index+1}')
                         plot.ax[i][j].scatter(xs,ys,c=cs,s=1)
 
-        plot.ax[0][0].legend(handles=[Line2D([], [],
-                                        color  = colours[k],
-                                        marker = 's',
-                                        ls     = '',
-                                        label  = f'{k}') for k in range(10)])
+            plot.ax[0][0].legend(handles=[Line2D([], [],
+                                            color  = colours[k],
+                                            marker = 's',
+                                            ls     = '',
+                                            label  = f'{k}') for k in range(10)])
 
         self.trainer.model.decode = save_decode
 
@@ -353,7 +402,7 @@ def parse_args():
     parser  = ArgumentParser('Autoencoder')
     parser.add_argument('--N',
                         type    = int,
-                        default = 25,
+                        default = 32,
                         help    = 'Number of Epochs')
     parser.add_argument('--show',
                         default = False,
@@ -368,10 +417,12 @@ def parse_args():
                         help    = 'path for figures')
     parser.add_argument('--encoder',
                         nargs   = '+',
+                        type    = int,
                         default = [28*28, 400, 200, 100, 50, 25, 6],
                         help    = 'Sizes of each layer in encoder')
     parser.add_argument('--decoder',
                         nargs   = '*',
+                        type    = int,
                         default = [],
                         help    = 'Sizes of each layer in decoder (omit if decoder is a mirror image of encoder)')
     parser.add_argument('--nonlinearity',
@@ -385,6 +436,10 @@ def parse_args():
     parser.add_argument('--prefix',
                         default = 'ae',
                         help    = 'Prefix for image file names')
+    parser.add_argument('--batch',
+                        default = 128,
+                        type    = int,
+                        help    = 'Training batch size')
 
     return parser.parse_args()
 
@@ -409,7 +464,7 @@ if __name__=='__main__':
                           download  = True)
 
     train_loader  = DataLoader(train_dataset,
-                               batch_size  = 128,
+                               batch_size  = args.batch,
                                shuffle     = True,
                                num_workers = 4)
     test_loader   = DataLoader(test_dataset,
@@ -422,7 +477,8 @@ if __name__=='__main__':
         displayer = Displayer(trainer = trainer,
                               show     = args.show,
                               figs     = args.figs,
-                              prefix   = args.prefix)
+                              prefix   = args.prefix,
+                              batch    = args.batch)
 
         displayer.display()
 
