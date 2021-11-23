@@ -146,23 +146,22 @@ class Trainer:
                 self.frequency           = frequency
                 self.stop_file           = 'stop.txt'
                 self.max_checkpoints     = max_checkpoints
-                self.check_point_index   = 0
 
-    def train(self, loader, N   = 25):
+    def train(self, loader,
+              start = 0,
+              N     = 25):
         '''Train network
 
            Parameters:
                loader       Used to get data
-               model        Model to be trained
-               optimizer    Used to minimze errors
-               criterion    Used to compute errors
+
           Keyword parameters:
               N             Number of epochs
-              dev           Device - cpu or cuda
+              start         Initial epoch -- so the N epochs are numbered start, start+1, etc
         '''
         Losses            = []
-        self.check_point_index = 0
-        for epoch in range(N):
+
+        for epoch in range(start, start + N):
             loss = 0
             for batch_features, _ in loader:
                 batch_features = batch_features.view(-1, 784).to(self.dev)
@@ -174,43 +173,48 @@ class Trainer:
                 loss += train_loss.item()
 
             Losses.append(loss / len(loader))
-            print(f'epoch : {epoch+1}/{N}, loss = {Losses[-1]:.6f}')
-            checkpointed = False
+            print(f'epoch : {epoch + start + 1}/{N}, loss = {Losses[-1]:.6f}')
+
             if epoch>0 and epoch%self.frequency==0:
                 self.save_checkpoint(epoch,loss)
-                checkpointed = True
+
                 if exists(self.stop_file):
                     print ('Stopping')
                     remove(self.stop_file)
                     return Losses
-            if not checkpointed:
-                self.save_checkpoint(epoch,loss)
+
+        self.save_checkpoint(epoch,loss)
         return Losses
 
     def save_checkpoint(self,epoch,loss):
-        self.check_point_index +=1
         save({
             'epoch'                : epoch,
             'model_state_dict'     : self.model.state_dict(),
             'optimizer_state_dict' : self.optimizer.state_dict(),
             'loss'                 : loss,
             },
-             f'{self.model.name}-{self.check_point_index:06d}.{self.check_point_type}')
-        checkpoint_file = sorted(glob(f'{self.model.name}-*.{self.check_point_type}'),reverse=True)
+             self.get_checkpoint_filename(epoch))
 
-        while self.max_checkpoints < len(checkpoint_file):
-            remove(checkpoint_file[-1])
-            checkpoint_file.pop()
+        checkpoint_files = sorted(glob(f'{self.model.name}-*.{self.check_point_type}'),reverse=True)
 
-    def load(self,train=True,path=''):
-        checkpoint = torch.load(path)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        while self.max_checkpoints < len(checkpoint_files):
+            remove(checkpoint_files[-1])
+            checkpoint_files.pop()
+
+    def get_checkpoint_filename(self,epoch):
+        '''Determine name of checkpoint file'''
+        return f'{self.model.name}-{epoch:06d}.{self.check_point_type}'
+
+    def load(self,epoch):
+        '''Load previous state from checkpoint file'''
+        filename  = self.get_checkpoint_filename(epoch)
+        checkpoint = load(filename)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch = checkpoint['epoch']
-        loss = checkpoint['loss']
- #       model.eval()
+        loss  = checkpoint['loss']
+        return filename
 
-  #      model.train()
     def reconstruct(self,loader):
         '''Reconstruct images from encoding
 
@@ -244,7 +248,7 @@ class Timer:
         print(self)
 
     def __int__(self):
-        return time() - self.start
+        return (int)(time() - self.start)
 
     def __str__(self):
         return f'Elapsed ={int(self):.0f} seconds'
@@ -440,7 +444,14 @@ def parse_args():
                         default = 128,
                         type    = int,
                         help    = 'Training batch size')
-
+    parser.add_argument('--frequency',
+                        default = 16,
+                        type    = int,
+                        help    = 'Determines frequncy for saving checkpoints')
+    parser.add_argument('--reload',
+                        default = None,
+                        type    = int,
+                        help    = 'Reload from a checkpoint: arguemnt specified the epoch to load.')
     return parser.parse_args()
 
 if __name__=='__main__':
@@ -473,7 +484,12 @@ if __name__=='__main__':
                                num_workers = 4)
     with Timer():
         trainer   = Trainer(model)
-        Losses    = trainer.train(train_loader, N = args.N)
+        start     = 0
+        if args.reload != None:
+            start    = args.reload
+            filename = trainer.load(start)
+            print (f'Restarting from {filename}')
+        Losses    = trainer.train(train_loader, start=start, N = args.N)
         displayer = Displayer(trainer = trainer,
                               show     = args.show,
                               figs     = args.figs,
