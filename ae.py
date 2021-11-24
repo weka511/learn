@@ -19,6 +19,7 @@ from argparse               import ArgumentParser
 from glob                   import glob
 from matplotlib.pyplot      import close, figure, imshow, savefig, show, title
 from matplotlib.lines       import Line2D
+from multiprocessing        import cpu_count
 from os                     import remove
 from os.path                import exists, join
 from random                 import sample
@@ -135,7 +136,8 @@ class Trainer:
                  dev              = 'cpu',
                  check_point_type = 'pt',
                  frequency        = 16,
-                 max_checkpoints  = 3):
+                 max_checkpoints  = 3,
+                 checkpoint_name  = None):
                 self.model               = model
                 self.lr                  = lr
                 self.criterion           = criterion
@@ -146,6 +148,7 @@ class Trainer:
                 self.frequency           = frequency
                 self.stop_file           = 'stop.txt'
                 self.max_checkpoints     = max_checkpoints
+                self.checkpoint_name     = self.model.name if checkpoint_name  == None else checkpoint_name
 
     def train(self, loader,
               start = 0,
@@ -213,7 +216,7 @@ class Trainer:
         Parameters:
             epoch
         '''
-        return f'{self.model.name}-{epoch:06d}.{self.check_point_type}'
+        return f'{self.checkpoint_name}-{epoch:06d}.{self.check_point_type}'
 
     def load(self,epoch):
         '''Load previous state from checkpoint file
@@ -461,11 +464,14 @@ def parse_args():
     parser.add_argument('--frequency',
                         default = 16,
                         type    = int,
-                        help    = 'Determines frequncy for saving checkpoints')
+                        help    = 'Determines frequency for saving checkpoints')
     parser.add_argument('--reload',
                         default = None,
                         type    = int,
-                        help    = 'Reload from a checkpoint: arguemnt specified the epoch to load.')
+                        help    = 'Reload from a checkpoint: this argument specifies the epoch to load.')
+    parser.add_argument('--checkpointname',
+                        default = None,
+                        help    = 'Base name for checkpoint file')
     return parser.parse_args()
 
 if __name__=='__main__':
@@ -491,13 +497,18 @@ if __name__=='__main__':
     train_loader  = DataLoader(train_dataset,
                                batch_size  = args.batch,
                                shuffle     = True,
-                               num_workers = 4)
+                               num_workers = cpu_count())
+
     test_loader   = DataLoader(test_dataset,
                                batch_size  = 32,
                                shuffle     = False,
-                               num_workers = 4)
+                               num_workers = cpu_count())
     with Timer():
-        trainer   = Trainer(model)
+        trainer   = Trainer(model,
+                            checkpoint_name = args.checkpointname,
+                            frequency       = args.frequency,
+                            lr              = args.lr)
+
         start     = 0
         if args.reload != None:
             start    = args.reload
