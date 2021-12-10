@@ -1,4 +1,4 @@
-%    Copyright (C) 2020 Greenweaves Software Limited
+%    Copyright (C) 2020-2021 Greenweaves Software Limited
 
 %   This program is free software: you can redistribute it and/or modify
 %   it under the terms of the GNU General Public License as published by
@@ -15,15 +15,9 @@
 
 \documentclass[]{article}
 
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{amsfonts}
+\usepackage{amsmath,amssymb,amsfonts,float,mathrsfs,thmtools,url}
 \usepackage[toc,page]{appendix}
-\usepackage{float}
 \usepackage[toc,acronym,nonumberlist]{glossaries}
-\usepackage{mathrsfs}
-\usepackage{thmtools}
-\usepackage{url}
 
 \newcommand{\ELBO[1]}        {\mathscr{L}}
 \newcommand{\Expectation} {\mathbb{E}}
@@ -42,16 +36,13 @@
 \makeglossaries
 
 \newacronym{gls:CAVI}{CAVI} {Coordinate Ascent Variational Inference}
-
 \newacronym{gls:ELBO}{ELBO} {Evidence Lower Bound}
-
 \newacronym{gls:GMM} {GMM}  {Gaussian Mixture Model}
-
 \newacronym{gls:VI}  {VI}   {Variational Inference}
 
 \newglossaryentry{gls:ELBOterm}{
 	name={Evidence Lower Bound},
-	description={Evidence Lower Bound (\ref{eq:ELBO})},
+	description={Evidence Lower Bound \eqref{eq:ELBO}, a lower bound on the probability of observing some data under a model},
 	symbol={$\ELBO$}
 }
 
@@ -105,7 +96,7 @@ The evidence is:
 	\ELBO{(q)} \triangleq& \Expectation_q\big[\log{p(z,x)}\big] - \Expectation_q\big[\log{q(x)}\big]  \numberthis \label{eq:ELBO}
 \end{align*}
 
-Now we know that $\KLD{q(z)}{p(z\mid x)}\ge0$, with equality $iff$ $q=p$, so:
+Now we know that $\KLD{q(z)}{p(z\mid x)}\ge0$, with equality $iff\;q=p$, so:
 \begin{align*}
 	\Expectation_q(\log{p(x)})\ge\ELBO[q]
 \end{align*}
@@ -118,9 +109,9 @@ In this section we derive the \gls{gls:ELBO} for \gls{gls:CAVI}. The following L
 \begin{lemma}\label{lemma:gaussian}
 	Moments of a Gaussian Distribution\cite[(5.7.5)]{fisz1963probability}.
 	\begin{align*}
-		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} d \mu =& 1\\
-		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \mu d \mu =& 0\\
-		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \mu^2 d \mu =& \sigma^2
+		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} d \mu =& 1 \numberthis \label{eq:lemma:1}\\
+		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \mu d \mu =& 0 \numberthis \label{eq:lemma:2}\\
+		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \mu^2 d \mu =& \sigma^2 \numberthis \label{eq:lemma:3}
 	\end{align*}
 \end{lemma}
 
@@ -152,7 +143,7 @@ From (\ref{eq:gmm_q}) and (\ref{eq:gmm_p})
 	 =&\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}\bigg[ - \frac{\mu_k^2}{2}\bigg] d\mu_k+ C \text{, see Table \ref{table:notation} for $C$}\\
 	 =& - \frac{1}{2 s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}(\mu_k+m_k)^2 d\mu_k \text{. Substitute $\mu_k \rightarrow \mu_k+m_k$}\\
 	 =&- \frac{1}{s_k\sqrt{2\pi} 2 } \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}(\mu_k^2 +2 \mu_k m_k + m_k^2) d\mu_k\\
-	 =&- \frac{1}{2 } \big(s_k^2 + 0+ m_k^2\big) \text{, from Lemma \ref{lemma:gaussian}}\\
+	 =&- \frac{1}{2 } \big(\underbrace{s_k^2}_\text{Lemma \ref{lemma:gaussian} \eqref{eq:lemma:3}} + \underbrace{0}_\text{Lemma \ref{lemma:gaussian} \eqref{eq:lemma:2}}+ \underbrace{m_k^2}_\text{Lemma \ref{lemma:gaussian} \eqref{eq:lemma:1}}\big)\\
 	  =&- \frac{1}{2 } \big(s_k^2 +  m_k^2\big) \numberthis \label{eq:ELBO:1}
 \end{align*}
 

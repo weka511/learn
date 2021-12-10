@@ -10,10 +10,10 @@ backprop.py | Train neural network using Backpropagation (just an exercise)
 gibb2.py| A generic Gibbs sampler, based on [gibbs.py](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 hopfield.py | Hopfield network
 learn.bib|Bibliography
- learn.wpr | Project file for Wing IDE
- mnist-test.py | Tests based on MNIST training set
- test.py  | Test network against MNIST test dataset
- train.py      | Train network using MNIST data
+learn.wpr | Project file for Wing IDE
+mnist-test.py | Tests based on MNIST training set
+test.py  | Test network against MNIST test dataset
+train.py      | Train network using MNIST data
 
 ## Imported from elsewhere
 
@@ -23,7 +23,7 @@ learn.bib|Bibliography
  gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
  mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
  naive.py | Code from [How to Develop a Naive Bayes Classifier from Scratch in Python](https://machinelearningmastery.com/classification-as-conditional-probability-and-the-naive-bayes-algorithm/)
-UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
+ UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
 
 
 ## Keras and Tensorflow explorations
