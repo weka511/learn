@@ -24,7 +24,6 @@ from os                     import remove
 from os.path                import exists, join
 from random                 import sample
 from re                     import split
-from sklearn.metrics        import silhouette_score
 from time                   import time
 from torch                  import device, load, no_grad, save
 from torch.cuda             import is_available
@@ -420,15 +419,15 @@ class Displayer:
 
 def parse_args():
     '''Extract command line arguments'''
-    parser  = ArgumentParser('Autoencoder')
+    parser  = ArgumentParser('Autoencoder: encode and then decode data')
     parser.add_argument('--N',
                         type    = int,
                         default = 32,
-                        help    = 'Number of Epochs')
+                        help    = 'Number of Epochs for training')
     parser.add_argument('--show',
                         default = False,
                         action  = 'store_true',
-                        help    = 'Display images')
+                        help    = 'Display images (default is to only save them)')
     parser.add_argument('--lr',
                         default = 0.001,
                         type    = float,
@@ -449,7 +448,7 @@ def parse_args():
     parser.add_argument('--nonlinearity',
                         nargs   = '+',
                         default = ['relu'],
-                        help    = 'Non lineraities between layers')
+                        help    = 'Non linearities between layers (default relu)')
     parser.add_argument('--nimages',
                         type    = int,
                         default = 5,
