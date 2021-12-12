@@ -51,26 +51,25 @@
 \maketitle
 
 \begin{abstract}
-	This document aims to fill in the gaps in derivations between published papers, such as \cite{blei2017variational}, and my code. It has been written to help my understanding. If it is helpful to anyone else it is a bonus.
+	This document aims to fill the gaps between published papers, such as \cite{blei2017variational}, and my code. It has been written to help my understanding. If it is helpful to anyone else it is a bonus.
 \end{abstract}
-
-
 
 \tableofcontents
 \listoftables
 \section{Evidence Lower Bound}
 
-The notation used in this document is defined in Table \ref{table:notation}.
-
 \begin{table}[H]
 	\begin{center}
-		\caption{Notation}\label{table:notation}
+		\caption{Notation used in this document}\label{table:notation}
 		\begin{tabular}{|l|p{12cm}|}\hline
 			Symbol & Meaning \\ \hline
-			$C$&Any additive constant arising during the calculation of $\ELBO$. It can always be discarded, since we are interested in the values of parameters that maximize $\ELBO$, not the value of $\ELBO$. In some places I have used $C^\prime$, $C^{\prime\prime}$, etc, to indicate different additive constants.\\ \hline
+			$C$&An additive constant arising during the calculation of $\ELBO$. It can always be discarded, since we are interested in the values of parameters that maximize $\ELBO$, not the value of $\ELBO$. In some places I have used $C^\prime$, $C^{\prime\prime}$, etc, to indicate different additive constants.\\ \hline
+			$\sim$ &  \\ \hline
 			$\Expectation_q$& Expectation using distribution $q$ \\ \hline
 			\glssymbol{gls:ELBOterm}&\glsdesc{gls:ELBOterm}\\ \hline
 			$p(\vec{z},\vec{x})$ &Joint density of Observations, $\vec{x}$ and latent variables $\vec{z}$\\ \hline
+			$K$&Number of Gaussians in \gls{gls:GMM}--dimension of $\vec{z}$\\ \hline
+			$n$&Number of observations--dimension of $\vec{x}$\\ \hline
 			$q(\vec{z})$ &Any density chosen from $\mathcal{Q}$, the family that we use to model $p$\\ \hline
 			$\vec{x}$&Observations \\ \hline
 			$\vec{z}$ &Latent variables that (are intended to) explain Observations\\ \hline
@@ -88,32 +87,29 @@ The notation used in this document is defined in Table \ref{table:notation}.
 
 The evidence is:
 \begin{align*}
-	p(z) =& \int p(x\mid z) p(z) dz \text{. We introduce the Kullback-Leibler divergence\cite{wiki:kullback:leibler}}\\
-	\KLD{q(z)}{p(z\mid x)} \triangleq& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z\mid x)}) \\
-	=& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z, x)}) + \Expectation_q(\log{p(x)})\\
+		p(z) =& \int p(x\mid z) p(z) dz
+\end{align*}
+We introduce the Kullback-Leibler divergence\cite{wiki:kullback:leibler}:
+\begin{align*}
+\KLD{q(z)}{p(z\mid x)} \triangleq& \Expectation_q(\log{q(z)})-\Expectation_q(\log{p(z\mid x)}) \\
+	=& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z, x)}) + \Expectation_q(\log{p(x)})
+\end{align*}
+\begin{align*}
 	\Expectation_q(\log{p(x)})=&\KLD{q(z)}{p(z\mid x)}+\Expectation_q(\log{p(z, x)})-\Expectation_q(\log{q(z)})\\
-	=& \KLD{q(z)}{p(z\mid x)} + \ELBO{(q(z))} \text{, where we define}\\
+	=& \KLD{q(z)}{p(z\mid x)} + \ELBO{(q(z))}
+\end{align*}
+Where  the \gls{gls:ELBO} $\ELBO$ is defined as:
+\begin{align*}
 	\ELBO{(q)} \triangleq& \Expectation_q\big[\log{p(z,x)}\big] - \Expectation_q\big[\log{q(x)}\big]  \numberthis \label{eq:ELBO}
 \end{align*}
-
 Now we know that $\KLD{q(z)}{p(z\mid x)}\ge0$, with equality $iff\;q=p$, so:
 \begin{align*}
 	\Expectation_q(\log{p(x)})\ge\ELBO[q]
 \end{align*}
-
-The object of \gls{gls:VI} is to find a $q$ that matches $p$ by maximizing $L$.
+\gls{gls:VI} aims to find a $q$ that matches $p$ by maximizing $\ELBO$.
 
 \section{Coordinate Ascent Variational Inference}
-In this section we derive the \gls{gls:ELBO} for \gls{gls:CAVI}. The following Lemma will be useful.
-
-\begin{lemma}\label{lemma:gaussian}
-	Moments of a Gaussian Distribution\cite[(5.7.5)]{fisz1963probability}.
-	\begin{align*}
-		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} d \mu =& 1 \numberthis \label{eq:lemma:1}\\
-		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \mu d \mu =& 0 \numberthis \label{eq:lemma:2}\\
-		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \mu^2 d \mu =& \sigma^2 \numberthis \label{eq:lemma:3}
-	\end{align*}
-\end{lemma}
+I will derive the \gls{gls:ELBO} for \gls{gls:CAVI}. 
 
 From \cite[Equation (13)]{blei2017variational}
 \begin{align*}
@@ -126,24 +122,36 @@ For a \gls{gls:GMM}--from \cite[Equations (7) \& (16)]{blei2017variational}
 	p(\vec{\mu},\vec{c},\vec{x}) =& p(\vec{\mu}) \prod_{i=1}^{n} p(c_i) p(x_i \mid c_i,\vec{\mu}) \numberthis \label{eq:gmm_p}
 \end{align*}
 
+
 From \cite[Equation (21)]{blei2017variational}
 \begin{align*}
 	\ELBO(m,s^2,\phi) = \sum_{k=1}^{K}& \Expectation_q \big[ \log {p(\mu_k);m_k,s_k^2}\big]\\
-	+& \sum_{k=1}^{K}\Expectation_q \big[\log{p(c_i);\phi_i}\big]\\
-	 +& \sum_{k=1}^{K}\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big]\\
-	-& \sum_{k=1}^K\Expectation_q\big[\log{q(c_i;\phi_i)}\big]\\
+	+& \sum_{i=1}^{n}\Expectation_q \big[\log{p(c_i);\phi_i}\big]\\
+	 +& \sum_{i=1}^{n}\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big]\\
+	-& \sum_{i=1}^n\Expectation_q\big[\log{q(c_i;\phi_i)}\big]\\
 	 -& \sum_{k=1}^K\Expectation_q \big[\log{q(\mu_k;m_k,s^2_k)}\big] \numberthis \label{eq:ELBO_GMM}
 \end{align*}
-I shall expand these terms separately in equations  (\ref{eq:ELBO:1}), (\ref{eq:ELBO:2}), (\ref{eq:ELBO:3F}), (\ref{eq:ELBO:4}) and (\ref{eq:ELBO:5}).
+I shall expand these terms separately in equations  (\ref{eq:ELBO:1}), (\ref{eq:ELBO:2}), (\ref{eq:ELBO:3F}), (\ref{eq:ELBO:4}) and (\ref{eq:ELBO:5}), using the following Lemma.
+
+\begin{lemma}\label{lemma:gaussian}
+	Moments of a Gaussian Distribution\cite[(5.7.5)]{fisz1963probability}.
+	\begin{align*}
+		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} d \mu =& 1 \numberthis \label{eq:lemma:1}\\
+		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \mu d \mu =& 0 \numberthis \label{eq:lemma:2}\\
+		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \mu^2 d \mu =& \sigma^2 \numberthis \label{eq:lemma:3}
+	\end{align*}
+\end{lemma}
 
 From (\ref{eq:gmm_q}) and (\ref{eq:gmm_p})
 \begin{align*}
 	 \Expectation_q \big[ \log {p(\mu_k);m_k,s_k^2}\big]  =& \int_{-\infty}^{\infty} q(\mu_k;m_k,s_k^2) \log {p(\mu_k)}  d\mu_k\\
-	 =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}\log{\bigg[\frac{1}{\sqrt{2\pi}} \exp{\big[- \frac{\mu_k^2}{2}\big]}\bigg]} d\mu_k\\
-	 =&\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}\bigg[ - \frac{\mu_k^2}{2}\bigg] d\mu_k+ C \text{, see Table \ref{table:notation} for $C$}\\
-	 =& - \frac{1}{2 s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}(\mu_k+m_k)^2 d\mu_k \text{. Substitute $\mu_k \rightarrow \mu_k+m_k$}\\
-	 =&- \frac{1}{s_k\sqrt{2\pi} 2 } \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}(\mu_k^2 +2 \mu_k m_k + m_k^2) d\mu_k\\
-	 =&- \frac{1}{2 } \big(\underbrace{s_k^2}_\text{Lemma \ref{lemma:gaussian} \eqref{eq:lemma:3}} + \underbrace{0}_\text{Lemma \ref{lemma:gaussian} \eqref{eq:lemma:2}}+ \underbrace{m_k^2}_\text{Lemma \ref{lemma:gaussian} \eqref{eq:lemma:1}}\big)\\
+	 =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\big[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\big]}\log{\big[\frac{1}{\sqrt{2\pi}} \exp{\big[- \frac{\mu_k^2}{2}\big]}\big]} d\mu_k\\
+	 =&\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\big[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\big]}\big[ - \frac{\mu_k^2}{2}\big] d\mu_k+ C \text{, see Table \ref{table:notation} for $C$}\\
+	 =& - \frac{1}{2 s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\big[-\frac{\mu_k^2}{2 s_k^2}\big]}(\mu_k+m_k)^2 d\mu_k \text{. Substitute $\mu_k \rightarrow \mu_k+m_k$}\\
+	 =&- \frac{1}{2}\frac{1}{s_k\sqrt{2\pi} } \int_{-\infty}^{\infty} \exp{\big[-\frac{\mu_k^2}{2 s_k^2}\big]}(\mu_k^2 +2 \mu_k m_k + m_k^2) d\mu_k\\
+	 =&- \frac{1}{2}\bigg[\underbrace{\frac{1}{s_k\sqrt{2\pi} } \int_{-\infty}^{\infty} \exp{\big[-\frac{\mu_k^2}{2 s_k^2}\big]}\mu_k^2  d\mu_k}_\text{$=s_k^2$--Lemma \ref{lemma:gaussian} \eqref{eq:lemma:3}}\\
+	 \;&+2  m_k \underbrace{\frac{1}{s_k\sqrt{2\pi} } \int_{-\infty}^{\infty} \exp{\big[-\frac{\mu_k^2}{2 s_k^2}\big]} \mu_k  d\mu_k}_\text{$=0$--Lemma \ref{lemma:gaussian} \eqref{eq:lemma:2}}\\
+	 \;&+m_k^2 \underbrace{\frac{1}{s_k\sqrt{2\pi} } \int_{-\infty}^{\infty} \exp{\big[-\frac{\mu_k^2}{2 s_k^2}\big]} d\mu_k}_\text{$=1$--Lemma \ref{lemma:gaussian} \eqref{eq:lemma:1}}\bigg]\\
 	  =&- \frac{1}{2 } \big(s_k^2 +  m_k^2\big) \numberthis \label{eq:ELBO:1}
 \end{align*}
 
@@ -189,10 +197,15 @@ $\prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i)$
  	=& C \numberthis \label{eq:ELBO:5}
 \end{align*}
 
-We now substitute (\ref{eq:ELBO:1}), (\ref{eq:ELBO:2}), (\ref{eq:ELBO:3F}), (\ref{eq:ELBO:4}) and (\ref{eq:ELBO:5}) in (\ref{eq:ELBO_GMM}) 
+So \eqref{eq:ELBO_GMM} becomes: 
 
 \begin{align*}
-	\ELBO(m,s^2,\phi) =& - \frac{1}{2 } \sum_{k=1}^{K} \bigg[ \big[s_k^2 +  m_k^2\big]+ m_k +  c_{ik} \big[s_k^2 + (x_k+m_k)^2 \big]\bigg] \numberthis \label{eq:ELBO:CAVI}
+	\ELBO(m,s^2,\phi) = & \underbrace{\sum_{k=1}^{K} \Expectation_q \big[ \log {p(\mu_k);m_k,s_k^2}\big]}_\text{$=- \frac{1}{2 } \big(s_k^2 +  m_k^2\big)$ from \eqref{eq:ELBO:1}}\\
+	&+ \underbrace{\sum_{i=1}^{n}\Expectation_q \big[\log{p(c_i);\phi_i}\big]}_\text{$=0$ from \eqref{eq:ELBO:2}}\\
+	&+ \underbrace{\sum_{i=1}^{n}\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big]}_\text{$=-\frac{1}{2} \sum_{i=k}^{n} c_{ik} \big[s_k^2 + (x_k-m_k)^2 \big]$ from \eqref{eq:ELBO:3F}}\\
+	&+ \underbrace{\sum_{i=1}^n\Expectation_q\big[\log{q(c_i;\phi_i)}\big]}_\text{$=0$ from \eqref{eq:ELBO:4}}\\
+	&+ \underbrace{\sum_{k=1}^K\Expectation_q \big[\log{q(\mu_k;m_k,s^2_k)}\big]}_\text{$=0$ from \eqref{eq:ELBO:5}} \\
+ 	=& - \frac{1}{2 } \sum_{k=1}^{K} \bigg[ s_k^2 +  m_k^2 + m_k +  c_{ik} \big[s_k^2 + (x_k+m_k)^2 \big]\bigg] \numberthis \label{eq:ELBO:CAVI}
 \end{align*}
 % glossary : may need command makeglossaries.exe CAVI
 \printglossaries
