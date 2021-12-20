@@ -74,22 +74,16 @@
 	\end{align*}
 \end{defn}
 
-\begin{lemma}
+\begin{lemma}[Convexity]\label{lemma:convex}
 	If $f^{\prime\prime}$ exists on $[a,b]$ and $f^{\prime\prime}\ge0$ on $[a,b]$, then $f$ is convex on $[a,b]$. 
 \end{lemma}
-\begin{defn}[concave function]
-	Let $f$ be a real valued function defined on [a,b]. $f$ is said to be concave iff $\forall x_1,x_2 \in [a,b]$ and $\forall \lambda \in [0,1]$
-	\begin{align*}
-		f(\lambda x_1 + (1-\lambda) x_2) \ge \lambda f(x_1) + (1-\lambda)f(x_2) \numberthis \label{eq:convex}
-	\end{align*}
-\end{defn}
 
-\begin{thm}[Jensen's inequality]
+\begin{lemma}[Jensen's inequality]\label{lemma:jensen}
 	Let $f$ be a convex function defined on I. If $x_i \in I$ and $\lambda_i \ge 0$ and $\sum_{i=1}^{N} \lambda_i=1$. Then, for any $N>0$
 	\begin{align*}
 		f\big(\sum_{i=1}^{N} \lambda_i x_i\big) \le \sum_{i=1}^{N} \lambda_i f(x_i) \numberthis \label{eq:jensen}
 	\end{align*}
-\end{thm}
+\end{lemma}
 
 \begin{proof}
 	If $N=1$ the result is trivial, and for $N=2$ \eqref{eq:jensen} follows from \eqref{eq:convex}. We therefore assume that the result is true for some $N\ge2$, and seek to prove that it is true for $N+1$.
@@ -118,23 +112,25 @@
 \end{proof}
 
 
-\begin{thm}[the Kullback-Leibler divergence is always non-negative.]
+\begin{thm}[The Kullback-Leibler divergence is always non-negative.]\label{thm:kl:ge}
 	\begin{align*}
-		\KLD{q(z)}{p(z)} \ge 0
+		\KLD{q(z)}{p(z)} \ge 0 \numberthis \label{eq:kl:nn}
 	\end{align*}
 \end{thm}
 \begin{proof}
-	$\log(x)$ is a concave function, so $-\log(x)$ is convex. 
 	\begin{align*}
 		\KLD{q(z)}{p(z)} = & \Expectation_q(\log{\frac{q(z)}{p(z)}})\\
         = & \Expectation_q(-\log{\frac{p(z)}{q(z)}})\\
-         \ge &\log{\Expectation_q(\frac{p(z)}{q(z)})} \text{, now}\\
+         \ge &\log{\Expectation_q(\frac{p(z)}{q(z)})} \numberthis \label{eq:kl:nn0}
+	\end{align*}
+	 Where we have used  Jensen's inequality--Lemma \ref{lemma:jensen}--and the convexity of $-\log(x)$. The latter follows from Lemma \ref{lemma:convex} and the fact that $\frac{d^2\big(-\log{x}\big)}{dx^2}=\frac{1}{x^2}>0$. 
+	\begin{align*}
 		\log{\Expectation_q(\frac{p(z)}{q(z)})} =& \log{\sum_{i=0}^{N}\cancel{q_i}\frac{p_i}{\cancel{q_i}}}\\
 		=& \log{\sum_{i=0}^{N}p_i}\\
 		=& \log{1}\\
-		=& 0 \text{, whence}\\
-		\KLD{q(z)}{p(z)} \ge 0
+		=& 0
 	\end{align*}
+   Substituting in \eqref{eq:kl:nn0}, \eqref{eq:kl:nn} follows immediately.
 \end{proof}
 
 \section{Evidence Lower Bound}
@@ -177,13 +173,13 @@ We introduce the Kullback-Leibler divergence\cite{wiki:kullback:leibler}:
 \end{align*}
 \begin{align*}
 	\Expectation_q(\log{p(x)})=&\KLD{q(z)}{p(z\mid x)}+\Expectation_q(\log{p(z, x)})-\Expectation_q(\log{q(z)})\\
-	=& \KLD{q(z)}{p(z\mid x)} + \ELBO{(q(z))}
+	=& \KLD{q(z)}{p(z\mid x)} + \ELBO{(q(z))} \numberthis \label{eq:ELBO:KL}
 \end{align*}
 Where  the \gls{gls:ELBO} $\ELBO$ is defined as:
 \begin{align*}
 	\ELBO{(q)} \triangleq& \Expectation_q\big[\log{p(z,x)}\big] - \Expectation_q\big[\log{q(x)}\big]  \numberthis \label{eq:ELBO}
 \end{align*}
-Now we know that $\KLD{q(z)}{p(z\mid x)}\ge0$, with equality $iff\;q=p$, so:
+From Theorem \ref{thm:kl:ge}, $\KLD{q(z)}{p(z\mid x)}\ge0$, so \eqref{eq:ELBO:KL} gives:
 \begin{align*}
 	\Expectation_q(\log{p(x)})\ge\ELBO[q]
 \end{align*}
