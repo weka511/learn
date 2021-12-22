@@ -133,21 +133,21 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     seed(args.seed)
-    start                = time()
-    xs                   = normal(loc   = args.mean,
-                                  scale = args.sigma,
-                                  size  = args.N)
-    mu,sigma,ELBOs       = cavi(xs,tolerance = 1e-6)
-    time_cavi            = time()
-    mus_em               = []
-    sigmas_em            = []
+    start                    = time()
+    xs                       = normal(loc   = args.mean,
+                                      scale = args.sigma,
+                                      size  = args.N)
+    mu,sigma,ELBOs           = cavi(xs,tolerance = 1e-6)
+    time_cavi                = time()
+    mus_em                   = []
+    sigmas_em                = []
     if args.em:
         _,_,mus_em,sigmas_em = maximize_likelihood(xs,
                                                    mus    = [mean(xs)],
                                                    sigmas = [2],
                                                    alphas = [1],
                                                    K = 1)
-    time_em              = time()
+    time_em                 = time()
     figure(figsize=(10,10))
     plot_data(xs,
               mu,sigma,
