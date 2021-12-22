@@ -124,12 +124,12 @@ if __name__=='__main__':
     })
 
     parser = ArgumentParser('CAVI for single Gaussian')
-    parser.add_argument('--N',     type=int,   default=5000,  help='Dataset size')
-    parser.add_argument('--mean',  type=float, default=0.5,   help='Mean for dataset')
-    parser.add_argument('--sigma', type=float, default=0.5,   help='Standard deviation')
-    parser.add_argument('--seed',  type=int,   default=None,  help='Seed for random number generator')
-    parser.add_argument('--show',              default=False, action='store_true')
-    parser.add_argument('--em',                default=False, action='store_true')
+    parser.add_argument('--N',     type = int,            default = 5000,  help = 'Dataset size')
+    parser.add_argument('--mean',  type = float,          default = 0.5,   help = 'Mean for dataset')
+    parser.add_argument('--sigma', type = float,          default = 0.5,   help = 'Standard deviation')
+    parser.add_argument('--seed',  type = int,            default = None,  help = 'Seed for random number generator')
+    parser.add_argument('--show',  action = 'store_true', default = False, help = 'Show plots')
+    parser.add_argument('--em',    action = 'store_true', default = False, help = 'Uses Expectation maximization')
     args = parser.parse_args()
 
     seed(args.seed)
@@ -142,7 +142,11 @@ if __name__=='__main__':
     mus_em               = []
     sigmas_em            = []
     if args.em:
-        _,_,mus_em,sigmas_em = em.maximize_likelihood(xs,mus=[mean(xs)],sigmas=[2],alphas=[1],K=1)
+        _,_,mus_em,sigmas_em = maximize_likelihood(xs,
+                                                   mus    = [mean(xs)],
+                                                   sigmas = [2],
+                                                   alphas = [1],
+                                                   K = 1)
     time_em              = time()
     figure(figsize=(10,10))
     plot_data(xs,
