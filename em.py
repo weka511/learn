@@ -19,15 +19,14 @@
 # SOFTWARE.
 
 from argparse          import ArgumentParser
-from math        import log, sqrt
-from scipy.stats import norm
+from math              import log, sqrt
+from scipy.stats       import norm
 from math              import sqrt, log
 from matplotlib.pyplot import figure, rcParams, savefig, show, subplot
 from numpy             import mean, std
 from numpy.random      import normal
 from os.path           import basename
-from random            import gauss, seed
-from scipy.stats       import norm
+from random            import choice, seed
 from time              import time
 
 def maximize_likelihood(xs,
@@ -36,16 +35,17 @@ def maximize_likelihood(xs,
                         alphas    = [],
                         K         = 3,
                         N         = 25,
-                        tolerance = 1.0e-6):
+                        tolerance = 1.0e-6,
+                        n_burn_in = 3):
     '''Get best GMM fit as described in:
        Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning
        Padhraic Smyth
        https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
     '''
 
-    def has_converged(m=5):
+    def has_converged(n_burn_in=3):
         ''' Used to check whether likelhood has stopped improving'''
-        return len(likelihoods)>m and abs(likelihoods[-1]/likelihoods[-2]-1)<tolerance
+        return len(likelihoods)>n_burn_in and abs(likelihoods[-1]/likelihoods[-2]-1)<tolerance
 
     def get_log_likelihood(mus    = [],
                            sigmas = [],
@@ -113,10 +113,10 @@ def plot_data(xs,mu,sigma,ax=None):
     ax.legend(handles, labels)
 
 def plot_Likelihoods(Likelihoods,ax=None):
-    ax.set_title ('Likelihoods')
-    ax.plot(range(1,len(Likelihoods)-1),Likelihoods[2:])
-    ax.set_xticks(range(1,len(Likelihoods)-1))
-    ax.set_ylabel('Likelihoods')
+    ax.set_title ('Progress')
+    ax.plot(Likelihoods)
+    ax.set_xticks(range(1,len(Likelihoods)))
+    ax.set_ylabel('log Likelihood')
     ax.set_xlabel('Iteration')
 
 if __name__=='__main__':
@@ -132,17 +132,17 @@ if __name__=='__main__':
     parser.add_argument('--show',  action = 'store_true', default = False, help = 'Show plots')
     args = parser.parse_args()
     seed(args.seed)
-    start                = time()
-    xs                   = normal(loc   = args.mean,
-                                  scale = args.sigma,
-                                  size  = args.N)
+    start                    = time()
+    xs                       = normal(loc   = args.mean,
+                                      scale = args.sigma,
+                                      size  = args.N)
 
-    Likelihoods,alphas,mus,sigmas = maximize_likelihood(xs,
-                                                        mus    = [mean(xs)],
-                                                        sigmas = [2],
-                                                        alphas = [1],
-                                                        K      = 1)
-    figure(figsize=(10,10))
+    Likelihoods,_,mus,sigmas = maximize_likelihood(xs,
+                                                   mus    = [choice(xs)],
+                                                   sigmas = [2],
+                                                   alphas = [1],
+                                                   K      = 1)
+    figure(figsize          = (10,10))
     plot_data(xs, mus, sigmas,
               ax = subplot(211))
 
