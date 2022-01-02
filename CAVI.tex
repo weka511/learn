@@ -52,22 +52,25 @@
 
 \begin{abstract}
 	This document aims to fill the gaps between published papers, such as \cite{blei2017variational}, and my code. It has been written to help my understanding. If it is helpful to anyone else it is a bonus.
+	
+	Section \ref{sect:kl} describes the Kullback-Leibler divergence, and a key theorem which is needed by the remaining material. Section \ref{sect:elbo} introduces the \gls{gls:ELBO}, and Section \ref{sect:cavi} computes the \gls{gls:ELBO} for a \gls{gls:GMM}.
 \end{abstract}
 
 \tableofcontents
 \listoftables
 \listoftheorems
 
-\section{Preliminaries}
+\section{Kullback-Leibler divergence}\label{sect:kl}
 
-\begin{defn}[the Kullback-Leibler divergence]
-	Following \cite{wiki:kullback:leibler} we define the Kullback-Leibler divergence
+Following \cite{wiki:kullback:leibler} we define the Kullback-Leibler divergence, and derive Theorem \ref{thm:kl:ge}, which will be used in the sequel.
+	
+\begin{defn}[Kullback-Leibler divergence]
 	\begin{align*}
 		\KLD{q(z)}{p(z)} \triangleq& \Expectation_q(\log{\frac{q(z)}{p(z)}}) 
 	\end{align*}
 \end{defn}
 
-\begin{defn}[convex function]
+\begin{defn}[Convex function]
 	Let $f$ be a real valued function defined on [a,b]. $f$ is said to be convex iff $\forall x_1,x_2 \in [a,b]$ and $\forall \lambda \in [0,1]$
 	\begin{align*}
 		f(\lambda x_1 + (1-\lambda) x_2) \le \lambda f(x_1) + (1-\lambda)f(x_2) \numberthis \label{eq:convex}
@@ -79,7 +82,7 @@
 \end{lemma}
 
 \begin{lemma}[Jensen's inequality]\label{lemma:jensen}
-	Let $f$ be a convex function defined on I. If $x_i \in I$ and $\lambda_i \ge 0$ and $\sum_{i=1}^{N} \lambda_i=1$. Then, for any $N>0$
+	\cite{rudin1966real}Let $f$ be a convex function defined on I. If $x_i \in I$ and $\lambda_i \ge 0$ and $\sum_{i=1}^{N} \lambda_i=1$. Then, for any $N>0$
 	\begin{align*}
 		f\big(\sum_{i=1}^{N} \lambda_i x_i\big) \le \sum_{i=1}^{N} \lambda_i f(x_i) \numberthis \label{eq:jensen}
 	\end{align*}
@@ -133,7 +136,7 @@
    Substituting in \eqref{eq:kl:nn0}, \eqref{eq:kl:nn} follows immediately.
 \end{proof}
 
-\section{Evidence Lower Bound}
+\section{Evidence Lower Bound}\label{sect:elbo}
 
 \begin{table}[H]
 	\begin{center}
@@ -161,12 +164,11 @@
 	\end{align*}
 \end{thm}
 
-
 The evidence is:
 \begin{align*}
 		p(z) =& \int p(x\mid z) p(z) dz
 \end{align*}
-We introduce the Kullback-Leibler divergence\cite{wiki:kullback:leibler}:
+We will use the Kullback-Leibler divergence to derive a bound for the evidence.
 \begin{align*}
 \KLD{q(z)}{p(z\mid x)} \triangleq& \Expectation_q(\log{q(z)})-\Expectation_q(\log{p(z\mid x)}) \\
 	=& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z, x)}) + \Expectation_q(\log{p(x)})
@@ -185,7 +187,7 @@ From Theorem \ref{thm:kl:ge}, $\KLD{q(z)}{p(z\mid x)}\ge0$, so \eqref{eq:ELBO:KL
 \end{align*}
 \gls{gls:VI} aims to find a $q$ that matches $p$ by maximizing $\ELBO$.
 
-\section{Coordinate Ascent Variational Inference}
+\section{Coordinate Ascent Variational Inference}\label{sect:cavi}
 I will derive the \gls{gls:ELBO} for \gls{gls:CAVI}. 
 
 From \cite[Equation (13)]{blei2017variational}
