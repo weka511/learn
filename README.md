@@ -1,6 +1,12 @@
 # learn
 Experiments in machine learning
 
+## Projects
+
+File  | Remarks
+---------------|--------------------------------------------
+Autoencoder|Use of autoencoder for training
+
 ## General
 
  File  | Remarks
