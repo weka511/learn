@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Greenweaves Software Limited
+# Copyright (C) 2022 Greenweaves Software Limited
 
 # This is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,49 +14,70 @@
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
 from argparse               import ArgumentParser
-from matplotlib.pyplot      import hist, legend, show, xticks
+from matplotlib.pyplot      import figure, hist, legend, savefig, show, title, xticks
 from os.path                import join
 from torch                  import Generator, load, save
 from torch.utils.data       import random_split
 from torchvision.datasets   import MNIST
 from torchvision.transforms import Compose, ToTensor
 
-if __name__=='__main__':
+
+
+def save_plot_dataset(dataset,name,epsilon=0.005, colour='xkcd:red'):
+    ''' Save dataset and plot frequencies of all classes'''
+    save(dataset, name)
+    subset = load(name)
+    hist([y for _,y in subset],
+         bins    = [x+epsilon for x in range(-1,10)],
+         alpha   = 0.5,
+         density = True,
+         label = f'{name} {len(subset)} records',
+         color = colour)
+
+def parse_args():
     parser = ArgumentParser('Download dataset and partition training dataset into training and validation')
-    parser.add_argument('--root',                   default = r'd:\data')
-    parser.add_argument('--validation', type=float, default=0.1,  help = 'Size of validation dataset as fraction of test')
-    parser.add_argument('--seed',       type=int,   default=None, help = 'Used to initialize random number generator')
-    args           = parser.parse_args()
+    parser.add_argument('--root',
+                        default = r'd:\data')
+    parser.add_argument('--validation',
+                        type    = float,
+                        default = 0.1,
+                        help    = 'Size of validation dataset as fraction of test')
+    parser.add_argument('--seed',
+                        type    = int,
+                        default = None,
+                        help    = 'Used to initialize random number generator')
+    parser.add_argument('--show',
+                        default = False,
+                        action  = 'store_true',
+                        help    = 'Controls whether histograms shown')
+    return parser.parse_args()
 
-    transform      = Compose([ToTensor()])
+if __name__=='__main__':
+    args              = parse_args()
 
-    train_dataset  = MNIST(root      = args.root,
-                           train     = True,
-                           transform = transform,
-                           download  = True)
-    test_dataset   = MNIST(root      = args.root,
-                           train     = False,
-                           transform = transform,
-                           download  = True)
+    transform         = Compose([ToTensor()])
 
-    len_validation = int(args.validation * len(train_dataset))
-    train_dataset,validation_dataset  = random_split(train_dataset,[len(train_dataset)-len_validation,len_validation],
-                                                     generator = None if args.seed==None else Generator().manual_seed(args.seed))
+    train_dataset     = MNIST(root      = args.root,
+                              train     = True,
+                              transform = transform,
+                              download  = True)
+    test_dataset      = MNIST(root      = args.root,
+                              train     = False,
+                              transform = transform,
+                              download  = True)
 
-    save(train_dataset,'train.pt')
-    save(validation_dataset,'validation.pt')
-    f1 = load('train.pt')
-    f2 = load('validation.pt')
-    hist([y for _,y in f1],
-         bins    = 10,
-         alpha   = 0.5,
-         density = True,
-         label = f'train {len(f1)} records')
-    hist([y for _,y in f2],
-         bins    = 10,
-         alpha   = 0.5,
-         density = True,
-         label = f'validate {len(f2)} records')
+    len_validation    = int(args.validation * len(train_dataset))
+    train,validation  = random_split(train_dataset,[len(train_dataset)-len_validation,len_validation],
+                                     generator = None if args.seed==None else Generator().manual_seed(args.seed))
+
+    figure(figsize=(10,10))
+    save_plot_dataset(train,'train.pt')
+    save_plot_dataset(validation,'validation.pt',
+                      colour = 'xkcd:blue')
+
     xticks(range(-1,10))
     legend()
-    show()
+    title ('Frequencies of Classes')
+    savefig('freqs')
+    if args.show:
+        show()
