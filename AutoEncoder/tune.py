@@ -39,22 +39,32 @@ class Trainer(object):
         self.Losses             = [float('inf')]
         self.ValidationLosses   = [float('inf')]
         self.criterion          = criterion
-        self.optimizer          = Adam(model.parameters(), lr = lr)
+        self.optimizer          = Adam(model.parameters(),
+                                       lr = lr)
 
     def train(self,
               N_EPOCHS    = 25,
               N_BURN      = 5):
+        '''
+            Adjust weights until overtraining starts.
 
+            The weights are saved each iteration, so the best set of weights will be preserved.
+        '''
         for epoch in range(N_EPOCHS):
             self.train_step()
             self.validation_step()
             print(f'epoch : {epoch + 1}/{N_EPOCHS}, losses = {self.Losses[-1]:.6f}, {self.ValidationLosses[-1]:.6f}')
-            self.save_model()
-            if epoch>N_BURN and self.ValidationLosses[-1]>self.ValidationLosses[-2]: return True
+            if epoch>N_BURN and self.ValidationLosses[-1]>self.ValidationLosses[-2]:
+                return True
+            else:
+                self.save_model(epoch)
 
         return False
 
     def train_step(self):
+        '''
+            Compute gradiets, adjust weights, and compute training loss
+        '''
         loss = 0
         for batch_features, _ in self.loader:
             batch_features = batch_features.view(-1, 784)
@@ -68,6 +78,9 @@ class Trainer(object):
         self.Losses.append(loss / len(self.loader))
 
     def validation_step(self):
+        '''
+            Computer validation loss
+        '''
         loss = 0.0
         with no_grad():
             for i,(batch_features, _) in enumerate(self.validation_loader):
@@ -78,11 +91,32 @@ class Trainer(object):
 
         self.ValidationLosses.append(loss / len(self.validation_loader))
 
-    def save_model(self):
-        pass
+    def save_model(self,epoch):
+        '''
+            Save current state of model
+        '''
+        save({
+            'epoch'                : epoch,
+            'model_state_dict'     : self.model.state_dict(),
+            'optimizer_state_dict' : self.optimizer.state_dict(),
+            'loss'                 : self.Losses[-1],
+            'validation_loss'      : self.ValidationLosses[-1],
+            },
+             self.get_file_name())
+
+    def get_file_name(self,
+                      name = 'saved',
+                      ext  = 'pt'):
+        '''
+            Used to assign names to files, including hyerparameter values
+        '''
+
+        return f'{name}-lr({args.lr}).{ext}'
 
 def parse_args():
-    '''Extract command line arguments'''
+    '''
+        Extract command line arguments
+    '''
     parser = ArgumentParser(__doc__)
     parser.add_argument('--encoder',
                         nargs   = '+',
@@ -102,7 +136,41 @@ def parse_args():
                         default = 128,
                         type    = int,
                         help    = 'Training batch size')
+    parser.add_argument('--lr',
+                        default = 0.001,
+                        type    = float,
+                        help    = 'Learning rate')
+    parser.add_argument('--show',
+                        default = False,
+                        action  = 'store_true',
+                        help    = 'Display images (default is to only save them)')
     return parser.parse_args()
+
+
+
+
+class Plotter:
+    '''
+    A Context Manager that wraps matplotlib. Create figure and display title on entry,
+    save figure on exit
+    '''
+    def __init__(self,name,args,seq=None,ext='png'):
+        self.args = args
+        self.name = name
+        self.seq  = seq
+        self.ext  = ext
+
+    def __enter__(self):
+        self.fig = figure(figsize=(10,10))
+        title(f'{self.name.title()}: lr={self.args.lr}')
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        base      = f'{self.name}-lr({self.args.lr})'
+        file_name = base if self.seq==None else f'{base}-{self.seq:04d}'
+        savefig(f'{file_name}.{self.ext}')
+        if not args.show:
+            close(self.fig)
 
 if __name__=='__main__':
     args    = parse_args()
@@ -118,11 +186,14 @@ if __name__=='__main__':
                       DataLoader(load('validation.pt'),
                                  batch_size  = 32,
                                  shuffle     = False,
-                                 num_workers = cpu_count()))
+                                 num_workers = cpu_count()),
+                      lr = args.lr)
     trainer.train(N_EPOCHS=100)
 
-    figure(figsize=(10,10))
-    plot(trainer.Losses, 'bo', label='Training Losses')
-    plot(ValidationLosses.Losses, 'r+', label='Validation Losses')
-    legend()
-    show()
+    with Plotter('training',args):
+        plot(trainer.Losses, 'bo', label='Training Losses')
+        plot(trainer.ValidationLosses, 'r+', label='Validation Losses')
+        legend()
+
+    if args.show:
+        show()

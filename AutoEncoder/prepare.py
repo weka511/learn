@@ -13,6 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
+'''
+    Ensure that training and validation datasets have been downloaded.
+    Partition training dataset into training and validation.
+'''
+
 from argparse               import ArgumentParser
 from matplotlib.pyplot      import figure, hist, legend, savefig, show, title, xticks
 from os.path                import join
@@ -35,7 +40,8 @@ def save_plot_dataset(dataset,name,epsilon=0.005, colour='xkcd:red'):
          color = colour)
 
 def parse_args():
-    parser = ArgumentParser('Download dataset and partition training dataset into training and validation')
+    '''Extract command line arguments'''
+    parser = ArgumentParser(__doc__)
     parser.add_argument('--root',
                         default = r'd:\data')
     parser.add_argument('--validation',
