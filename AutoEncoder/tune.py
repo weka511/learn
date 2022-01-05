@@ -20,7 +20,7 @@
 
 from argparse          import ArgumentParser
 from AutoEncoder       import AutoEncoder
-from matplotlib.pyplot import figure, legend, plot, savefig, show, title
+from matplotlib.pyplot import close, figure, legend, plot, savefig, show, title
 from multiprocessing   import cpu_count
 from torch             import load, no_grad, save
 from torch.nn          import MSELoss
