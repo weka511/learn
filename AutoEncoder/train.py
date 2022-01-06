@@ -14,7 +14,7 @@
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
 '''
-    Use Autoencoder to compress data
+    Use compressed data for training digit recognizer
 '''
 
 from argparse          import ArgumentParser
