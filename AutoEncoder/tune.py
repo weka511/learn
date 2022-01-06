@@ -44,7 +44,8 @@ class Trainer(object):
 
     def train(self,
               N_EPOCHS    = 25,
-              N_BURN      = 5):
+              N_BURN      = 5,
+              args_dict   = {}):
         '''
             Adjust weights until overtraining starts.
 
@@ -57,7 +58,7 @@ class Trainer(object):
             if epoch>N_BURN and self.ValidationLosses[-1]>self.ValidationLosses[-2]:
                 return True
             else:
-                self.save_model(epoch)
+                self.save_model(args_dict)
 
         return False
 
@@ -91,16 +92,13 @@ class Trainer(object):
 
         self.ValidationLosses.append(loss / len(self.validation_loader))
 
-    def save_model(self,epoch):
+    def save_model(self,args_dict):
         '''
             Save current state of model
         '''
         save({
-            'epoch'                : epoch,
             'model_state_dict'     : self.model.state_dict(),
-            'optimizer_state_dict' : self.optimizer.state_dict(),
-            'loss'                 : self.Losses[-1],
-            'validation_loss'      : self.ValidationLosses[-1],
+            'args_dict'            : args_dict
             },
              self.get_file_name())
 
@@ -188,7 +186,12 @@ if __name__=='__main__':
                                  shuffle     = False,
                                  num_workers = cpu_count()),
                       lr = args.lr)
-    trainer.train(N_EPOCHS=100)
+    trainer.train(N_EPOCHS  = 100,
+                  args_dict = {
+                                'nonlinearity' : args.nonlinearity,
+                                'encoder'      : args.encoder,
+                                'decoder'      : args.decoder
+                              })
 
     with Plotter('training',args):
         plot(trainer.Losses, 'bo', label='Training Losses')
