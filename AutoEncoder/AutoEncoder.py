@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Greenweaves Software Limited
+# Copyright (C) 2021-2022 Greenweaves Software Limited
 
 # This is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -82,8 +82,8 @@ class AutoEncoder(Module):
         '''
         super().__init__()
         self.name          = self.__class__.__name__
-        self.encoder_sizes = encoder_sizes
-        self.decoder_sizes = encoder_sizes[::-1] if len(decoder_sizes)==0 else decoder_sizes
+        self.encoder_sizes = [size for size in encoder_sizes]
+        self.decoder_sizes = encoder_sizes[::-1] if len(decoder_sizes)==0 else [size for size in decoder_sizes]
         assert self.encoder_sizes[-1] == self.decoder_sizes[0],'Encoder should match decoder'
         assert self.encoder_sizes[0]  == self.decoder_sizes[-1],'Encoder should match decoder'
 
@@ -119,6 +119,9 @@ class AutoEncoder(Module):
                 f'encoder nonlinearity = {self.encoder_non_linearity}',
                 f'decoder nonlinearity = {self.decoder_non_linearity}'
                 ]
+
+    def get_input_length(self):
+        return self.encoder_sizes[0]
 
 class Trainer:
     '''This class encapsulates criterion, optimizer, and the process of training
@@ -166,7 +169,7 @@ class Trainer:
         for epoch in range(start, start + N):
             loss = 0
             for batch_features, _ in loader:
-                batch_features = batch_features.view(-1, 784).to(self.dev)
+                batch_features = batch_features.view(-1, self.model.get_input_length()).to(self.dev)
                 self.optimizer.zero_grad()
                 outputs        = self.model(batch_features)
                 train_loss     = self.criterion(outputs, batch_features)
@@ -239,7 +242,7 @@ class Trainer:
         '''        self.reconstruction_loss = 0.0
         with no_grad():
             for i,(batch_features, _) in enumerate(loader):
-                batch_features = batch_features.view(-1, 784).to(dev)
+                batch_features = batch_features.view(-1,  self.model.get_input_length()).to(dev)
                 outputs        = self.model(batch_features)
                 test_loss      = self.criterion(outputs, batch_features)
                 self.reconstruction_loss += test_loss.item()
@@ -248,6 +251,8 @@ class Trainer:
     def get_params(self):
         '''Get list of lines to be displayed in legend'''
         return [f'lr = {self.lr}'] + self.model.get_params()
+
+
 
 class Timer:
     '''Work out elapsed time
@@ -369,7 +374,7 @@ class Displayer:
         def extract_batch(batch_features, labels,index):
             '''Extract xs, ys, and colours for one batch'''
 
-            batch_features = batch_features.view(-1, 784).to(dev)
+            batch_features = batch_features.view(-1,  self.model.get_input_length()).to(dev)
             encoded        = self.trainer.model(batch_features).tolist()
             return list(zip(*([encoded[k][2*index] for k in range(len(labels))],
                               [encoded[k][2*index+1] for k in range(len(labels))],

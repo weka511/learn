@@ -24,6 +24,9 @@ from torch             import load, no_grad
 from torch.utils.data  import DataLoader
 
 def create_model(loaded):
+    '''
+    Create Autoencode from data that has previously been saved
+    '''
     old_args = loaded['args_dict']
     enl,dnl  = AutoEncoder.get_non_linearity(old_args['nonlinearity'])
     return AutoEncoder(encoder_sizes         = old_args['encoder'],
@@ -33,10 +36,12 @@ def create_model(loaded):
 
 def extract(model,data_loader,output,
             separator = ','):
+    '''
+    '''
     model.decode = False
     with no_grad(),open(output,'w') as out:
         for i,(batch_features, target) in enumerate(data_loader):
-            batch_features = batch_features.view(-1, 784)
+            batch_features = batch_features.view(-1, model.get_input_length())
             encoded        = model(batch_features).tolist()
             for xs,y in zip(encoded,target.tolist()):
                 out.write(f'{separator.join([str(x) for x in xs])},{y}\n')

@@ -68,7 +68,7 @@ class Trainer(object):
         '''
         loss = 0
         for batch_features, _ in self.loader:
-            batch_features = batch_features.view(-1, 784)
+            batch_features = batch_features.view(-1, self.model.get_input_length())
             self.optimizer.zero_grad()
             outputs        = self.model(batch_features)
             train_loss     = self.criterion(outputs, batch_features)
@@ -85,7 +85,7 @@ class Trainer(object):
         loss = 0.0
         with no_grad():
             for i,(batch_features, _) in enumerate(self.validation_loader):
-                batch_features        = batch_features.view(-1, 784)
+                batch_features        = batch_features.view(-1, self.model.get_input_length())
                 outputs               = self.model(batch_features)
                 validation_loss       = self.criterion(outputs, batch_features)
                 loss   += validation_loss.item()
