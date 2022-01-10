@@ -106,10 +106,10 @@ class Trainer(object):
                       name = 'saved',
                       ext  = 'pt'):
         '''
-            Used to assign names to files, including hyerparameter values
+            Used to assign names to files, including hyperparameter values
         '''
 
-        return f'{name}-lr({args.lr}).{ext}'
+        return f'{get_file_name(name,args.dimension,args.lr)}.{ext}'
 
 def parse_args():
     '''
@@ -119,8 +119,12 @@ def parse_args():
     parser.add_argument('--encoder',
                         nargs   = '+',
                         type    = int,
-                        default = [28*28, 400, 200, 100, 50, 25, 6],
+                        default = [28*28, 400, 200, 100, 50, 25],
                         help    = 'Sizes of each layer in encoder')
+    parser.add_argument('--dimension',
+                        type    = int,
+                        default = 6,
+                        help    = 'Domension of encoded vectors')
     parser.add_argument('--decoder',
                         nargs   = '*',
                         type    = int,
@@ -144,7 +148,9 @@ def parse_args():
                         help    = 'Display images (default is to only save them)')
     return parser.parse_args()
 
-
+def get_file_name(name,dimension,lr,seq=None):
+    base      = f'{name}-dim({dimension})-lr({lr})'
+    return base if seq==None else f'{base}-{seq:04d}'
 
 
 class Plotter:
@@ -160,13 +166,11 @@ class Plotter:
 
     def __enter__(self):
         self.fig = figure(figsize=(10,10))
-        title(f'{self.name.title()}: lr={self.args.lr}')
+        title(f'{self.name.title()}: dimension = {self.args.dimension}, lr={self.args.lr}')
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        base      = f'{self.name}-lr({self.args.lr})'
-        file_name = base if self.seq==None else f'{base}-{self.seq:04d}'
-        savefig(f'{file_name}.{self.ext}')
+        savefig(f'{get_file_name(self.name,self.args.dimension,self.args.lr)}.{self.ext}')
         if not args.show:
             close(self.fig)
 
@@ -174,6 +178,7 @@ if __name__=='__main__':
     args    = parse_args()
     enl,dnl = AutoEncoder.get_non_linearity(args.nonlinearity)
     trainer = Trainer(AutoEncoder(encoder_sizes         = args.encoder,
+                                  encoding_dimension    = args.dimension,
                                   encoder_non_linearity = enl,
                                   decoder_non_linearity = dnl,
                                   decoder_sizes         = args.decoder) ,
@@ -190,7 +195,8 @@ if __name__=='__main__':
                   args_dict = {
                                 'nonlinearity' : args.nonlinearity,
                                 'encoder'      : args.encoder,
-                                'decoder'      : args.decoder
+                                'decoder'      : args.decoder,
+                                'dimension'    : args.dimension,
                               })
 
     with Plotter('training',args):

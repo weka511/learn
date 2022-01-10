@@ -69,7 +69,8 @@ class AutoEncoder(Module):
             return Sequential(*[item for pair in [(layer,non_linearity) for layer in linears] for item in pair])
 
     def __init__(self,
-                 encoder_sizes         = [28*28,400,200,100,50,25,6],
+                 encoder_sizes         = [28*28,400,200,100,50,25],
+                 encoding_dimension    = 6,
                  encoder_non_linearity = ReLU(inplace=True),
                  decoder_sizes         = [],
                  decoder_non_linearity = ReLU(inplace=True)):
@@ -82,8 +83,8 @@ class AutoEncoder(Module):
         '''
         super().__init__()
         self.name          = self.__class__.__name__
-        self.encoder_sizes = [size for size in encoder_sizes]
-        self.decoder_sizes = encoder_sizes[::-1] if len(decoder_sizes)==0 else [size for size in decoder_sizes]
+        self.encoder_sizes = [size for size in encoder_sizes] + [encoding_dimension]
+        self.decoder_sizes = self.encoder_sizes[::-1] if len(decoder_sizes)==0 else [size for size in decoder_sizes]
         assert self.encoder_sizes[-1] == self.decoder_sizes[0],'Encoder should match decoder'
         assert self.encoder_sizes[0]  == self.decoder_sizes[-1],'Encoder should match decoder'
 

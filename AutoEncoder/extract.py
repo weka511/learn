@@ -25,26 +25,33 @@ from torch.utils.data  import DataLoader
 
 def create_model(loaded):
     '''
-    Create Autoencode from data that has previously been saved
+    Create Autoencoder from data that has previously been saved
+
+    Parameters:
+        loaded   A model that has been loaded from a file
+
+    Returns:
+        newly created Autoencoder
     '''
     old_args = loaded['args_dict']
     enl,dnl  = AutoEncoder.get_non_linearity(old_args['nonlinearity'])
     return AutoEncoder(encoder_sizes         = old_args['encoder'],
+                       encoding_dimension    = old_args['dimension'],
                        encoder_non_linearity = enl,
                        decoder_non_linearity = dnl,
                        decoder_sizes         = old_args['decoder'])
 
-def extract(model,data_loader,output,
-            separator = ','):
+def extract(model,data_loader):
     '''
+    A generator to iterate through the dataset, providing the encoding and target value for each data item.
     '''
     model.decode = False
-    with no_grad(),open(output,'w') as out:
-        for i,(batch_features, target) in enumerate(data_loader):
-            batch_features = batch_features.view(-1, model.get_input_length())
-            encoded        = model(batch_features).tolist()
-            for xs,y in zip(encoded,target.tolist()):
-                out.write(f'{separator.join([str(x) for x in xs])},{y}\n')
+
+    for i,(batch_features, target) in enumerate(data_loader):
+        batch_features = batch_features.view(-1, model.get_input_length())
+        encoded        = model(batch_features).tolist()
+        for xs,y in zip(encoded,target.tolist()):
+            yield xs,y
 
 
 
@@ -54,7 +61,15 @@ def parse_args():
     '''
     parser = ArgumentParser(__doc__)
     parser.add_argument('--load',
-                        default = 'saved-lr(0.001).pt')
+                        default = 'saved-dim(4)-lr(0.001).pt',
+                        help    = 'Network saved by tune.py')
+    parser.add_argument('--output',
+                        default = 'train.csv',
+                        help    = 'Output file to store extracted data')
+    parser.add_argument('--batch',
+                        default = 128,
+                        type    = int,
+                        help    = 'Training batch size')
     return parser.parse_args()
 
 if __name__=='__main__':
@@ -62,10 +77,11 @@ if __name__=='__main__':
     loaded   = load(args.load)
     model    = create_model(loaded)
     model.load_state_dict(loaded['model_state_dict'])
-    extract(model,
-            DataLoader(load('train.pt'),
-                       batch_size  = 2,#32,
-                       shuffle     = False,
-                       num_workers = cpu_count()),
-            'train.csv')
+    with no_grad(),open(args.output,'w') as out:
+        for xs,y in extract(model,
+                            DataLoader(load('train.pt'),
+                                       batch_size  = args.batch,
+                                       shuffle     = False,
+                                       num_workers = cpu_count())):
+            out.write(f'{",".join([str(x) for x in xs])},{y}\n')
 
