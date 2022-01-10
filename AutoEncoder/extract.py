@@ -77,6 +77,10 @@ def parse_args():
     parser.add_argument('--data',
                         default = 'validation.pt',
                         help    = 'file to encode')
+    parser.add_argument('--plot3d',
+                        default = False,
+                        action  = 'store_true',
+                        help    = 'Prepare 3D plot of encoded data')
     return parser.parse_args()
 
 if __name__=='__main__':
@@ -112,16 +116,19 @@ if __name__=='__main__':
                                        num_workers = cpu_count())):
             out.write(f'{",".join([str(x) for x in encoded])},{target}\n')
 
-            xs.append(encoded[0])
-            ys.append(encoded[1])
-            zs.append(encoded[2])
-            cs.append(Colours[target])
-        ax.scatter3D(xs,ys,zs, c=cs,s=1)
-        ax.legend(handles=[Line2D([], [],
-                            color  = Colours[k],
-                            marker = 's',
-                            ls     = '',
-                            label  = f'{k}') for k in range(len(Colours))])
-        ax.set_title(args.data)
-        savefig(f'{splitext(output_file)[0]}.png')
-        show()
+            if args.plot3d:
+                xs.append(encoded[0])
+                ys.append(encoded[1])
+                zs.append(encoded[2])
+                cs.append(Colours[target])
+
+        if args.plot3d:
+            ax.scatter3D(xs,ys,zs, c=cs,s=1)
+            ax.legend(handles=[Line2D([], [],
+                                color  = Colours[k],
+                                marker = 's',
+                                ls     = '',
+                                label  = f'{k}') for k in range(len(Colours))])
+            ax.set_title(args.data)
+            savefig(f'{splitext(output_file)[0]}.png')
+            show()
