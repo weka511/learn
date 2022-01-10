@@ -19,7 +19,11 @@
 
 from argparse          import ArgumentParser
 from AutoEncoder       import AutoEncoder
+from matplotlib.lines  import Line2D
+from matplotlib.pyplot import axes, figure, savefig, show
+from mpl_toolkits      import mplot3d
 from multiprocessing   import cpu_count
+from os.path           import splitext
 from torch             import load, no_grad
 from torch.utils.data  import DataLoader
 
@@ -61,15 +65,18 @@ def parse_args():
     '''
     parser = ArgumentParser(__doc__)
     parser.add_argument('--load',
-                        default = 'saved-dim(4)-lr(0.001).pt',
+                        default = 'saved-dim(3)-lr(0.001).pt',
                         help    = 'Network saved by tune.py')
     parser.add_argument('--output',
-                        default = 'train.csv',
+                        default = '',
                         help    = 'Output file to store extracted data')
     parser.add_argument('--batch',
                         default = 128,
                         type    = int,
                         help    = 'Training batch size')
+    parser.add_argument('--data',
+                        default = 'validation.pt',
+                        help    = 'file to encode')
     return parser.parse_args()
 
 if __name__=='__main__':
@@ -77,11 +84,44 @@ if __name__=='__main__':
     loaded   = load(args.load)
     model    = create_model(loaded)
     model.load_state_dict(loaded['model_state_dict'])
-    with no_grad(),open(args.output,'w') as out:
-        for xs,y in extract(model,
-                            DataLoader(load('train.pt'),
+    output_file = f'{splitext(args.data)[0]}.csv' if len(args.output)==0 else args.output
+    with no_grad(),open(output_file,'w') as out:
+        fig = figure()
+        ax  = axes(projection='3d')
+        xs  = []
+        ys  = []
+        zs  = []
+        cs  = []
+
+        Colours = [
+            'xkcd:purple',
+            'xkcd:green',
+            'xkcd:blue',
+            'xkcd:pink',
+            'xkcd:brown',
+            'xkcd:red',
+            'xkcd:teal',
+            'xkcd:orange',
+            'xkcd:magenta',
+            'xkcd:yellow'
+        ]
+        for encoded,target in extract(model,
+                            DataLoader(load(args.data),
                                        batch_size  = args.batch,
                                        shuffle     = False,
                                        num_workers = cpu_count())):
-            out.write(f'{",".join([str(x) for x in xs])},{y}\n')
+            out.write(f'{",".join([str(x) for x in encoded])},{target}\n')
 
+            xs.append(encoded[0])
+            ys.append(encoded[1])
+            zs.append(encoded[2])
+            cs.append(Colours[target])
+        ax.scatter3D(xs,ys,zs, c=cs,s=1)
+        ax.legend(handles=[Line2D([], [],
+                            color  = Colours[k],
+                            marker = 's',
+                            ls     = '',
+                            label  = f'{k}') for k in range(len(Colours))])
+        ax.set_title(args.data)
+        savefig(f'{splitext(output_file)[0]}.png')
+        show()
