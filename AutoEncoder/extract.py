@@ -87,6 +87,57 @@ def parse_args():
                         help    = 'Controls whether plot shown (default is just to save)')
     return parser.parse_args()
 
+class Plot:
+    '''
+    A class to encapsulate plotting
+    '''
+    def __init__(self,data,output_file,plot3d,show):
+        self.data        = data
+        self.output_file = output_file
+        self.plot3d      = plot3d
+        self.show        = show
+        self.xs          = []
+        self.ys          = []
+        self.zs          = []
+        self.cs          = []
+        self.Colours     = [
+            'xkcd:purple',
+            'xkcd:green',
+            'xkcd:blue',
+            'xkcd:pink',
+            'xkcd:brown',
+            'xkcd:red',
+            'xkcd:teal',
+            'xkcd:orange',
+            'xkcd:magenta',
+            'xkcd:yellow'
+        ]
+
+    def __enter__(self):
+        return self
+
+    def accumulate(self,encoded,target):
+        if not self.plot3d: return
+        self.xs.append(encoded[0])
+        self.ys.append(encoded[1])
+        self.zs.append(encoded[2])
+        self.cs.append(self.Colours[target])
+
+    def __exit__(self, type, value, traceback):
+        if not self.plot3d: return
+        fig = figure()
+        ax  = axes(projection='3d')
+        ax.scatter3D(self.xs,self.ys,self.zs, c=self.cs,s=1)
+        ax.legend(handles=[Line2D([], [],
+                            color  = self.Colours[k],
+                            marker = 's',
+                            ls     = '',
+                            label  = f'{k}') for k in range(len(self.Colours))])
+        ax.set_title(self.data)
+        savefig(f'{splitext(self.output_file)[0]}.png')
+        if self.show:
+            show()
+
 if __name__=='__main__':
     args     = parse_args()
     loaded   = load(args.load)
@@ -94,24 +145,9 @@ if __name__=='__main__':
     model.load_state_dict(loaded['model_state_dict'])
     output_file = f'{splitext(args.data)[0]}.csv' if len(args.output)==0 else args.output
 
-    xs  = []
-    ys  = []
-    zs  = []
-    cs  = []
-
-    Colours = [
-        'xkcd:purple',
-        'xkcd:green',
-        'xkcd:blue',
-        'xkcd:pink',
-        'xkcd:brown',
-        'xkcd:red',
-        'xkcd:teal',
-        'xkcd:orange',
-        'xkcd:magenta',
-        'xkcd:yellow'
-    ]
-    with no_grad(),open(output_file,'w') as out:
+    with no_grad(),                                               \
+         open(output_file,'w') as out,                            \
+         Plot(args.data,output_file,args.plot3d,args.show) as plot:
         for encoded,target in extract(model,
                             DataLoader(load(args.data),
                                        batch_size  = args.batch,
@@ -119,22 +155,5 @@ if __name__=='__main__':
                                        num_workers = cpu_count())):
             out.write(f'{",".join([str(x) for x in encoded])},{target}\n')
 
-            if args.plot3d:
-                xs.append(encoded[0])
-                ys.append(encoded[1])
-                zs.append(encoded[2])
-                cs.append(Colours[target])
+            plot.accumulate(encoded,target)
 
-        if args.plot3d:
-            fig = figure()
-            ax  = axes(projection='3d')
-            ax.scatter3D(xs,ys,zs, c=cs,s=1)
-            ax.legend(handles=[Line2D([], [],
-                                color  = Colours[k],
-                                marker = 's',
-                                ls     = '',
-                                label  = f'{k}') for k in range(len(Colours))])
-            ax.set_title(args.data)
-            savefig(f'{splitext(output_file)[0]}.png')
-            if args.show:
-                show()
