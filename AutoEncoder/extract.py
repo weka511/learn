@@ -81,6 +81,10 @@ def parse_args():
                         default = False,
                         action  = 'store_true',
                         help    = 'Prepare 3D plot of encoded data')
+    parser.add_argument('--show',
+                        default = False,
+                        action  = 'store_true',
+                        help    = 'Controls whether plot shown (default is just to save)')
     return parser.parse_args()
 
 if __name__=='__main__':
@@ -89,26 +93,25 @@ if __name__=='__main__':
     model    = create_model(loaded)
     model.load_state_dict(loaded['model_state_dict'])
     output_file = f'{splitext(args.data)[0]}.csv' if len(args.output)==0 else args.output
-    with no_grad(),open(output_file,'w') as out:
-        fig = figure()
-        ax  = axes(projection='3d')
-        xs  = []
-        ys  = []
-        zs  = []
-        cs  = []
 
-        Colours = [
-            'xkcd:purple',
-            'xkcd:green',
-            'xkcd:blue',
-            'xkcd:pink',
-            'xkcd:brown',
-            'xkcd:red',
-            'xkcd:teal',
-            'xkcd:orange',
-            'xkcd:magenta',
-            'xkcd:yellow'
-        ]
+    xs  = []
+    ys  = []
+    zs  = []
+    cs  = []
+
+    Colours = [
+        'xkcd:purple',
+        'xkcd:green',
+        'xkcd:blue',
+        'xkcd:pink',
+        'xkcd:brown',
+        'xkcd:red',
+        'xkcd:teal',
+        'xkcd:orange',
+        'xkcd:magenta',
+        'xkcd:yellow'
+    ]
+    with no_grad(),open(output_file,'w') as out:
         for encoded,target in extract(model,
                             DataLoader(load(args.data),
                                        batch_size  = args.batch,
@@ -123,6 +126,8 @@ if __name__=='__main__':
                 cs.append(Colours[target])
 
         if args.plot3d:
+            fig = figure()
+            ax  = axes(projection='3d')
             ax.scatter3D(xs,ys,zs, c=cs,s=1)
             ax.legend(handles=[Line2D([], [],
                                 color  = Colours[k],
@@ -131,4 +136,5 @@ if __name__=='__main__':
                                 label  = f'{k}') for k in range(len(Colours))])
             ax.set_title(args.data)
             savefig(f'{splitext(output_file)[0]}.png')
-            show()
+            if args.show:
+                show()

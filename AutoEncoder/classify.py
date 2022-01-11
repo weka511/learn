@@ -18,7 +18,7 @@
 '''
 
 from argparse          import ArgumentParser
-
+from sklearn.neighbors import KNeighborsClassifier
 
 def parse_args():
     '''
