@@ -3,7 +3,7 @@
 Use of autoencoder for training
 
 #|File|Description
-=#--------------------|--------------------------------
+-|--------------------|--------------------------------
 1|AutoEncoder.py|
 2|prepare.py|Download dataset and partition training dataset into training and validation
 3|tune.py|Train Auto Encoder and plot losses
