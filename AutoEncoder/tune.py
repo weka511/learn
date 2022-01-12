@@ -124,7 +124,7 @@ def parse_args():
     parser.add_argument('--dimension',
                         type    = int,
                         default = 6,
-                        help    = 'Domension of encoded vectors')
+                        help    = 'Dimension of encoded vectors')
     parser.add_argument('--decoder',
                         nargs   = '*',
                         type    = int,
@@ -149,6 +149,9 @@ def parse_args():
     return parser.parse_args()
 
 def get_file_name(name,dimension,lr,seq=None):
+    '''
+    File name for plots and saved model
+    '''
     base      = f'{name}-dim({dimension})-lr({lr})'
     return base if seq==None else f'{base}-{seq:04d}'
 
