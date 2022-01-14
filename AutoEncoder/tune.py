@@ -146,6 +146,10 @@ def parse_args():
                         default = False,
                         action  = 'store_true',
                         help    = 'Display images (default is to only save them)')
+    parser.add_argument('--N',
+                        default = 100,
+                        type    = int,
+                        help    = 'Maximum number of epochs')
     return parser.parse_args()
 
 def get_file_name(name,dimension,lr,seq=None):
@@ -161,7 +165,9 @@ class Plotter:
     A Context Manager that wraps matplotlib. Create figure and display title on entry,
     save figure on exit
     '''
-    def __init__(self,name,args,seq=None,ext='png'):
+    def __init__(self,name,args,
+                 seq = None,
+                 ext = 'png'):
         self.args = args
         self.name = name
         self.seq  = seq
@@ -194,7 +200,7 @@ if __name__=='__main__':
                                  shuffle     = False,
                                  num_workers = cpu_count()),
                       lr = args.lr)
-    trainer.train(N_EPOCHS  = 100,
+    trainer.train(N_EPOCHS  = args.N,
                   args_dict = {
                                 'nonlinearity' : args.nonlinearity,
                                 'encoder'      : args.encoder,
@@ -203,8 +209,10 @@ if __name__=='__main__':
                               })
 
     with Plotter('training',args):
-        plot(trainer.Losses, 'bo', label='Training Losses')
-        plot(trainer.ValidationLosses, 'r+', label='Validation Losses')
+        plot(trainer.Losses, 'bo',
+             label = 'Training Losses')
+        plot(trainer.ValidationLosses, 'r+',
+             label = 'Validation Losses')
         legend()
 
     if args.show:
