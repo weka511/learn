@@ -28,22 +28,42 @@ from torchvision.transforms import Compose, ToTensor
 
 
 
-def save_plot_dataset(dataset,name,epsilon=0.005, colour='xkcd:red'):
-    ''' Save dataset and plot frequencies of all classes'''
-    save(dataset, name)
-    subset = load(name)
+def save_plot_dataset(dataset,name,
+                      epsilon = 0.005,
+                      colour  = 'xkcd:red',
+                      path    = ''):
+    '''
+       Save dataset and plot frequencies of all classes
+
+       Parameters:
+            dataset   Dataset to be saved
+            name      Base file name for save
+       Keyword Parameters:
+            epsilon   Used to ensure that bins don't include the lower limit
+            colour    For plotting histogram
+            path      Pathe for savibg dataset
+    '''
+    save(dataset, join(path,name))
+    subset = load(join(path,name))
     hist([y for _,y in subset],
          bins    = [x+epsilon for x in range(-1,10)],
          alpha   = 0.5,
          density = True,
-         label = f'{name} {len(subset)} records',
+         label = f'{join(path,name)} {len(subset)} records',
          color = colour)
 
 def parse_args():
     '''Extract command line arguments'''
     parser = ArgumentParser(__doc__)
     parser.add_argument('--root',
-                        default = r'd:\data')
+                        default = r'd:\data',
+                        help    = 'Path for storing downloaded data')
+    parser.add_argument('--data',
+                        default = r'./data',
+                        help    = 'Path for storing intermediate data, such as training and validation and saved weights')
+    parser.add_argument('--figs',
+                        default = r'./figs',
+                        help    = 'Path for storing plots')
     parser.add_argument('--validation',
                         type    = float,
                         default = 0.1,
@@ -77,13 +97,15 @@ if __name__=='__main__':
                                      generator = None if args.seed==None else Generator().manual_seed(args.seed))
 
     figure(figsize=(10,10))
-    save_plot_dataset(train,'train.pt')
+    save_plot_dataset(train,'train.pt',
+                      path = args.data)
     save_plot_dataset(validation,'validation.pt',
+                      path   = args.data,
                       colour = 'xkcd:blue')
 
     xticks(range(-1,10))
     legend()
     title ('Frequencies of Classes')
-    savefig('freqs')
+    savefig(join(args.figs,'freqs'))
     if args.show:
         show()
