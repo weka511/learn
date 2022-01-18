@@ -22,6 +22,7 @@ from argparse          import ArgumentParser
 from AutoEncoder       import AutoEncoder
 from matplotlib.pyplot import close, figure, legend, plot, savefig, show, title
 from multiprocessing   import cpu_count
+from os.path           import join
 from torch             import load, no_grad, save
 from torch.nn          import MSELoss
 from torch.optim       import AdamW
@@ -32,7 +33,8 @@ class Trainer(object):
     def __init__(self,model,loader,validation_loader,
                  criterion        = MSELoss(),
                  lr               = 0.001,
-                 weight_decay     = 0.01):
+                 weight_decay     = 0.01,
+                 path             = './'):
         super().__init__()
         self.model              = model
         self.loader             = loader
@@ -43,6 +45,7 @@ class Trainer(object):
         self.optimizer          = AdamW(model.parameters(),
                                        lr           = lr,
                                        weight_decay = weight_decay)
+        self.path               = path
 
     def train(self,
               N_EPOCHS    = 25,
@@ -102,7 +105,7 @@ class Trainer(object):
             'model_state_dict'     : self.model.state_dict(),
             'args_dict'            : args_dict
             },
-             self.get_file_name())
+             join(self.path,self.get_file_name()))
 
     def get_file_name(self,
                       name = 'saved',
@@ -156,6 +159,12 @@ def parse_args():
                         default = 100,
                         type    = int,
                         help    = 'Maximum number of epochs')
+    parser.add_argument('--data',
+                        default = './data',
+                        help    = 'Path for storing intermediate data, such as training and validation and saved weights')
+    parser.add_argument('--figs',
+                        default = './figs',
+                        help    = 'Path for storing plots')
     return parser.parse_args()
 
 def get_file_name(name,dimension,lr,
@@ -170,31 +179,40 @@ def get_file_name(name,dimension,lr,
 
 class Plotter:
     '''
-    A Context Manager that wraps matplotlib. Create figure and display title on entry,
-    save figure on exit
+       A Context Manager that wraps matplotlib. Create figure and display title on entry,
+       save figure on exit
+       Parameters:
+           name
+           args
+           loss
+       Keyword Parameters:
+          seq
+          ext
     '''
     def __init__(self,name,args,loss,
-                 seq = None,
-                 ext = 'png'):
+                 seq  = None,
+                 ext  = 'png'):
         self.args = args
         self.name = name
         self.seq  = seq
         self.ext  = ext
         self.loss = loss
+        self.path = args.data
 
     def __enter__(self):
         '''
            Create figure with title when we enter context
         '''
         self.fig = figure(figsize=(10,10))
-        title(f'{self.name.title()}: dimension = {self.args.dimension}, lr={self.args.lr}, weight_decay={self.args.weight_decay}, loss={self.loss}')
+        title(f'{self.name.title()}: dimension = {self.args.dimension}, lr={self.args.lr}, weight_decay={self.args.weight_decay}, loss={self.loss:.6f}')
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         '''
            Save figure when we exit. Also close figure unless user has requested show
         '''
-        savefig(f'{get_file_name(self.name,self.args.dimension,self.args.lr,weight_decay=self.args.weight_decay)}.{self.ext}')
+        savefig(join(self.path,
+                     f'{get_file_name(self.name,self.args.dimension,self.args.lr,weight_decay=self.args.weight_decay)}.{self.ext}'))
         if not args.show:
             close(self.fig)
 
@@ -206,16 +224,19 @@ if __name__=='__main__':
                                   encoder_non_linearity = enl,
                                   decoder_non_linearity = dnl,
                                   decoder_sizes         = args.decoder) ,
-                      DataLoader(load('train.pt'),
-                               batch_size  = args.batch,
-                               shuffle     = True,
-                               num_workers = cpu_count()),
-                      DataLoader(load('validation.pt'),
+                      DataLoader(load(join(args.data,
+                                           'train.pt')),
+                                 batch_size  = args.batch,
+                                 shuffle     = True,
+                                 num_workers = cpu_count()),
+                      DataLoader(load(join(args.data,
+                                           'validation.pt')),
                                  batch_size  = 32,
                                  shuffle     = False,
                                  num_workers = cpu_count()),
                       lr           = args.lr,
-                      weight_decay = args.weight_decay)
+                      weight_decay = args.weight_decay,
+                      path         = args.data)
     loss = trainer.train(N_EPOCHS  = args.N,
                          args_dict = {
                              'nonlinearity' : args.nonlinearity,
