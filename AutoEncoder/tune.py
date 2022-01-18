@@ -24,14 +24,15 @@ from matplotlib.pyplot import close, figure, legend, plot, savefig, show, title
 from multiprocessing   import cpu_count
 from torch             import load, no_grad, save
 from torch.nn          import MSELoss
-from torch.optim       import Adam
+from torch.optim       import AdamW
 from torch.utils.data  import DataLoader
 
 class Trainer(object):
     '''Train network'''
     def __init__(self,model,loader,validation_loader,
                  criterion        = MSELoss(),
-                 lr               = 0.001):
+                 lr               = 0.001,
+                 weight_decay     = 0.01):
         super().__init__()
         self.model              = model
         self.loader             = loader
@@ -39,8 +40,9 @@ class Trainer(object):
         self.Losses             = [float('inf')]
         self.ValidationLosses   = [float('inf')]
         self.criterion          = criterion
-        self.optimizer          = Adam(model.parameters(),
-                                       lr = lr)
+        self.optimizer          = AdamW(model.parameters(),
+                                       lr           = lr,
+                                       weight_decay = weight_decay)
 
     def train(self,
               N_EPOCHS    = 25,
@@ -56,15 +58,15 @@ class Trainer(object):
             self.validation_step()
             print(f'epoch : {epoch + 1}/{N_EPOCHS}, losses = {self.Losses[-1]:.6f}, {self.ValidationLosses[-1]:.6f}')
             if epoch>N_BURN and self.ValidationLosses[-1]>self.ValidationLosses[-2]:
-                return True
+                return self.ValidationLosses[-2]
             else:
                 self.save_model(args_dict)
 
-        return False
+        return self.ValidationLosses[-1]
 
     def train_step(self):
         '''
-            Compute gradiets, adjust weights, and compute training loss
+            Compute gradients, adjust weights, and compute training loss
         '''
         loss = 0
         for batch_features, _ in self.loader:
@@ -109,7 +111,7 @@ class Trainer(object):
             Used to assign names to files, including hyperparameter values
         '''
 
-        return f'{get_file_name(name,args.dimension,args.lr)}.{ext}'
+        return f'{get_file_name(name,args.dimension,args.lr,weight_decay=args.weight_decay)}.{ext}'
 
 def parse_args():
     '''
@@ -142,6 +144,10 @@ def parse_args():
                         default = 0.001,
                         type    = float,
                         help    = 'Learning rate')
+    parser.add_argument('--weight_decay',
+                        default = 0.01,
+                        type    = float,
+                        help    = 'Weight decay')
     parser.add_argument('--show',
                         default = False,
                         action  = 'store_true',
@@ -152,11 +158,13 @@ def parse_args():
                         help    = 'Maximum number of epochs')
     return parser.parse_args()
 
-def get_file_name(name,dimension,lr,seq=None):
+def get_file_name(name,dimension,lr,
+                  seq          = None,
+                  weight_decay = 0.0):
     '''
     File name for plots and saved model
     '''
-    base      = f'{name}-dim({dimension})-lr({lr})'
+    base      = f'{name}-dim({dimension})-lr({lr})-wd({weight_decay})'
     return base if seq==None else f'{base}-{seq:04d}'
 
 
@@ -165,21 +173,28 @@ class Plotter:
     A Context Manager that wraps matplotlib. Create figure and display title on entry,
     save figure on exit
     '''
-    def __init__(self,name,args,
+    def __init__(self,name,args,loss,
                  seq = None,
                  ext = 'png'):
         self.args = args
         self.name = name
         self.seq  = seq
         self.ext  = ext
+        self.loss = loss
 
     def __enter__(self):
+        '''
+           Create figure with title when we enter context
+        '''
         self.fig = figure(figsize=(10,10))
-        title(f'{self.name.title()}: dimension = {self.args.dimension}, lr={self.args.lr}')
+        title(f'{self.name.title()}: dimension = {self.args.dimension}, lr={self.args.lr}, weight_decay={self.args.weight_decay}, loss={self.loss}')
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        savefig(f'{get_file_name(self.name,self.args.dimension,self.args.lr)}.{self.ext}')
+        '''
+           Save figure when we exit. Also close figure unless user has requested show
+        '''
+        savefig(f'{get_file_name(self.name,self.args.dimension,self.args.lr,weight_decay=self.args.weight_decay)}.{self.ext}')
         if not args.show:
             close(self.fig)
 
@@ -199,16 +214,17 @@ if __name__=='__main__':
                                  batch_size  = 32,
                                  shuffle     = False,
                                  num_workers = cpu_count()),
-                      lr = args.lr)
-    trainer.train(N_EPOCHS  = args.N,
-                  args_dict = {
-                                'nonlinearity' : args.nonlinearity,
-                                'encoder'      : args.encoder,
-                                'decoder'      : args.decoder,
-                                'dimension'    : args.dimension,
-                              })
+                      lr           = args.lr,
+                      weight_decay = args.weight_decay)
+    loss = trainer.train(N_EPOCHS  = args.N,
+                         args_dict = {
+                             'nonlinearity' : args.nonlinearity,
+                             'encoder'      : args.encoder,
+                             'decoder'      : args.decoder,
+                             'dimension'    : args.dimension,
+                         })
 
-    with Plotter('training',args):
+    with Plotter('training', args, loss):
         plot(trainer.Losses, 'bo',
              label = 'Training Losses')
         plot(trainer.ValidationLosses, 'r+',
