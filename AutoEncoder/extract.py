@@ -25,6 +25,7 @@ from matplotlib.pyplot import axes, figure, savefig, show
 from mpl_toolkits      import mplot3d
 from multiprocessing   import cpu_count
 from os.path           import join, splitext
+from numpy             import argsort, std
 from torch             import load, no_grad
 from torch.utils.data  import DataLoader
 
@@ -51,6 +52,10 @@ def create_model(loaded):
 def extract(model,data_loader):
     '''
     A generator to iterate through the dataset, providing the encoding and target value for each data item.
+
+    Parameters:
+        model         A trained autoencoder that we will load
+        data_loader   A validation or test dataset
     '''
     model.decode = False
 
@@ -96,21 +101,14 @@ def parse_args():
                         help    = 'Path for storing plots')
     return parser.parse_args()
 
-class Plot:
+class Plotter:
     '''
     A Context Manager to encapsulate plotting
     '''
-    def __init__(self,data,output_file,plot3d,show,path='./'):
-        self.data        = data
-        self.output_file = output_file
-        self.plot3d      = plot3d
-        self.show        = show
-        self.xs          = []
-        self.ys          = []
-        self.zs          = []
-        self.ds          = []
-        self.ts          = []
-        self.Colours     = ['xkcd:purple',
+    def __init__(self,data,output_file,plot3d,show,
+                 path    = './',
+                 figs    = './',
+                 Colours = ['xkcd:purple',
                             'xkcd:green',
                             'xkcd:blue',
                             'xkcd:pink',
@@ -120,30 +118,52 @@ class Plot:
                             'xkcd:orange',
                             'xkcd:magenta',
                             'xkcd:yellow'
-                            ]
+                            ]):
+        self.data        = data
+        self.output_file = output_file
+        self.plot3d      = plot3d
+        self.show        = show
+        self.Xs          = []
+        self.ys          = []
+        self.distances   = []
+        self.Colours     = [c for c in Colours]
         self.path        = path
-
+        self.figs        = figs
     def __enter__(self):
         return self
 
-    def accumulate(self,encoded,target):
-        if not self.plot3d: return
-        self.ds.append(sqrt(sum([v*v for v in encoded])))
-        self.xs.append(encoded[0])
-        self.ys.append(encoded[1])
-        self.zs.append(encoded[2])
-        self.ts.append(target)
-
     def __exit__(self, type, value, traceback):
-        if not self.plot3d: return
+        if self.plot3d: self.plot()
 
-        cs  = [self.Colours[target] for target in self.ts]
+    def accumulate(self,encoded,y):
+        '''
+           Accumulate encoded values for one data point
+           Parameters:
+               encoded
+               target
+        '''
+        if self.plot3d:
+            if len(self.Xs)==0:
+                for _ in encoded:
+                    self.Xs.append([])
+            for i in range(len(encoded)):
+                self.Xs[i].append(encoded[i])
+            self.distances.append(sqrt(sum([v*v for v in encoded])))
+            self.ys.append(y)
+
+
+
+    def plot(self,epsilon=0.001):
+        sigmas  = std(self.Xs,axis=1)
+        indices = [i for i in argsort(sigmas)[::-1] if sigmas[i]>epsilon]
+
+        colours = [self.Colours[target] for target in self.ys]
         fig = figure(figsize=(20,20))
         fig.suptitle(f'{self.data}')
 
         ax1  = fig.add_subplot(2,2,1,projection='3d')
-        ax1.scatter3D(self.xs,self.ys,self.zs,
-                     c = cs,
+        ax1.scatter3D(self.Xs[indices[0]],self.Xs[indices[1]],self.Xs[indices[2]],
+                     c = colours,
                      s = 1)
         ax1.set_title('Encoded')
         ax1.set_xlabel('x')
@@ -151,32 +171,32 @@ class Plot:
         ax1.set_zlabel('z')
 
         ax2  = fig.add_subplot(2,2,2,projection='3d')
-        ax2.scatter3D([x/d for x,d in zip(self.xs,self.ds)],
-                     [y/d for y,d in zip(self.ys,self.ds)],
-                     [z/d for z,d in zip(self.zs,self.ds)],
-                     c = cs,
+        ax2.scatter3D([x/d for x,d in zip(self.Xs[indices[0]],self.distances)],
+                     [y/d for y,d in zip(self.Xs[indices[1]],self.distances)],
+                     [z/d for z,d in zip(self.Xs[indices[2]],self.distances)],
+                     c = colours,
                      s = 1)
         ax2.set_title('Normalized')
 
-        ax3  = fig.add_subplot(2,2,3,projection='3d')
-        ax3.scatter3D([x/d for x,d in zip(self.xs,self.ds)],
-                     [t + y/d for y,d,t in zip(self.ys,self.ds,self.ts)],
-                     [z/d for z,d in zip(self.zs,self.ds)],
-                     c = cs,
-                     s = 1)
-        ax3.set_title('Normalized and shifted')
+        # ax3  = fig.add_subplot(2,2,3,projection='3d')
+        # ax3.scatter3D([x/d for x,d in zip(self.xs,self.ds)],
+                     # [t + y/d for y,d,t in zip(self.ys,self.ds,self.ts)],
+                     # [z/d for z,d in zip(self.zs,self.ds)],
+                     # c = cs,
+                     # s = 1)
+        # ax3.set_title('Normalized and shifted')
 
-        ax4  = fig.add_subplot(2,2,4)
-        ax4.set_axis_off()
-        ax4.legend(handles = [Line2D([], [],
+        # ax4  = fig.add_subplot(2,2,4)
+        # ax4.set_axis_off()
+        ax1.legend(handles = [Line2D([], [],
                                      color  = self.Colours[k],
                                      marker = 's',
                                      ls     = '',
                                      label  = f'{k}') for k in range(len(self.Colours))],
-                     loc = 'center')
-        ax4.set_title('Colours and Targets')
+                     loc = 'best')
+        # ax4.set_title('Colours and Targets')
 
-        savefig(join(self.path,f'{splitext(self.output_file)[0]}.png'))
+        savefig(join(self.figs,f'{splitext(self.output_file)[0]}.png'))
 
         if self.show:
             show()
@@ -188,8 +208,9 @@ if __name__=='__main__':
 
     with no_grad(),                                                   \
         open(join(args.data,output_file),'w')                 as out, \
-        Plot(args.encode,output_file,args.plot3d,args.show,
-             path = args.data)                                as plot:
+        Plotter(args.encode,output_file,args.plot3d,args.show,
+             path = args.data,
+             figs = args.figs)                                as plot:
         for encoded,target in extract(  model,
                                         DataLoader(load(join(args.data,args.encode)),
                                                    batch_size  = args.batch,
