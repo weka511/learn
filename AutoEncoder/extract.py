@@ -24,7 +24,7 @@ from matplotlib.lines  import Line2D
 from matplotlib.pyplot import axes, figure, savefig, show
 from mpl_toolkits      import mplot3d
 from multiprocessing   import cpu_count
-from os.path           import splitext
+from os.path           import join, splitext
 from torch             import load, no_grad
 from torch.utils.data  import DataLoader
 
@@ -77,7 +77,7 @@ def parse_args():
                         default = 128,
                         type    = int,
                         help    = 'Training batch size')
-    parser.add_argument('--data',
+    parser.add_argument('--encode',
                         default = 'validation.pt',
                         help    = 'file to encode')
     parser.add_argument('--plot3d',
@@ -88,13 +88,19 @@ def parse_args():
                         default = False,
                         action  = 'store_true',
                         help    = 'Controls whether plot shown (default is just to save)')
+    parser.add_argument('--data',
+                        default = './data',
+                        help    = 'Path for storing intermediate data, such as training and validation and saved weights')
+    parser.add_argument('--figs',
+                        default = './figs',
+                        help    = 'Path for storing plots')
     return parser.parse_args()
 
 class Plot:
     '''
     A Context Manager to encapsulate plotting
     '''
-    def __init__(self,data,output_file,plot3d,show):
+    def __init__(self,data,output_file,plot3d,show,path='./'):
         self.data        = data
         self.output_file = output_file
         self.plot3d      = plot3d
@@ -102,7 +108,6 @@ class Plot:
         self.xs          = []
         self.ys          = []
         self.zs          = []
-        # self.cs          = []
         self.ds          = []
         self.ts          = []
         self.Colours     = ['xkcd:purple',
@@ -116,6 +121,7 @@ class Plot:
                             'xkcd:magenta',
                             'xkcd:yellow'
                             ]
+        self.path        = path
 
     def __enter__(self):
         return self
@@ -126,7 +132,6 @@ class Plot:
         self.xs.append(encoded[0])
         self.ys.append(encoded[1])
         self.zs.append(encoded[2])
-        # self.cs.append(self.Colours[target])
         self.ts.append(target)
 
     def __exit__(self, type, value, traceback):
@@ -168,24 +173,25 @@ class Plot:
                                      marker = 's',
                                      ls     = '',
                                      label  = f'{k}') for k in range(len(self.Colours))],
-                   loc = 'center')
+                     loc = 'center')
         ax4.set_title('Colours and Targets')
 
-        savefig(f'{splitext(self.output_file)[0]}.png')
+        savefig(join(self.path,f'{splitext(self.output_file)[0]}.png'))
 
         if self.show:
             show()
 
 if __name__=='__main__':
     args        = parse_args()
-    model       = create_model(load(args.load))
-    output_file = f'{splitext(args.data)[0]}.csv' if len(args.output)==0 else args.output
+    model       = create_model(load(join(args.data,args.load)))
+    output_file = f'{splitext(args.encode)[0]}.csv' if len(args.output)==0 else args.output
 
-    with no_grad(),                                                \
-        open(output_file,'w')                             as out,  \
-        Plot(args.data,output_file,args.plot3d,args.show) as plot:
+    with no_grad(),                                                   \
+        open(join(args.data,output_file),'w')                 as out, \
+        Plot(args.encode,output_file,args.plot3d,args.show,
+             path = args.data)                                as plot:
         for encoded,target in extract(  model,
-                                        DataLoader(load(args.data),
+                                        DataLoader(load(join(args.data,args.encode)),
                                                    batch_size  = args.batch,
                                                    shuffle     = False,
                                                    num_workers = cpu_count())):
