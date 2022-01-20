@@ -17,11 +17,56 @@
     Use compressed data to recognize digits
 '''
 
+from abc               import ABC, abstractmethod
 from argparse          import ArgumentParser
 from os.path           import join
-from matplotlib.pyplot import figure, hist, legend, savefig, show, title, xlabel,ylabel
+from matplotlib.pyplot import figure, hist, legend, savefig, show, title, xlabel, xticks, ylabel
 from numpy             import argsort
 from sklearn.neighbors import KNeighborsClassifier
+
+
+
+def read_csv(file_name):
+    with open(file_name) as f:
+        for line in f:
+            fields = line.strip().split(',')
+            yield [float(f) for f in fields[:-1]],int(fields[-1])
+
+
+class Classifier(ABC):
+    @classmethod
+    def create(cls,X,y,args):
+        return NeighboursClassifier(X,y,n_neighbors=args.n_neighbours)
+
+    @abstractmethod
+    def classify(self,x):
+        ...
+    @abstractmethod
+    def get_file_name(self):
+        ...
+
+class NeighboursClassifier(Classifier):
+
+    def __init__(self,X,y,
+                 n_neighbors = 3):
+        self.n_neighbors = n_neighbors
+        self.classifier  = KNeighborsClassifier(n_neighbors=n_neighbors)
+        self.classifier.fit(X, y)
+
+
+    def classify(self,x):
+        y       = self.classifier.predict([x])[0]
+        p       = self.classifier.predict_proba([x])[0]
+        indices = argsort(p)
+
+        return y,p[indices[-1]]-p[indices[-2]]
+
+    def get_file_name(self):
+        return f'{self.n_neighbors}-neighbours.png'
+
+def create_bins(epsilon = 0.0001,n=10):
+    multiplier = 1/n
+    return [multiplier*x+epsilon for x in range(-1,n+1)]
 
 def parse_args():
     '''
@@ -38,37 +83,22 @@ def parse_args():
                         default = 5,
                         type    = int,
                         help    = 'Number of neighbours')
+    parser.add_argument('--show',
+                        default = False,
+                        action  = 'store_true',
+                        help    = 'Controls whether plot shown (default is just to save)')
     return parser.parse_args()
-
-def read_csv(file_name):
-    with open(file_name) as f:
-        for line in f:
-            fields = line.strip().split(',')
-            yield [float(f) for f in fields[:-1]],int(fields[-1])
-
-#https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html
-class Classifier:
-    def __init__(self,X,y,n_neighbors=3):
-        self.neigh = KNeighborsClassifier(n_neighbors=n_neighbors)
-        self.neigh.fit(X, y)
-    def classify(self,x):
-        y       = self.neigh.predict([x])[0]
-        p       = self.neigh.predict_proba([x])[0]
-        indices = argsort(p)
-        return y,p[indices[-1]]-p[indices[-2]]
-
-def create_bins(epsilon = 0.0001,n=10):
-    multiplier = 1/n
-    return [multiplier*x+epsilon for x in range(-1,n+1)]
 
 if __name__=='__main__':
     args = parse_args()
+
     X    = []
     y    = []
     for x,target in read_csv(join(args.data,'train.csv')):
         X.append(x)
         y.append(target)
-    classifier = Classifier(X,y,n_neighbors=args.n_neighbours)
+
+    classifier = Classifier.create(X,y,args)
 
     correct = []
     errors  = []
@@ -93,8 +123,10 @@ if __name__=='__main__':
                    label = 'Errors')
     xlabel('Confidence')
     ylabel('Count')
+    xticks(bins[1:])
     legend()
     title (f'{args.n_neighbours} neighbours: {len(correct)} correct, {len(errors)} errors, accuracy={100*len(correct)/(len(correct)+len(errors)):.1f}%'
-           f'\nBin ({bins[-2]:.2f},{bins[-1]:.1f}] contains {100*(ns[-1]+n1s[-1])/(len(correct)+len(errors)):.0f}% of the data and is {100*ns[-1]/(ns[-1]+n1s[-1]):.0f} % accurate')
-    savefig(join(args.figs,'classify.png'))
-    show()
+           f'\nBin ({bins[-2]:.1f},{bins[-1]:.1f}] contains {100*(ns[-1]+n1s[-1])/(len(correct)+len(errors)):.0f}% of the data and is {100*ns[-1]/(ns[-1]+n1s[-1]):.0f} % accurate')
+    savefig(join(args.figs,classifier.get_file_name()))
+    if args.show:
+        show()
