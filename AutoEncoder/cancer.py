@@ -18,11 +18,13 @@
     Partition training dataset into training and validation.
 '''
 
-from argparse         import ArgumentParser
-from os.path          import join
-from pandas           import read_csv
-from torch            import tensor
-from torch.utils.data import Dataset, DataLoader
+from argparse          import ArgumentParser
+from matplotlib.pyplot import figure, hist, legend, savefig, show, title, xticks
+from os.path           import join
+from pandas            import read_csv
+from prepare           import save_plot_dataset
+from torch             import tensor
+from torch.utils.data  import Dataset, DataLoader, random_split
 
 class CancerDataset(Dataset):
     def __init__(self,
@@ -37,23 +39,58 @@ class CancerDataset(Dataset):
         return len(self.labels)
 
     def __getitem__(self, idx):
-        return (tensor(self.df.loc[[idx]].values),self.labels[i])
+        return (tensor(self.df.loc[[idx]].values),self.labels[idx])
 
 def parse_args():
     '''Extract command line arguments'''
     parser = ArgumentParser(__doc__)
+    parser.add_argument('action',
+                        choices = ['split'])
+    parser.add_argument('--validation',
+                        default = 0.2,
+                        type    = float)
     parser.add_argument('--root',
                         default = r'd:\data\cancer_mutations',
                         help    = 'Path for storing downloaded data')
-    parser.add_argument('--data',
+    parser.add_argument('--cancer',
                         default = r'cancer_mutations',
                         help    = 'Path for storing downloaded data')
+    parser.add_argument('--data',
+                        default = r'./data',
+                        help    = 'Path for storing intermediate data, such as training and validation and saved weights')
+    parser.add_argument('--figs',
+                        default = r'./figs',
+                        help    = 'Path for storing plots')
+    parser.add_argument('--seed',
+                        type    = int,
+                        default = None,
+                        help    = 'Used to initialize random number generator')
+    parser.add_argument('--show',
+                        default = False,
+                        action  = 'store_true',
+                        help    = 'Controls whether histograms shown')
     return parser.parse_args()
 
 if __name__=='__main__':
     args    = parse_args()
     dataset = CancerDataset(path      = args.root,
-                            file_name = args.data)
-    print (len(dataset))
-    for i in range(3):
-        print (dataset[i])
+                            file_name = args.cancer)
+    len_validation    = int(args.validation * len(dataset))
+    train,validation  = random_split(dataset,[len(dataset)-len_validation,len_validation],
+                                     generator = None if args.seed==None else Generator().manual_seed(args.seed))
+    figure(figsize=(10,10))
+    save_plot_dataset(train,'cancer-train.pt',
+                      density = False,
+                      path    = args.data)
+    save_plot_dataset(validation,'cancer-validation.pt',
+                      path    = args.data,
+                      density = False,
+                      colour  = 'xkcd:blue')
+
+    xticks(range(-1,10))
+    legend()
+    title ('Frequencies of Classes')
+    savefig(join(args.figs,'cancer-freqs'))
+    if args.show:
+        show()
+

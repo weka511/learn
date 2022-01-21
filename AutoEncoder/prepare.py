@@ -31,6 +31,7 @@ from torchvision.transforms import Compose, ToTensor
 def save_plot_dataset(dataset,name,
                       epsilon = 0.005,
                       colour  = 'xkcd:red',
+                      density = True,
                       path    = ''):
     '''
        Save dataset and plot frequencies of all classes
@@ -48,7 +49,7 @@ def save_plot_dataset(dataset,name,
     hist([y for _,y in subset],
          bins    = [x+epsilon for x in range(-1,10)],
          alpha   = 0.5,
-         density = True,
+         density = density,
          label = f'{join(path,name)} {len(subset)} records',
          color = colour)
 
