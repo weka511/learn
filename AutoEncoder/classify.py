@@ -25,15 +25,10 @@ from numpy             import argsort
 from sklearn.neighbors import KNeighborsClassifier
 
 
-
-def read_csv(file_name):
-    with open(file_name) as f:
-        for line in f:
-            fields = line.strip().split(',')
-            yield [float(f) for f in fields[:-1]],int(fields[-1])
-
-
 class Classifier(ABC):
+    '''
+    Abstract class used as parent for classifers
+    '''
     @classmethod
     def create(cls,X,y,args):
         return NeighboursClassifier(X,y,n_neighbors=args.n_neighbours)
@@ -64,9 +59,7 @@ class NeighboursClassifier(Classifier):
     def get_file_name(self):
         return f'{self.n_neighbors}-neighbours.png'
 
-def create_bins(epsilon = 0.0001,n=10):
-    multiplier = 1/n
-    return [multiplier*x+epsilon for x in range(-1,n+1)]
+
 
 def parse_args():
     '''
@@ -87,46 +80,91 @@ def parse_args():
                         default = False,
                         action  = 'store_true',
                         help    = 'Controls whether plot shown (default is just to save)')
+    parser.add_argument('--train',
+                        default = 'train',
+                        help    = 'File containing encoded Training Data')
+    parser.add_argument('--validation',
+                        default = 'validation',
+                        help    = 'File containing encoded Validation Data')
     return parser.parse_args()
 
-if __name__=='__main__':
-    args = parse_args()
-
+def read_training_data(file,path):
+    '''
+    Read file containing encoded Training Data
+    '''
     X    = []
     y    = []
-    for x,target in read_csv(join(args.data,'train.csv')):
+    for x,target in read_csv(join(path,'train')):
         X.append(x)
         y.append(target)
+    return X,y
 
+def read_csv(file_name,
+             ext = 'csv',
+             sep = ','):
+    '''
+    Read encoded training or validation data from csv file
+    '''
+    with open(f'{file_name}.{ext}') as f:
+        for line in f:
+            fields = line.strip().split(sep)
+            yield [float(f) for f in fields[:-1]],int(fields[-1])
+
+def create_bins(epsilon = 0.0001,
+                n       = 10):
+    '''
+    Used to create bins for confidence values for histogram
+    '''
+    multiplier = 1/n
+    return [multiplier*x+epsilon for x in range(-1,n+1)]
+
+class Plotter:
+    '''
+    A Context Manager to encapsulate plotting
+    '''
+    def __init__(self,figs,classifier,show):
+        self.figs       = figs
+        self.classifier = classifier
+        self.show       = show
+
+    def __enter__(self):
+        self.fig     = figure(figsize=(10,10))
+        return self
+
+    def __exit__(self, type, value, traceback):
+        savefig(join(self.figs,self.classifier.get_file_name()))
+        if self.show:
+            show()
+
+if __name__=='__main__':
+    args       = parse_args()
+    X,y        = read_training_data(args.train,args.data)
     classifier = Classifier.create(X,y,args)
 
     correct = []
     errors  = []
-    for xs,target in read_csv(join(args.data,'validation.csv')):
+    for xs,target in read_csv(join(args.data,args.validation)):
         classification,confidence = classifier.classify(xs)
         if target==classification:
             correct.append(confidence)
         else:
             errors.append(confidence)
 
-    bins    = create_bins()
-    fig     = figure(figsize=(10,10))
-    ns,_,_  = hist(correct,
-                   bins  = bins,
-                   color = 'xkcd:blue',
-                   alpha = 0.5,
-                   label = 'Correct')
-    n1s,_,_ = hist(errors,
-                   bins  = bins,
-                   color = 'xkcd:red',
-                   alpha = 0.5,
-                   label = 'Errors')
-    xlabel('Confidence')
-    ylabel('Count')
-    xticks(bins[1:])
-    legend()
-    title (f'{args.n_neighbours} neighbours: {len(correct)} correct, {len(errors)} errors, accuracy={100*len(correct)/(len(correct)+len(errors)):.1f}%'
-           f'\nBin ({bins[-2]:.1f},{bins[-1]:.1f}] contains {100*(ns[-1]+n1s[-1])/(len(correct)+len(errors)):.0f}% of the data and is {100*ns[-1]/(ns[-1]+n1s[-1]):.0f} % accurate')
-    savefig(join(args.figs,classifier.get_file_name()))
-    if args.show:
-        show()
+    with Plotter(args.figs,classifier,args.show):
+        bins    = create_bins()
+        ns,_,_  = hist(correct,
+                       bins  = bins,
+                       color = 'xkcd:blue',
+                       alpha = 0.5,
+                       label = 'Correct')
+        n1s,_,_ = hist(errors,
+                       bins  = bins,
+                       color = 'xkcd:red',
+                       alpha = 0.5,
+                       label = 'Errors')
+        xlabel('Confidence')
+        ylabel('Count')
+        xticks(bins[1:])
+        legend()
+        title (f'{args.n_neighbours} neighbours: {len(correct)} correct, {len(errors)} errors, accuracy={100*len(correct)/(len(correct)+len(errors)):.1f}%'
+               f'\nBin ({bins[-2]:.1f},{bins[-1]:.1f}] contains {100*(ns[-1]+n1s[-1])/(len(correct)+len(errors)):.0f}% of the data and is {100*ns[-1]/(ns[-1]+n1s[-1]):.0f} % accurate')
