@@ -26,7 +26,6 @@ from os.path           import join
 from pandas            import read_csv
 from prepare           import save_plot_dataset
 from torch             import load, tensor
-from torch.nn          import BCELoss
 from torch.utils.data  import Dataset, DataLoader, random_split
 from tune              import Trainer,Plotter,plot
 
@@ -153,8 +152,7 @@ def tune_autoencoder(args):
                                  num_workers = cpu_count()),
                       lr           = args.lr,
                       weight_decay = args.weight_decay,
-                      path         = args.data,
-                      criterion    = BCELoss())
+                      path         = args.data)
     loss = trainer.train(N_EPOCHS  = args.N,
                          args_dict = {
                              'nonlinearity' : args.nonlinearity,
