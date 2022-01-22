@@ -46,6 +46,8 @@ class Trainer(object):
                                        lr           = lr,
                                        weight_decay = weight_decay)
         self.path               = path
+        self.lr                 = lr
+        self.weight_decay       = weight_decay
 
     def train(self,
               N_EPOCHS    = 25,
@@ -75,8 +77,8 @@ class Trainer(object):
         for batch_features, _ in self.loader:
             batch_features = batch_features.view(-1, self.model.get_input_length())
             self.optimizer.zero_grad()
-            outputs        = self.model(batch_features)
-            train_loss     = self.criterion(outputs, batch_features)
+            outputs        = self.model(batch_features.float())    # FIXME - quick hack for #36
+            train_loss     = self.criterion(outputs.float(), batch_features.float())  # FIXME - quick hack for #36
             train_loss.backward()
             self.optimizer.step()
             loss += train_loss.item()
@@ -91,8 +93,8 @@ class Trainer(object):
         with no_grad():
             for i,(batch_features, _) in enumerate(self.validation_loader):
                 batch_features        = batch_features.view(-1, self.model.get_input_length())
-                outputs               = self.model(batch_features)
-                validation_loss       = self.criterion(outputs, batch_features)
+                outputs               = self.model(batch_features.float())  #FIXME - quick hack for #36
+                validation_loss       = self.criterion(outputs, batch_features.float()) #FIXME - quick hack for #36
                 loss   += validation_loss.item()
 
         self.ValidationLosses.append(loss / len(self.validation_loader))
@@ -105,16 +107,16 @@ class Trainer(object):
             'model_state_dict'     : self.model.state_dict(),
             'args_dict'            : args_dict
             },
-             join(self.path,self.get_file_name()))
+             join(self.path,self.get_file_name(args_dict['dimension'])))  #FIXME - quick hack for #36
 
-    def get_file_name(self,
+    def get_file_name(self,dimension,
                       name = 'saved',
                       ext  = 'pt'):
         '''
             Used to assign names to files, including hyperparameter values
         '''
 
-        return f'{get_file_name(name,args.dimension,args.lr,weight_decay=args.weight_decay)}.{ext}'
+        return f'{get_file_name(name,dimension,self.lr,weight_decay=self.weight_decay)}.{ext}'  #FIXME - quick hack for #36
 
 def parse_args():
     '''
@@ -213,7 +215,7 @@ class Plotter:
         '''
         savefig(join(self.path,
                      f'{get_file_name(self.name,self.args.dimension,self.args.lr,weight_decay=self.args.weight_decay)}.{self.ext}'))
-        if not args.show:
+        if not self.args.show: #FIXME - quick hack for #36
             close(self.fig)
 
 if __name__=='__main__':

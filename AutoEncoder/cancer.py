@@ -19,20 +19,26 @@
 '''
 
 from argparse          import ArgumentParser
+from AutoEncoder       import AutoEncoder
 from matplotlib.pyplot import figure, hist, legend, savefig, show, title, xticks
+from multiprocessing   import cpu_count
 from os.path           import join
 from pandas            import read_csv
 from prepare           import save_plot_dataset
-from torch             import tensor
+from torch             import load, tensor
+from torch.nn          import BCELoss
 from torch.utils.data  import Dataset, DataLoader, random_split
+from tune              import Trainer,Plotter,plot
 
 class CancerDataset(Dataset):
     def __init__(self,
                  path      = r'D:\data\cancer_mutations',
                  file_name = 'cancer_mutations', ext='txt'):
-        self.df = read_csv(join(path,f'{file_name}.{ext}'), sep='\t')
+        self.df     = read_csv(join(path,f'{file_name}.{ext}'), sep='\t')
         self.labels = self.df['cancer_type']
-        self.df.drop(['cancer_type'],axis=1,inplace=True)
+        self.df.drop(['cancer_type'],
+                     axis    = 1,
+                     inplace = True)
 
 
     def __len__(self):
@@ -45,7 +51,7 @@ def parse_args():
     '''Extract command line arguments'''
     parser = ArgumentParser(__doc__)
     parser.add_argument('action',
-                        choices = ['split'])
+                        choices = ['split', 'tune'])
     parser.add_argument('--validation',
                         default = 0.2,
                         type    = float)
@@ -69,12 +75,46 @@ def parse_args():
                         default = False,
                         action  = 'store_true',
                         help    = 'Controls whether histograms shown')
+    parser.add_argument('--encoder',
+                        nargs   = '+',
+                        type    = int,
+                        default = [778, 400, 200, 100, 50, 25],
+                        help    = 'Sizes of each layer in encoder')
+    parser.add_argument('--dimension',
+                        type    = int,
+                        default = 6,
+                        help    = 'Dimension of encoded vectors')
+    parser.add_argument('--decoder',
+                        nargs   = '*',
+                        type    = int,
+                        default = [],
+                        help    = 'Sizes of each layer in decoder (omit if decoder is a mirror image of encoder)')
+    parser.add_argument('--nonlinearity',
+                        nargs   = '+',
+                        default = ['relu'],
+                        help    = 'Non linearities between layers (default relu)')
+    parser.add_argument('--batch',
+                        default = 128,
+                        type    = int,
+                        help    = 'Training batch size')
+    parser.add_argument('--lr',
+                        default = 0.001,
+                        type    = float,
+                        help    = 'Learning rate')
+    parser.add_argument('--weight_decay',
+                        default = 0.01,
+                        type    = float,
+                        help    = 'Weight decay')
+    parser.add_argument('--N',
+                        default = 100,
+                        type    = int,
+                        help    = 'Maximum number of epochs')
+
     return parser.parse_args()
 
-if __name__=='__main__':
-    args    = parse_args()
-    dataset = CancerDataset(path      = args.root,
-                            file_name = args.cancer)
+def split_dataset(args):
+    dataset           = CancerDataset(path      = args.root,
+                                      file_name = args.cancer)
     len_validation    = int(args.validation * len(dataset))
     train,validation  = random_split(dataset,[len(dataset)-len_validation,len_validation],
                                      generator = None if args.seed==None else Generator().manual_seed(args.seed))
@@ -94,3 +134,46 @@ if __name__=='__main__':
     if args.show:
         show()
 
+def tune_autoencoder(args):
+    enl,dnl = AutoEncoder.get_non_linearity(args.nonlinearity)
+    trainer = Trainer(AutoEncoder(encoder_sizes         = args.encoder,
+                                  encoding_dimension    = args.dimension,
+                                  encoder_non_linearity = enl,
+                                  decoder_non_linearity = dnl,
+                                  decoder_sizes         = args.decoder),
+                      DataLoader(load(join(args.data,
+                                           'cancer-train.pt')),
+                                 batch_size  = args.batch,
+                                 shuffle     = True,
+                                 num_workers = cpu_count()),
+                      DataLoader(load(join(args.data,
+                                           'cancer-validation.pt')),
+                                 batch_size  = 32,
+                                 shuffle     = False,
+                                 num_workers = cpu_count()),
+                      lr           = args.lr,
+                      weight_decay = args.weight_decay,
+                      path         = args.data,
+                      criterion    = BCELoss())
+    loss = trainer.train(N_EPOCHS  = args.N,
+                         args_dict = {
+                             'nonlinearity' : args.nonlinearity,
+                             'encoder'      : args.encoder,
+                             'decoder'      : args.decoder,
+                             'dimension'    : args.dimension,
+                         })
+    with Plotter('Cancer', args, loss):
+        plot(trainer.Losses, 'bo',
+             label = 'Training Losses')
+        plot(trainer.ValidationLosses, 'r+',
+             label = 'Validation Losses')
+        legend()
+    if args.show:
+        show()
+
+if __name__=='__main__':
+    args    = parse_args()
+    if args.action=='split':
+        split_dataset(args)
+    if args.action=='tune':
+        tune_autoencoder(args)
