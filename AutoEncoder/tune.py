@@ -30,6 +30,28 @@ from torch.utils.data  import DataLoader
 
 class Trainer(object):
     '''Train network'''
+    @classmethod
+    def create(cls, args,
+               train      = 'train.pt',
+               validation = 'validation.pt'):
+        enl,dnl = AutoEncoder.get_non_linearity(args.nonlinearity)
+        return Trainer(AutoEncoder(encoder_sizes         =args.encoder,
+                                  encoding_dimension    = args.dimension,
+                                  encoder_non_linearity = enl,
+                                  decoder_non_linearity = dnl,
+                                  decoder_sizes         = args.decoder),
+                      DataLoader(load(join(args.data,train)),
+                                 batch_size  = args.batch,
+                                 shuffle     = True,
+                                 num_workers = cpu_count()),
+                      DataLoader(load(join(args.data, validation)),
+                                 batch_size  = 32,
+                                 shuffle     = False,
+                                 num_workers = cpu_count()),
+                      lr           = args.lr,
+                      weight_decay = args.weight_decay,
+                      path         = args.data)
+
     def __init__(self,model,loader,validation_loader,
                  criterion        = MSELoss(),
                  lr               = 0.001,
@@ -220,32 +242,14 @@ class Plotter:
 
 if __name__=='__main__':
     args    = parse_args()
-    enl,dnl = AutoEncoder.get_non_linearity(args.nonlinearity)
-    trainer = Trainer(AutoEncoder(encoder_sizes         = args.encoder,
-                                  encoding_dimension    = args.dimension,
-                                  encoder_non_linearity = enl,
-                                  decoder_non_linearity = dnl,
-                                  decoder_sizes         = args.decoder) ,
-                      DataLoader(load(join(args.data,
-                                           'train.pt')),
-                                 batch_size  = args.batch,
-                                 shuffle     = True,
-                                 num_workers = cpu_count()),
-                      DataLoader(load(join(args.data,
-                                           'validation.pt')),
-                                 batch_size  = 32,
-                                 shuffle     = False,
-                                 num_workers = cpu_count()),
-                      lr           = args.lr,
-                      weight_decay = args.weight_decay,
-                      path         = args.data)
-    loss = trainer.train(N_EPOCHS  = args.N,
-                         args_dict = {
-                             'nonlinearity' : args.nonlinearity,
-                             'encoder'      : args.encoder,
-                             'decoder'      : args.decoder,
-                             'dimension'    : args.dimension,
-                         })
+    trainer = Trainer.create(args)
+    loss    = trainer.train(N_EPOCHS  = args.N,
+                            args_dict = {
+                                'nonlinearity' : args.nonlinearity,
+                                'encoder'      : args.encoder,
+                                'decoder'      : args.decoder,
+                                'dimension'    : args.dimension,
+                            })
 
     with Plotter('training', args, loss):
         plot(trainer.Losses, 'bo',

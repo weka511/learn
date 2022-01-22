@@ -30,9 +30,16 @@ from torch.utils.data  import Dataset, DataLoader, random_split
 from tune              import Trainer,Plotter,plot
 
 class CancerDataset(Dataset):
+    '''
+    A Dataset class that wraps Matt Reidy's dataset Mutations found in Cholangiocarcinoma vs Others
+    https://www.kaggle.com/mattreidy/mutations-found-in-different-cancer-types
+    '''
     def __init__(self,
                  path      = r'D:\data\cancer_mutations',
                  file_name = 'cancer_mutations', ext='txt'):
+        '''
+        Read from CSV file, then split cancer_type out as a label
+        '''
         self.df     = read_csv(join(path,f'{file_name}.{ext}'), sep='\t')
         self.labels = self.df['cancer_type']
         self.df.drop(['cancer_type'],
@@ -134,32 +141,16 @@ def split_dataset(args):
         show()
 
 def tune_autoencoder(args):
-    enl,dnl = AutoEncoder.get_non_linearity(args.nonlinearity)
-    trainer = Trainer(AutoEncoder(encoder_sizes         = args.encoder,
-                                  encoding_dimension    = args.dimension,
-                                  encoder_non_linearity = enl,
-                                  decoder_non_linearity = dnl,
-                                  decoder_sizes         = args.decoder),
-                      DataLoader(load(join(args.data,
-                                           'cancer-train.pt')),
-                                 batch_size  = args.batch,
-                                 shuffle     = True,
-                                 num_workers = cpu_count()),
-                      DataLoader(load(join(args.data,
-                                           'cancer-validation.pt')),
-                                 batch_size  = 32,
-                                 shuffle     = False,
-                                 num_workers = cpu_count()),
-                      lr           = args.lr,
-                      weight_decay = args.weight_decay,
-                      path         = args.data)
-    loss = trainer.train(N_EPOCHS  = args.N,
-                         args_dict = {
-                             'nonlinearity' : args.nonlinearity,
-                             'encoder'      : args.encoder,
-                             'decoder'      : args.decoder,
-                             'dimension'    : args.dimension,
-                         })
+    trainer = Trainer.create(args,
+                             train      ='cancer-train.pt',
+                             validation = 'cancer-validation.pt')
+    loss    = trainer.train(N_EPOCHS  = args.N,
+                            args_dict = {
+                                'nonlinearity' : args.nonlinearity,
+                                'encoder'      : args.encoder,
+                                'decoder'      : args.decoder,
+                                'dimension'    : args.dimension,
+                            })
     with Plotter('Cancer', args, loss):
         plot(trainer.Losses, 'bo',
              label = 'Training Losses')
