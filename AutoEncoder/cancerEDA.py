@@ -21,14 +21,14 @@ from seaborn           import heatmap
 def read_and_split(path      = r'D:\data\cancer_mutations',
                    file_name = 'cancer_mutations',
                    ext       = 'txt'):
-    df         = read_csv(join(path,f'{file_name}.{ext}'), sep='\t')
-    cancer0    = df.loc[df.cancer_type==0,].drop(['cancer_type'],
-                     axis    = 1,
-                     inplace = False)
-    cancer1    = df.loc[df.cancer_type==1,].drop(['cancer_type'],
-                     axis    = 1,
-                     inplace = False)
-    return (cancer0,cancer1)
+    def extract(df,cancer_type=0):
+        return df.loc[df.cancer_type==cancer_type,].drop(['cancer_type'],
+                                               axis    = 1,
+                                               inplace = False)
+    df                 = read_csv(join(path,f'{file_name}.{ext}'), sep='\t')
+    other_cancer       = extract(df,cancer_type=0)
+    cholangiocarcinoma = extract(df,cancer_type=1)
+    return (other_cancer,cholangiocarcinoma)
 
 def decorate_plot(ax    = None,
                   title = 'Cancer'):
@@ -40,18 +40,18 @@ def decorate_plot(ax    = None,
                    labelbottom = False )
 
 if __name__=='__main__':
-    cancer0,cancer1 = read_and_split()
+    other_cancer,cholangiocarcinoma = read_and_split()
     fig             = figure(figsize=(20,20))
     axs             = fig.subplots(2)
     decorate_plot(ax    = axs[0],
-                  title = 'No Cancer')
-    heatmap(cancer0,
+                  title = 'Other Cancer')
+    heatmap(other_cancer,
             ax   = axs[0],
             vmin = 0,
             vmax = 1)
     decorate_plot(ax    = axs[1],
-                  title = 'Cancer')
-    heatmap(cancer1,
+                  title = 'Cholangiocarcinoma')
+    heatmap(cholangiocarcinoma,
             ax   = axs[1],
             vmin = 0,
             vmax = 1)
