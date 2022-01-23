@@ -10,6 +10,7 @@ Use of autoencoder for training
 4|extract.py|Use Autoencoder to compress data
 5|classify.py|Use compressed data recognize digits
 -|cancer.py| Read the cancer mutations dataset, and partition training dataset into training and validation
+-|cancerEDA.py|Exploratory data analysis of cancer mutations dataset
 
 # Compatibility
 
