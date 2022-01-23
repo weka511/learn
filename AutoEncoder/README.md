@@ -1,6 +1,6 @@
 # Autoencoder
 
-Use of autoencoder for training
+Investigate the use of an [Autoencoder](https://en.wikipedia.org/wiki/Autoencoder) for compressing data.
 
 #|File|Description
 -|--------------------|--------------------------------
@@ -9,8 +9,13 @@ Use of autoencoder for training
 3|tune.py|Train Auto Encoder and plot losses
 4|extract.py|Use Autoencoder to compress data
 5|classify.py|Use compressed data recognize digits
--|cancer.py| Read the cancer mutations dataset, and partition training dataset into training and validation
--|cancerEDA.py|Exploratory data analysis of cancer mutations dataset
+
+## Investigation of cholangiocarcinoma data
+
+File|Description
+--------------------|--------------------------------
+cancer.py| Read the cancer mutations dataset, and partition training dataset into training and validation
+cancerEDA.py|Exploratory data analysis of cancer mutations dataset
 
 # Compatibility
 
