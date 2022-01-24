@@ -25,14 +25,14 @@ def read_and_split(path      = r'D:\data\cancer_mutations',
         return df.loc[df.cancer_type==cancer_type,].drop(['cancer_type'],
                                                axis    = 1,
                                                inplace = False)
-    df                 = read_csv(join(path,f'{file_name}.{ext}'), sep='\t')
-    other_cancer       = extract(df,cancer_type=0)
-    cholangiocarcinoma = extract(df,cancer_type=1)
-    return (other_cancer,cholangiocarcinoma)
+    df = read_csv(join(path,f'{file_name}.{ext}'), sep='\t')
+    return (extract(df,cancer_type=0),
+            extract(df,cancer_type=1))
 
 def decorate_plot(ax    = None,
                   title = 'Cancer'):
     ax.set_title(title)
+    if 0<1: return
     ax.tick_params(which       = 'both',
                    bottom      = False,
                    top         = False,
@@ -40,20 +40,27 @@ def decorate_plot(ax    = None,
                    labelbottom = False )
 
 if __name__=='__main__':
-    other_cancer,cholangiocarcinoma = read_and_split()
+    other_cancer,cholangiocarcinoma              = read_and_split()
+    mutation_counts_other_cancer                 = other_cancer.sum(axis=0)
+    mutation_counts_other_cancer_descending      = mutation_counts_other_cancer.sort_values(ascending=False)
+    mutation_counts_cholangiocarcinoma           = cholangiocarcinoma.sum(axis=0)
+    mutation_codes_sorted_by_counts_other_cancer = mutation_counts_other_cancer_descending.keys()
+
     fig             = figure(figsize=(20,20))
     axs             = fig.subplots(2)
     decorate_plot(ax    = axs[0],
-                  title = 'Other Cancer')
-    heatmap(other_cancer,
+                  title = f'Other Cancer {other_cancer.shape[0]} samples')
+    heatmap(other_cancer[mutation_codes_sorted_by_counts_other_cancer.tolist()],
             ax   = axs[0],
             vmin = 0,
-            vmax = 1)
+            vmax = 1,
+            cbar = False)
     decorate_plot(ax    = axs[1],
-                  title = 'Cholangiocarcinoma')
-    heatmap(cholangiocarcinoma,
+                  title = f'Cholangiocarcinoma {cholangiocarcinoma.shape[0]} samples')
+    heatmap(cholangiocarcinoma[mutation_codes_sorted_by_counts_other_cancer.tolist()],
             ax   = axs[1],
             vmin = 0,
-            vmax = 1)
+            vmax = 1,
+            cbar = False)
     savefig('cancerEDA.png')
     show()
