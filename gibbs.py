@@ -29,8 +29,7 @@ def generate(N = 50,
     lambdas        = [lambda1]*n
     lambdas[n:N-1] = [lambda2]*(N-n)
 
-    # Observations, x_1 ... x_N
-    x = poisson.rvs(lambdas)
+    x = poisson.rvs(lambdas)     # Observations, x_1 ... x_N
 
     return x, lambdas, a, b
 
