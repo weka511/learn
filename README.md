@@ -13,7 +13,7 @@ Autoencoder|Use of autoencoder for training
 ---------------|--------------------------------------------
 ae.py|Simple autoencoder tutorial
 backprop.py | Train neural network using Backpropagation (just an exercise)
-gibb2.py| A generic Gibbs sampler, based on [gibbs.py](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
+gibbs.py| A generic Gibbs sampler, based on [gibbs.py](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 hopfield.py | Hopfield network
 learn.bib|Bibliography
 learn.wpr | Project file for Wing IDE
