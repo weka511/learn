@@ -78,19 +78,3 @@ feex1.py| Exercise 1--posterior probabilities
 feex2.py| Exercise 2--most likely size
 feex3.py| Exercise 3--neural implementation
 feex5.py| Exercise 5--learn variance
-
-
-## fcs
-Apply machine learning to Flow Cytometry data
-
- File  | Remarks |Depends|
----------------|--------------------------------------------|----------
-doublets.py |Remove doublets from GCPs and denoise data|emm
-em.py|Expectation Maximization--[Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning, Padhraic Smyth ](https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf)
-fcs.py|Investigate fitting normal curves to scattering. Also serves as a repository for common code
-fcsWidths.py|Plot FSC Width. Remove doublets from GCP wells, and perform regression on Red.|fcs gcps standards
-gcps.py|Model GCPs with Gaussian Mixture Model |emm standards
-partition.py|Partition data using G12/H12|em fcs gcps standards
-pca.py|Principal component analysis of FCS data|fcs
-sizes.py|Group data into size clusters|fcs emm
-standards.py| Functions to look up reference standards |
