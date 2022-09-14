@@ -12,14 +12,12 @@ Autoencoder|Use of autoencoder for training
  File  | Remarks
 ---------------|--------------------------------------------
 ae.py|Simple autoencoder tutorial
-backprop.py | Train neural network using Backpropagation (just an exercise)
 gibbs.py| A generic Gibbs sampler, based on [gibbs.py](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 hopfield.py | Hopfield network
 learn.bib|Bibliography
 learn.wpr | Project file for Wing IDE
-mnist-test.py | Tests based on MNIST training set
-test.py  | Test network against MNIST test dataset
-train.py      | Train network using MNIST data
+
+
 
 ## Imported from elsewhere
 
