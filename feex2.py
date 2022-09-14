@@ -1,4 +1,6 @@
-# Copyright (C) 2020 Greenweaves Software Limited
+#!/usr/bin/env python
+
+# Copyright (C) 2020-22 Greenweaves Software Limited
 
 # This is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-# Exercise 2--most likely size-- from A tutorial on the free-energy 
+# Exercise 2--most likely size-- from A tutorial on the free-energy
 # framework for modelling perception and learning, by Rafal Bogacz
 
 import matplotlib.pyplot as plt

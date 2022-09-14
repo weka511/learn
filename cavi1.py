@@ -1,4 +1,6 @@
-# Copyright (C) 2020-2021 Greenweaves Software Limited
+#!/usr/bin/env python
+
+# Copyright (C) 2020-2022 Greenweaves Software Limited
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

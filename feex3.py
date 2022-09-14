@@ -1,4 +1,6 @@
-# Copyright (C) 2020 Greenweaves Software Limited
+#!/usr/bin/env python
+
+# Copyright (C) 2020-2022 Greenweaves Software Limited
 
 # This is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,7 +53,7 @@ for t in range(1,501):
     phis.append(phi)
     epsilon_us.append(epsilon_u)
     epsilon_ps.append(epsilon_p)
-    
+
 plt.scatter(ts,phis,s=1,label=r'$\phi$')
 plt.scatter(ts,epsilon_us,s=1,label=r'$\epsilon_u$')
 plt.scatter(ts,epsilon_ps,s=1,label=r'$\epsilon_p$')

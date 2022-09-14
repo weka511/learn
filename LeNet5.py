@@ -1,4 +1,6 @@
-# Copyright (C) 2020 Greenweaves Software Limited
+#!/usr/bin/env python
+
+# Copyright (C) 2020-2022 Greenweaves Software Limited
 
 # This is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -75,12 +77,12 @@ def scheduler(epoch):
         return 0.001
     else:
         return 0.001 * tf.math.exp(0.1 * (10 - epoch))
-    
+
 if __name__=='__main__':
     import argparse
     import os
-    
-    print(f'Using Tensorflow {tf.version.VERSION}')    
+
+    print(f'Using Tensorflow {tf.version.VERSION}')
     path   = os.path.join(os.getenv('APPDATA'),'LeNet5')
     parser = argparse.ArgumentParser('Convolutional Neural Net based on LeNet-5')
     parser.add_argument('action',   choices=['train','test', 'continue'],       help = 'Train or test')
@@ -88,25 +90,25 @@ if __name__=='__main__':
     parser.add_argument('--path',                             default=path,     help = 'Path of file used to save and restore network')
     parser.add_argument('--epochs', type=int,                 default=5,       help = 'Number of epochs for training')
     args        = parser.parse_args()
-    
+
     checkpoint  = os.path.join(args.path, args.checkpoint, 'cp-{epoch:04d}.ckpt')
 
     cp_callback = ModelCheckpoint(filepath   = checkpoint,
                                  save_weights_only = True,
                                  save_freq         = 'epoch',
                                  verbose           = 1)
-    
+
     csv_logger_callback  = CSVLogger('training.txt')
-    
+
     learning_rate_callback = LearningRateScheduler(scheduler)
-    
+
     if args.action == 'train':
         (train_x, train_y), (test_x, test_y), (val_x,val_y) = create_data()
-        
+
         model = create_model(train_x)
-        
+
         model.save_weights(checkpoint.format(epoch=0))
-        
+
         history = model.fit(train_x, train_y,
                             epochs          = args.epochs,
                             validation_data = (val_x, val_y),
@@ -116,33 +118,32 @@ if __name__=='__main__':
         #print (f'validation loss={history.history["val_loss"]},accuracy={history.history["val_sparse_categorical_accuracy"]}')
         # loss, sparse_categorical_accuracy, val_loss, val_sparse_categorical_accuracy
 
-  
-    
+
+
     if args.action == 'test':
         latest = tf.train.latest_checkpoint(os.path.dirname(checkpoint))
         print (f'Latest checkpoint: {latest}')
         _, (test_x, test_y), _ = create_data()
 
         model              = create_model(test_x)
-       
-        model.load_weights(latest) 
+
+        model.load_weights(latest)
         print (f'Loaded {latest}')
-        
+
         loss,accuracy = model.evaluate(test_x, test_y, verbose=2)
         print (f'Tested: loss={loss}, accuracy={accuracy}')
-       
+
     if args.action=='continue':
         latest = tf.train.latest_checkpoint(os.path.dirname(checkpoint))
-        print (f'Latest checkpoint: {latest}')        
+        print (f'Latest checkpoint: {latest}')
         (train_x, train_y), (test_x, test_y), (val_x,val_y) = create_data()
-        
+
         model              = create_model(train_x)
-    
-        model.load_weights(latest) 
+
+        model.load_weights(latest)
         print (f'Loaded {latest}')
         csv_logger_callback  = CSVLogger('training.txt',append=True)
         model.fit(train_x, train_y,
                   epochs=args.epochs,
                   validation_data=(val_x, val_y),
-                  callbacks=[cp_callback,csv_logger_callback])        
-   
+                  callbacks=[cp_callback,csv_logger_callback])

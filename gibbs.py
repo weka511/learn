@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Gibbs sampler for the change-point model described in a Cognition cheat sheet titled "Gibbs sampling."
 # This is a Python implementation of the procedure at http://www.cmpe.boun.edu.tr/courses/cmpe58n/fall2009/
 # Written by Ilker Yildirim, September 2012.
@@ -41,12 +43,10 @@ def gibbs(x,
           b         = 1):
     '''Gibbs sampler'''
     N       = len(x)
-    # Initialize the chain
     n       = int(round(uniform.rvs()*N))
     lambda1 = gamma.rvs(a,scale=1./b)
     lambda2 = gamma.rvs(a,scale=1./b)
 
-    # Store the samples
     chain_n       = zeros(E - BURN_IN)
     chain_lambda1 = zeros(E - BURN_IN)
     chain_lambda2 = zeros(E - BURN_IN)
@@ -80,7 +80,7 @@ if __name__=='__main__':
 
     f, axes = subplots(3,2,figsize=(10,10))
     f.tight_layout(pad=1.0)
-    # Plot the data
+
     axes[0][0].stem(range(len(x)),x,linefmt='b-', markerfmt='bo')
     axes[0][0].plot(range(len(x)),lambdas,'r--')
     axes[0][0].set_ylabel('Counts')
@@ -101,5 +101,6 @@ if __name__=='__main__':
     axes[1][1].set_xlim([1,50])
 
     axes[2][1].axis('off')
+
     savefig(basename(__file__).split('.')[0] )
     show()

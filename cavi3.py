@@ -1,4 +1,6 @@
-#    Copyright (C) 2020-2021 Greenweaves Software Limited
+#!/usr/bin/env python
+
+#    Copyright (C) 2020-2022 Greenweaves Software Limited
 
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -13,8 +15,10 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#  Coordinate Ascent Mean-Field Variational Inference (CAVI) after
-#  David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians
+'''
+   The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of
+   David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians
+'''
 
 from argparse          import ArgumentParser
 from math              import sqrt
@@ -29,7 +33,7 @@ from scipy.stats       import norm
 
 class ELBO_Error(Exception):
     '''
-    This class ellows us to package the ELBO with an exception, e.g. for plotting
+    This class allows us to package the ELBO with an exception, e.g. for plotting
     '''
     def __init__(self,message,ELBOs):
         super().__init__(message)
@@ -209,19 +213,22 @@ def create_xkcd_colours(file_name = 'rgb.txt',
                 if filter(R,G,B):
                     yield f'{prefix}{parts[0]}'
 
-if __name__=='__main__':
-    rcParams.update({
-        "text.usetex": True
-    })
-    parser = ArgumentParser('The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al')
+def parse_args():
+    parser = ArgumentParser(__doc__)
     parser.add_argument('--K',         type=int,   default=2,                           help='Number of Gaussians')
     parser.add_argument('--n',         type=int,   default=1000,                        help='Number of points')
     parser.add_argument('--N',         type=int,   default=250,                         help='Number of iterations')
     parser.add_argument('--tolerance', type=float, default=1.0e-6,                      help='Convergence criterion')
     parser.add_argument('--seed',      type=int,   default=None,                        help='Seed for random number generator')
-    parser.add_argument('--show',                  default=False,  action='store_true', help='Controls whther plot displayed')
-    args = parser.parse_args()
+    parser.add_argument('--show',                  default=False,  action='store_true', help='Controls whether plot displayed')
+    return parser.parse_args()
 
+if __name__=='__main__':
+    rcParams.update({
+        "text.usetex": True
+    })
+
+    args = parse_args()
     seed(args.seed)
 
     sigma  = 1
@@ -260,4 +267,6 @@ if __name__=='__main__':
                  title = str(e))
 
     savefig(basename(__file__).split('.')[0] )
-    show()
+
+    if args.show:
+        show()
