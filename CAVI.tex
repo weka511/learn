@@ -114,7 +114,7 @@ Following \cite{blei2017variational} we define the Kullback-Leibler divergence, 
 \end{proof}
 
 
-\begin{thm}[The Kullback-Leibler divergence is always non-negative.]\label{thm:kl:ge}
+\begin{thm}[The Kullback-Leibler divergence is always non-negative]\label{thm:kl:ge}
 	\begin{align*}
 		\KLD{q(z)}{p(z)} \ge 0 \numberthis \label{eq:kl:nn}
 	\end{align*}
@@ -122,17 +122,20 @@ Following \cite{blei2017variational} we define the Kullback-Leibler divergence, 
 \begin{proof}
 	\begin{align*}
 		\KLD{q(z)}{p(z)} = & \Expectation_q(\log{\frac{q(z)}{p(z)}})\\
-        = & \Expectation_q(-\log{\frac{p(z)}{q(z)}})\\
-         \ge &\log{\Expectation_q(\frac{p(z)}{q(z)})} \numberthis \label{eq:kl:nn0}
+        = & \Expectation_q(-\log{\frac{p(z)}{q(z)}})
 	\end{align*}
-	 Where we have used  Jensen's inequality--Lemma \ref{lemma:jensen}--and the convexity of $-\log(x)$. The latter follows from Lemma \ref{lemma:convex} and the fact that $\frac{d^2\big(-\log{x}\big)}{dx^2}=\frac{1}{x^2}>0$. 
+	Using Lemma \ref{lemma:convex} and the fact that $\frac{d^2\big(-\log{x}\big)}{dx^2}=\frac{1}{x^2}>0$, we see that $-\log(x)$ is convex. We can therefore apply Jensen's inequality--Lemma \ref{lemma:jensen}.
+	\begin{align*}
+		\KLD{q(z)}{p(z)} \ge &-\log{\Expectation_q(\frac{p(z)}{q(z)})} \numberthis \label{eq:kl:nn0}
+	\end{align*}
+	Now
 	\begin{align*}
 		\log{\Expectation_q(\frac{p(z)}{q(z)})} =& \log{\sum_{i=0}^{N}\cancel{q_i}\frac{p_i}{\cancel{q_i}}}\\
 		=& \log{\sum_{i=0}^{N}p_i}\\
 		=& \log{1}\\
 		=& 0
 	\end{align*}
-   Substituting in \eqref{eq:kl:nn0}, \eqref{eq:kl:nn} follows immediately.
+   So \eqref{eq:kl:nn0} reduces to \eqref{eq:kl:nn}.
 \end{proof}
 
 \section{Evidence Lower Bound}\label{sect:elbo}
