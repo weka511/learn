@@ -78,29 +78,30 @@ def cavi(x,
         '''
         quantiles = [quantile(x,q/K) for q in range(1,K+1)]
         epsilon   = min([a-b for (a,b) in zip(quantiles[1:],quantiles[:-1])] )/6
-        return array([q * normal(loc=1.0,scale=epsilon) for q in quantiles])
+        return array([q * normal(loc   = 1.0,
+                                 scale = epsilon) for q in quantiles])
 
     def getELBO():
         '''
         Calculate ELBO following Blei et al, equation (21)
         '''
-        t1  = log(s2) - m/sigma2
-        t1  = t1.sum()
-        t2  = -0.5*add.outer(x**2, s2+m**2)
-        t2 += outer(x, m)
-        t2 -= log(phi)
-        t2 *= phi
-        t2  = t2.sum()
-        return t1 + t2 #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
+        def get_sum_kK():   # First term in (21) -- sum k in 1:K
+            return (log(s2) - m/sigma**2).sum()
+        def get_sum_iN():   # remaining terms == sum i in 1:N
+            t2  = -0.5*add.outer(x**2, s2+m**2)     # q?
+            t2 += outer(x, m)
+            t2 -= log(phi)                          # q?
+            t2 *= phi
+            return t2.sum()
+        return get_sum_kK() + get_sum_iN() #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
 
     phi    = dirichlet([random()*randint(1, 10)]*K, len(x))
     m      = init_means()
     s2     = random(K)
-    sigma2 = sigma**2
     ELBOs  = []
 
     # Perform update -- Blei et al, section 3.1
-    while (len(ELBOs)<min_iterations or abs(ELBOs[-1]/ELBOs[-2]-1)>tolerance):
+    while (True):
         # Blei et al, equation (26)
         e_mu     = outer(x, m)                    # Expectation of mu - n x K
         e_mu2    = -0.5*(m**2 + s2)               # Expectation of mu*mu - K x 1
@@ -108,14 +109,15 @@ def cavi(x,
         phi      = phi / phi.sum(1)[:, newaxis]
 
         # Blei et al, equation (34)
-        s2       = 1/(1/sigma2 + phi.sum(0))
+        s2       = 1/(1/sigma**2 + phi.sum(0))
         m        = (phi*x[:, newaxis]).sum(0) * s2
 
         ELBOs.append(getELBO())
+
+        if len(ELBOs)> min_iterations and abs(ELBOs[-1]/ELBOs[-2]-1)<tolerance:
+            return (ELBOs,phi,m,[sqrt(s) for s in s2])
         if len(ELBOs)>max_iterations:
             raise ELBO_Error(f'ELBO has not converged to within {tolerance} after {max_iterations} iterations',ELBOs)
-
-    return (ELBOs,phi,m,[sqrt(s) for s in s2])
 
 def plot_data(xs,
               cs,
@@ -152,14 +154,14 @@ def plot_data(xs,
         ys_cavi       = y_values_cavi.pdf(x_values)
         ax.plot(x_values,
                  [y*max(n)/max(ys) for y in ys],
-                 c = colours[i],
-                 label     = fr'$\mu=${mu[i]:.3f}, $\sigma=${sigmas[i]:.1f}')
+                 c     = colours[i],
+                 label = fr'$\mu=${mu[i]:.3f}, $\sigma=${sigmas[i]:.1f}')
 
         ax.plot(x_values,
                 [y*max(n)/max(ys_cavi) for y in ys_cavi],
                 label     = fr'$\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f} (CAVI)',
-                c = colours[i],
-                linestyle='--')
+                c         = colours[i],
+                linestyle = '--')
 
     ax.legend()
     ax.set_title('Coordinate Ascent Mean-Field Variational Inference (CAVI)')
@@ -231,7 +233,6 @@ if __name__=='__main__':
     args = parse_args()
     seed(args.seed)
 
-    sigma  = 1
     sigmas = [1.0]*args.K
     mu     = sorted(uniform(low  = 0,
                             high = 5,
