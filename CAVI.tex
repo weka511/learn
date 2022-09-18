@@ -51,7 +51,7 @@
 \maketitle
 
 \begin{abstract}
-	This document aims to fill the gaps between published papers, such as \cite{blei2017variational}, and my code. It has been written to help my understanding. If it is helpful to anyone else it is a bonus.
+	This document aims to fill the gaps between published papers, such as \cite{blei2017variational}, and my code\cite{crase2022learn}. It has been written to help my understanding. If it is helpful to anyone else it is a bonus.
 	
 	Section \ref{sect:kl} describes the Kullback-Leibler divergence, and a key theorem which is needed by the remaining material. Section \ref{sect:elbo} introduces the \gls{gls:ELBO}, and Section \ref{sect:cavi} computes the \gls{gls:ELBO} for a \gls{gls:GMM}.
 \end{abstract}
@@ -62,7 +62,7 @@
 
 \section{Kullback-Leibler divergence}\label{sect:kl}
 
-Following \cite{wiki:kullback:leibler} we define the Kullback-Leibler divergence, and derive Theorem \ref{thm:kl:ge}, which will be used in the sequel.
+Following \cite{blei2017variational} we define the Kullback-Leibler divergence, and derive Theorem \ref{thm:kl:ge}, which will be used in the sequel.
 	
 \begin{defn}[Kullback-Leibler divergence]
 	\begin{align*}
@@ -92,7 +92,6 @@ Following \cite{wiki:kullback:leibler} we define the Kullback-Leibler divergence
 	If $N=1$ the result is trivial, and for $N=2$ \eqref{eq:jensen} follows from \eqref{eq:convex}. We therefore assume that the result is true for some $N\ge2$, and seek to prove that it is true for $N+1$.
 	\begin{align*}
 		\sum_{i=1}^{N+1}\lambda_i f(x_i) =& \sum_{i=1}^{N}\lambda_i f(x_i) + \lambda_{N+1} f(x_{N+1})\\
-		=& \sum_{i=1}^{N}\lambda_i f(x_i) + \lambda_{N+1} f(x_{N+1})\\
 		=& \lambda \sum_{i=1}^{N}\lambda^\prime_i f(x_i) + (1-\lambda) f(x_{N+1}) \text{, where}\\
 		\lambda =& \sum_{i=1}^{N}\lambda_i \text{, and}\\
 		\lambda^\prime_i =& \frac{\lambda_i}{\lambda}
@@ -148,8 +147,10 @@ Following \cite{wiki:kullback:leibler} we define the Kullback-Leibler divergence
 			$\Expectation_q$& Expectation using distribution $q$ \\ \hline
 			\glssymbol{gls:ELBOterm}&\glsdesc{gls:ELBOterm}\\ \hline
 			$p(\vec{z},\vec{x})$ &Joint density of Observations, $\vec{x}$ and latent variables $\vec{z}$\\ \hline
+			$\mathcal{P}$&Family of distributions for $p(\vec{z},\vec{x})$\\ \hline
 			$K$&Number of Gaussians in \gls{gls:GMM}--dimension of $\vec{z}$\\ \hline
 			$n$&Number of observations--dimension of $\vec{x}$\\ \hline
+			$\mathcal{Q}$&A family of distributions that we use to model reality\\ \hline
 			$q(\vec{z})$ &Any density chosen from $\mathcal{Q}$, the family that we use to model $p$\\ \hline
 			$\vec{x}$&Observations \\ \hline
 			$\vec{z}$ &Latent variables that (are intended to) explain Observations\\ \hline
@@ -168,16 +169,17 @@ The evidence is:
 \begin{align*}
 		p(z) =& \int p(x\mid z) p(z) dz
 \end{align*}
-We will use the Kullback-Leibler divergence to derive a bound for the evidence.
+Since, as \cite{blei2017variational} notes, this is generally intractable, we will use the Kullback-Leibler divergence to derive a bound.
 \begin{align*}
 \KLD{q(z)}{p(z\mid x)} \triangleq& \Expectation_q(\log{q(z)})-\Expectation_q(\log{p(z\mid x)}) \\
 	=& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z, x)}) + \Expectation_q(\log{p(x)})
 \end{align*}
+Rearranging
 \begin{align*}
 	\Expectation_q(\log{p(x)})=&\KLD{q(z)}{p(z\mid x)}+\Expectation_q(\log{p(z, x)})-\Expectation_q(\log{q(z)})\\
 	=& \KLD{q(z)}{p(z\mid x)} + \ELBO{(q(z))} \numberthis \label{eq:ELBO:KL}
 \end{align*}
-Where  the \gls{gls:ELBO} $\ELBO$ is defined as:
+Where  we  follow \cite[Equation (13)]{blei2017variational} and define the \gls{gls:ELBO} $\ELBO$ as:
 \begin{align*}
 	\ELBO{(q)} \triangleq& \Expectation_q\big[\log{p(z,x)}\big] - \Expectation_q\big[\log{q(x)}\big]  \numberthis \label{eq:ELBO}
 \end{align*}
@@ -185,24 +187,24 @@ From Theorem \ref{thm:kl:ge}, $\KLD{q(z)}{p(z\mid x)}\ge0$, so \eqref{eq:ELBO:KL
 \begin{align*}
 	\Expectation_q(\log{p(x)})\ge\ELBO[q]
 \end{align*}
-\gls{gls:VI} aims to find a $q$ that matches $p$ by maximizing $\ELBO$.
+\gls{gls:VI} aims to find a $q\in\mathcal{Q}$ that matches $p$ as well as $\mathcal{Q}$ permits, by maximizing $\ELBO$.
 
 \section{Coordinate Ascent Variational Inference}\label{sect:cavi}
 I will derive the \gls{gls:ELBO} for \gls{gls:CAVI}. 
 
-From \cite[Equation (13)]{blei2017variational}
+From \eqref{eq:ELBO}
 \begin{align*}
 	\ELBO{(q)} =& \Expectation_q\big[\log{p(\vec{z},\vec{x})}\big] - \Expectation_q\big[\log{q(\vec{x})}\big]  
 \end{align*}
 
-For a \gls{gls:GMM}--from \cite[Equations (7) \& (16)]{blei2017variational}
+For a \gls{gls:GMM}--from \cite[Equations (7) \& (16)]{blei2017variational} with $K$ Gaussians and a sample size $n$:
 \begin{align*}
 	q(\vec{\mu},\vec{c}) =& \prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i) \numberthis \label{eq:gmm_q}\\
 	p(\vec{\mu},\vec{c},\vec{x}) =& p(\vec{\mu}) \prod_{i=1}^{n} p(c_i) p(x_i \mid c_i,\vec{\mu}) \numberthis \label{eq:gmm_p}
 \end{align*}
 
 
-From \cite[Equation (21)]{blei2017variational}
+Substituting  \eqref{eq:gmm_p} and \eqref{eq:gmm_q} in \eqref{eq:ELBO}
 \begin{align*}
 	\ELBO(m,s^2,\phi) = \sum_{k=1}^{K}& \Expectation_q \big[ \log {p(\mu_k);m_k,s_k^2}\big]\\
 	+& \sum_{i=1}^{n}\Expectation_q \big[\log{p(c_i);\phi_i}\big]\\
@@ -210,10 +212,9 @@ From \cite[Equation (21)]{blei2017variational}
 	-& \sum_{i=1}^n\Expectation_q\big[\log{q(c_i;\phi_i)}\big]\\
 	 -& \sum_{k=1}^K\Expectation_q \big[\log{q(\mu_k;m_k,s^2_k)}\big] \numberthis \label{eq:ELBO_GMM}
 \end{align*}
-I shall expand these terms separately in equations  (\ref{eq:ELBO:1}), (\ref{eq:ELBO:2}), (\ref{eq:ELBO:3F}), (\ref{eq:ELBO:4}) and (\ref{eq:ELBO:5}), using the following Lemma.
+I shall expand these terms separately in equations  (\ref{eq:ELBO:1}), (\ref{eq:ELBO:2}), (\ref{eq:ELBO:3F}), (\ref{eq:ELBO:4}) and (\ref{eq:ELBO:5}), using the following well known result--e.g. \cite[(5.7.5)]{fisz1963probability}.
 
 \begin{lemma}[Moments of a Gaussian Distribution]\label{lemma:gaussian}
-	\cite[(5.7.5)]{fisz1963probability}.
 	\begin{align*}
 		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} d \mu =& 1 \numberthis \label{eq:lemma:1}\\
 		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \mu d \mu =& 0 \numberthis \label{eq:lemma:2}\\
@@ -237,10 +238,10 @@ From (\ref{eq:gmm_q}) and (\ref{eq:gmm_p})
 \begin{align*}
 	\Expectation_q\big[\log{p(c_i);\phi_i}\big] =& \frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\big(\frac{(\mu_k-m_k)^2}{2 s_k^2}\big)\bigg]} \log{\frac{1}{K}} d \mu_k\\
 	=& \log{\frac{1}{K}} \underbrace{\frac{1}{s_k\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}  d \mu_k}_\text{$=1$--from Lemma \ref{lemma:gaussian}, \eqref{eq:lemma:1}}\\
-	\sim & 0 \numberthis \label{eq:ELBO:2}
+	\sim & 0 \text{, where $\sim$ is defined in Table \ref{table:notation}}\numberthis \label{eq:ELBO:2}
 \end{align*}
 
-From  (\ref{eq:gmm_p})
+From  (\ref{eq:gmm_p}), and using $c_{ij}$ to denote the $j$th component of the one-hot vector $c_i$,
 \begin{align*}
 	\log{p(x_i\mid c_i,\mu)} =& \log{\big(\prod_{j=1}^{n} p(x_i|\mu_j)^{c_{ij}}\big)}\\
 	=&\sum_{j=1}^{n}c_{ij} \log{p(x_i|\mu_j)}\\
@@ -249,19 +250,23 @@ From  (\ref{eq:gmm_p})
 \end{align*}
 Whence:
 \begin{align*}
-	\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =& - \frac{1}{2} c_{ij} \sum_{i=1}^{n} \sum_{j=1}^{n} \Expectation_q\bigg[ (x_i-\mu_j)^2\bigg] + C \numberthis \label{eq:ELBO:3}
+	\sum_{i=1}^{n}\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =& - \frac{1}{2}  \sum_{i=1}^{n} \sum_{j=1}^{n} c_{ij} \Expectation_q\bigg[ (x_i-\mu_j)^2\bigg] + C \numberthis \label{eq:ELBO:3}
 \end{align*}
 
 I will calculate each term within the summation separately.  
 
 \begin{align*}
 	\Expectation_q\big[(x_i-\mu_j)^2\big]
-	=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}(x_i-\mu_k)^2 d \mu_k + C\\
-	=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}[x_i-(\mu_k+m_k)]^2 d \mu_k + C^\prime \\
-	=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}[(x_i-m_k)-\mu_k)]^2 d \mu_k\\
-	=&\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_k^2}{2 s_k^2}\bigg]}\big[(x_i-m_k)^2-2(x_i-m_k)\mu_k+\mu_k^2\big] d \mu_k\\
-	=& (x_i-m_k)^2 + s_k^2 \text{, from Lemma \ref{lemma:gaussian}, so  (\ref{eq:ELBO:3}) yields}\\
-	\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =&  -\frac{1}{2} \sum_{i=k}^{n} c_{ik} \big[s_k^2 + (x_k-m_k)^2 \big] \numberthis \label{eq:ELBO:3F}
+	=& \prod_{k=1}^{K}\frac{1}{s_k\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_k-m_k)^2}{2 s_k^2}\bigg]}(x_i-\mu_j)^2 d \mu_k\\
+	=& \frac{1}{s_j\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{(\mu_j-m_j)^2}{2 s_j^2}\bigg]}(x_i-\mu_j)^2 d \mu_j
+\end{align*}
+Where I have used the fact that all terms in the product evaluate to $1$ except when $k=j$. Substituting $\mu^\prime_j=\mu_j$
+\begin{align*}
+	\Expectation_q\big[(x_i-\mu_j)^2\big]=&\frac{1}{s_j\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{{\mu^\prime_j}^2}{2 s_j^2}\bigg]}[x_i-(\mu^\prime_j+m_j)]^2 d \mu^\prime_j + C^\prime \\
+	\sim&\frac{1}{s_j\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_j^2}{2 s_j^2}\bigg]}[(x_i-m_j)-\mu_j)]^2 d \mu_j\\
+	=&\frac{1}{s_j\sqrt{2\pi}}  \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu_j^2}{2 s_j^2}\bigg]}\big[(x_i-m_k)^2-2(x_i-m_j)\mu_k+\mu_j^2\big] d \mu_j\\
+	=& (x_i-m_j)^2 + s_j^2 \text{, from Lemma \ref{lemma:gaussian}, so  (\ref{eq:ELBO:3}) yields}\\
+	\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big] =&  -\frac{1}{2} \sum_{i=1}^{n} \sum_{j=1}^{n}c_{ij} \big[s_j^2 + (x_i-m_j)^2 \big] \numberthis \label{eq:ELBO:3F}
 \end{align*}
 $\prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i)$
 \begin{align*}
@@ -280,12 +285,12 @@ $\prod_{k=1}^{K} q(\mu_k;m_k,s_k^2) \prod_{i=1}^{n}q(c_i;\phi_i)$
 So \eqref{eq:ELBO_GMM} becomes: 
 
 \begin{align*}
-	\ELBO(m,s^2,\phi) = & \underbrace{\sum_{k=1}^{K} \Expectation_q \big[ \log {p(\mu_k);m_k,s_k^2}\big]}_\text{$=- \frac{1}{2 } \big(s_k^2 +  m_k^2\big)$ from \eqref{eq:ELBO:1}}\\
+	\ELBO(m,s^2,\phi) = & \underbrace{\sum_{k=1}^{K} \Expectation_q \big[ \log {p(\mu_k);m_k,s_k^2}\big]}_\text{$=- \frac{1}{2 } \sum_{k=1}^{K} \big(s_k^2 +  m_k^2\big)$ from \eqref{eq:ELBO:1}}\\
 	&+ \underbrace{\sum_{i=1}^{n}\Expectation_q \big[\log{p(c_i);\phi_i}\big]}_\text{$=0$ from \eqref{eq:ELBO:2}}\\
-	&+ \underbrace{\sum_{i=1}^{n}\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big]}_\text{$=-\frac{1}{2} \sum_{i=k}^{n} c_{ik} \big[s_k^2 + (x_k-m_k)^2 \big]$ from \eqref{eq:ELBO:3F}}\\
+	&+ \underbrace{\sum_{i=1}^{n}\Expectation_q\big[\log{p(x_i\mid c_i,\mu);\phi_i,m,s^2}\big]}_\text{$= -\frac{1}{2} \sum_{i=1}^{n} \sum_{j=1}^{n}c_{ij} \big[s_j^2 + (x_i-m_j)^2 \big]$ from \eqref{eq:ELBO:3F}}\\
 	&+ \underbrace{\sum_{i=1}^n\Expectation_q\big[\log{q(c_i;\phi_i)}\big]}_\text{$=0$ from \eqref{eq:ELBO:4}}\\
 	&+ \underbrace{\sum_{k=1}^K\Expectation_q \big[\log{q(\mu_k;m_k,s^2_k)}\big]}_\text{$=0$ from \eqref{eq:ELBO:5}} \\
- 	=& - \frac{1}{2 } \sum_{k=1}^{K} \bigg[ s_k^2 +  m_k^2 + m_k +  c_{ik} \big[s_k^2 + (x_k+m_k)^2 \big]\bigg] \numberthis \label{eq:ELBO:CAVI}
+	=&- \frac{1}{2 } \sum_{k=1}^{K} \big(s_k^2 +  m_k^2\big) -\frac{1}{2} \sum_{i=1}^{n} \sum_{j=1}^{n}c_{ij} \big[s_j^2 + (x_i-m_j)^2 \big] \numberthis \label{eq:ELBO:CAVI}
 \end{align*}
 
 
