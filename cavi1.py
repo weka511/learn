@@ -19,19 +19,19 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-# CAVI for single Gaussian
-#
-#  Coordinate Ascent Mean-Field Variational Inference (CAVI) after
-#  David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians
-#  and
-#  Coordinate Ascent Mean-field Variational Inference (Univariate Gaussian Example)
-#  https://suzyahyah.github.io/bayesian%20inference/machine%20learning/variational%20inference/2019/03/20/CAVI.html
+'''
+ CAVI for single Gaussian
+ Coordinate Ascent Mean-Field Variational Inference (CAVI) after
+ David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians
+ and
+ Coordinate Ascent Mean-field Variational Inference (Univariate Gaussian Example)
+ https://suzyahyah.github.io/bayesian%20inference/machine%20learning/variational%20inference/2019/03/20/CAVI.html
+'''
 
 from argparse          import ArgumentParser
 from em                import maximize_likelihood
 from math              import sqrt, log
-from matplotlib.pyplot import figure, rcParams, savefig, show, subplot
+from matplotlib.pyplot import figure, rcParams, show
 from numpy             import mean, std
 from numpy.random      import normal
 from os.path           import basename
@@ -125,7 +125,7 @@ if __name__=='__main__':
         "text.usetex": True
     })
 
-    parser = ArgumentParser('CAVI for single Gaussian')
+    parser = ArgumentParser(__doc__)
     parser.add_argument('--N',     type = int,            default = 5000,  help = 'Dataset size')
     parser.add_argument('--mean',  type = float,          default = 0.5,   help = 'Mean for dataset')
     parser.add_argument('--sigma', type = float,          default = 0.5,   help = 'Standard deviation')
@@ -150,14 +150,14 @@ if __name__=='__main__':
                                                    alphas = [1],
                                                    K = 1)
     time_em                 = time()
-    figure(figsize=(10,10))
+    fig = figure(figsize=(10,10))
     plot_data(xs,
               mu,sigma,
               mus_em,sigmas_em,
-              ax = subplot(211))
-    plot_ELBO(ELBOs,ax=subplot(212))
+              ax = fig.add_subplot(211))
+    plot_ELBO(ELBOs,ax=fig.add_subplot(212))
 
-    savefig(basename(__file__).split('.')[0] )
+    fig.savefig(basename(__file__).split('.')[0] )
     elapsed_cavi = time_cavi - start
     elapsed_em   = time_em   - time_cavi
     print (f'N={args.N}, CAVI: {elapsed_cavi:.3f} sec, EM: {(elapsed_em):.3f} sec, ratio={(elapsed_em/elapsed_cavi):.1f}')
