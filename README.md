@@ -34,10 +34,6 @@ learn.wpr | Project file for Wing IDE
 
  File  | Remarks |
 ---------------|--------------------------------------------
-catdog1.py|Load data from cat and dog training set, after [How to Classify Photos of Dogs and Cats (with 97% accuracy)](https://machinelearningmastery.com/how-to-develop-a-convolutional-neural-network-to-classify-photos-of-dogs-and-cats/)
-fashion.py| [Fashion items demo](https://www.tensorflow.org/tutorials/keras/classification)
-flowers.py|Script to read data and train--combination of Lenet5 and getdata
-getdata.py|Script to read data and train (demo/tutorial)
 LeNet5.py|LeNet-5 CNN in keras
 losses.R|Plot loss and accuracy for Training and Validation data from logfiles
 tf1.py|[Tensorflow Tutorial](https://www.tensorflow.org/tutorials/quickstart/beginner)
