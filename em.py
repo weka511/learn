@@ -20,6 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+'''Get best GMM fit as described in:
+   Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning
+   Padhraic Smyth
+   https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
+'''
+
 from argparse          import ArgumentParser
 from math              import log, sqrt
 from scipy.stats       import norm
@@ -39,13 +45,8 @@ def maximize_likelihood(xs,
                         N         = 25,
                         tolerance = 1.0e-6,
                         n_burn_in = 3):
-    '''Get best GMM fit as described in:
-       Notes on the EM Algorithm for Gaussian Mixtures: CS 274A, Probabilistic Learning
-       Padhraic Smyth
-       https://www.ics.uci.edu/~smyth/courses/cs274/notes/EMnotes.pdf
-    '''
 
-    def has_converged(n_burn_in=3):
+    def has_converged():
         ''' Used to check whether likelhood has stopped improving'''
         return len(likelihoods)>n_burn_in and abs(likelihoods[-1]/likelihoods[-2]-1)<tolerance
 
@@ -84,13 +85,13 @@ def maximize_likelihood(xs,
     likelihoods = []
 
     while len(likelihoods)<N and not has_converged():
-        alphas,mus,sigmas = m_step(e_step(mus    = mus,
-                                          sigmas = sigmas,
-                                          alphas = alphas))
+        ws                = e_step(mus    = mus,
+                                   sigmas = sigmas,
+                                   alphas = alphas)
+        alphas,mus,sigmas = m_step(ws)
         likelihoods.append(get_log_likelihood(mus    = mus,
                                               sigmas = sigmas,
                                               alphas = alphas))
-
     return likelihoods,alphas,mus,sigmas
 
 def plot_data(xs,mu,sigma,ax=None):
@@ -121,18 +122,22 @@ def plot_Likelihoods(Likelihoods,ax=None):
     ax.set_ylabel('log Likelihood')
     ax.set_xlabel('Iteration')
 
-if __name__=='__main__':
-    rcParams.update({
-        "text.usetex": True
-    })
-
-    parser = ArgumentParser('CAVI for single Gaussian')
+def parse_args():
+    parser = ArgumentParser(__doc__)
     parser.add_argument('--N',     type = int,            default = 5000,  help = 'Dataset size')
     parser.add_argument('--mean',  type = float,          default = 0.5,   help = 'Mean for dataset')
     parser.add_argument('--sigma', type = float,          default = 0.5,   help = 'Standard deviation')
     parser.add_argument('--seed',  type = int,            default = None,  help = 'Seed for random number generator')
     parser.add_argument('--show',  action = 'store_true', default = False, help = 'Show plots')
-    args = parser.parse_args()
+    return parser.parse_args()
+
+if __name__=='__main__':
+    rcParams.update({
+        "text.usetex": True
+    })
+
+    args=parse_args()
+
     seed(args.seed)
     start                    = time()
     xs                       = normal(loc   = args.mean,
@@ -144,12 +149,10 @@ if __name__=='__main__':
                                                    sigmas = [2],
                                                    alphas = [1],
                                                    K      = 1)
-    figure(figsize          = (10,10))
-    plot_data(xs, mus, sigmas,
-              ax = subplot(211))
+    figure(figsize = (10,10))
+    plot_data(xs, mus, sigmas, ax = subplot(211))
 
-    plot_Likelihoods(Likelihoods,
-                     ax = subplot(212))
+    plot_Likelihoods(Likelihoods, ax = subplot(212))
     savefig(basename(__file__).split('.')[0] )
 
     print (f'N={args.N},  EM: {(time() - start):.3f} sec')
