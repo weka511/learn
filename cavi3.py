@@ -22,7 +22,7 @@
 
 from argparse          import ArgumentParser
 from math              import sqrt
-from matplotlib.pyplot import figure, hist, rcParams, savefig, show, subplot
+from matplotlib.pyplot import figure, rcParams, show
 from numpy             import add, arange, argsort, array, asarray, exp, log, newaxis, outer, quantile, random
 from numpy.random      import dirichlet, normal, random, randint, uniform
 from os.path           import basename
@@ -51,6 +51,28 @@ def create_data(mu,
         return (i,gauss(mu[i],sigmas[i]))
     return list(zip(*[create_datum() for _ in range(n)]))
 
+def getELBO(s2,m,sigma,x,phi):
+    '''
+    Calculate ELBO following Blei et al, equation (21)
+    '''
+    def get_sum_kK():   # First term in (21) -- sum k in 1:K
+        return (log(s2) - m/sigma**2).sum()
+    def get_sum_iN():   # remaining terms == sum i in 1:N
+        t2  = -0.5*add.outer(x**2, s2+m**2)     # q?
+        t2 += outer(x, m)
+        t2 -= log(phi)                          # q?
+        t2 *= phi
+        return t2.sum()
+    return get_sum_kK() + get_sum_iN() #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
+
+def init_means(x,K):
+    '''
+    Initialize means to be roughly the 'K' quantiles, plus random noise
+    '''
+    quantiles = [quantile(x,i/K) for i in range(1,K+1)]
+    epsilon   = min([a-b for (a,b) in zip(quantiles[1:],quantiles[:-1])] )/6
+    return array([q * normal(loc   = 1.0,
+                             scale = epsilon) for q in quantiles])
 
 def cavi(x,
          K              = 3,
@@ -71,33 +93,9 @@ def cavi(x,
                         until we have at least this many iterations
     I have borrowed some ideas from Zhiya Zuo's blog--https://zhiyzuo.github.io/VI/
     '''
-
-    def init_means():
-        '''
-        Initialize means to be roughly the 'K' quantiles, plus random noise
-        '''
-        quantiles = [quantile(x,q/K) for q in range(1,K+1)]
-        epsilon   = min([a-b for (a,b) in zip(quantiles[1:],quantiles[:-1])] )/6
-        return array([q * normal(loc   = 1.0,
-                                 scale = epsilon) for q in quantiles])
-
-    def getELBO():
-        '''
-        Calculate ELBO following Blei et al, equation (21)
-        '''
-        def get_sum_kK():   # First term in (21) -- sum k in 1:K
-            return (log(s2) - m/sigma**2).sum()
-        def get_sum_iN():   # remaining terms == sum i in 1:N
-            t2  = -0.5*add.outer(x**2, s2+m**2)     # q?
-            t2 += outer(x, m)
-            t2 -= log(phi)                          # q?
-            t2 *= phi
-            return t2.sum()
-        return get_sum_kK() + get_sum_iN() #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
-
     phi    = dirichlet([random()*randint(1, 10)]*K, len(x))
-    m      = init_means()
-    s2     = random(K)
+    m      = init_means(x,K)
+    s2     = random(K)    # Variance of target q(...)
     ELBOs  = []
 
     # Perform update -- Blei et al, section 3.1
@@ -112,7 +110,7 @@ def cavi(x,
         s2       = 1/(1/sigma**2 + phi.sum(0))
         m        = (phi*x[:, newaxis]).sum(0) * s2
 
-        ELBOs.append(getELBO())
+        ELBOs.append(getELBO(s2,m,sigma,x,phi))
 
         if len(ELBOs)> min_iterations and abs(ELBOs[-1]/ELBOs[-2]-1)<tolerance:
             return (ELBOs,phi,m,[sqrt(s) for s in s2])
@@ -124,14 +122,15 @@ def plot_data(xs,
               mu      = [],
               sigmas  = [],
               m       = 0,
-              s       = 1,
+              s       = [1],
               nbins   = 25,
               colours = ['r', 'g', 'b'],
               ax      = None):
     '''
     Plot raw data and estimates of sufficient statistics
     '''
-    def sort_stats():
+    def sort_stats(m,s):
+        '''Reorder both m and s so that m is ascending '''
         indices = argsort(m)
         return ([m[i] for i in indices], [s[i] for i in indices])
 
@@ -139,11 +138,11 @@ def plot_data(xs,
              bins  = nbins,
              alpha = 0.5)
 
-    m,s = sort_stats()
+    m,s = sort_stats(m,s)
 
     for i in range(len(mu)):
         x0s           = [xs[j] for j in range(len(xs)) if cs[j]==i ]
-        n,bins,_      = hist(x0s,
+        n,bins,_      = ax.hist(x0s,
                             bins      = 25,
                             alpha     = 0.5,
                             facecolor = colours[i])
@@ -240,34 +239,32 @@ if __name__=='__main__':
     cs,xs = create_data(mu,
                         sigmas = sigmas,
                         n      = args.n)
-
+    fig = figure(figsize = (10,10))
     try:
         ELBOs,phi,m,s = cavi(x              = asarray(xs),
                              K              = args.K,
                              max_iterations = args.N,
                              tolerance      = args.tolerance)
 
-        figure(figsize = (10,10))
-
         plot_data(xs,cs,
                   mu      = mu,
                   sigmas  = sigmas,
                   m       = m,
                   s       = s,
-                  ax      = subplot(2,1,1),
+                  ax      = fig.add_subplot(2,1,1),
                   colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1])
 
         plotELBO(ELBOs,
-                 ax = subplot(2,1,2))
+                 ax = fig.add_subplot(2,1,2))
 
     except ELBO_Error as e:
         print (e)
         figure(figsize=(10,10))
         plotELBO(e.ELBOs,
-                 ax    = subplot(1,1,1),
+                 ax    = fig.add_subplot(1,1,1),
                  title = str(e))
 
-    savefig(basename(__file__).split('.')[0] )
+    fig.savefig(basename(__file__).split('.')[0] )
 
     if args.show:
         show()
