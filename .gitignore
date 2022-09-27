@@ -103,7 +103,7 @@ ENV/
 
 # Jabref
 *.bib.bak
-*.bib.sav
+*.bib.sav.tmp
 
 # Tex stuff
 *.aux
@@ -126,3 +126,8 @@ ENV/
 *.gls
 *.glsdefs
 *.loa
+
+*.pdf
+*.png
+.RData
+.Rhistory
