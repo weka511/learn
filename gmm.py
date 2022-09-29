@@ -31,19 +31,18 @@ class GaussionMixtureModel:
                  mu    = array([0]),
                  sigma = array([1]),
                  name  = 'gmm',
-                 n     = 100,
-                 rng    = default_rng()):
+                 n     = 100):
         k           = mu.shape[0]
-        self.rng    = rng
         self.mu     = mu.copy()
         self.sigma  = sigma.copy()
         self.name   = name
         self.size   = (n,k)
 
-    def save(self):
+    def save(self,
+             rng    = default_rng()):
         n,k    = self.size
-        choice = self.rng.integers(0, high = k, size = n)
-        save(self.name, self.mu[choice] + self.sigma[choice]* self.rng.standard_normal(size=(n)))
+        choice = rng.integers(0, high = k, size = n)
+        save(self.name, self.mu[choice] + self.sigma[choice]* rng.standard_normal(size=(n)))
 
     def load(self):
         with open(f'{self.name}.npy', 'rb') as f:
@@ -73,12 +72,11 @@ if __name__=='__main__':
 
     model = GaussionMixtureModel(mu    = mu,
                                 sigma = sigma,
-                                rng   = rng,
                                 n     = args.n)
-    model.save()
+    model.save(rng = rng)
     data = model.load()
-    fig  = figure(figsize = (10,10))
-    ax   = fig.add_subplot(2,1,1)
+    fig  = figure(figsize = (10,5))
+    ax   = fig.add_subplot(1,1,1)
     ax.hist(data,bins=100)
     ax.set_title(f'Gaussian Mixture Model with {args.K} centres')
     fig.savefig('gmm')
