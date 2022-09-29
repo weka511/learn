@@ -20,44 +20,67 @@
 
 '''Generate data for Gaussion Mixture Model'''
 
-from numpy        import array, load, save, zeros
-from numpy.random import default_rng
+from argparse          import ArgumentParser
+from matplotlib.pyplot import figure, rcParams, show
+from numpy             import array, load, save, zeros
+from numpy.random      import default_rng
 
 class GaussionMixtureModel:
     '''This class generates data using a Gaussian Mixture Model'''
     def __init__(self,
-                 seed  = None,
                  mu    = array([0]),
                  sigma = array([1]),
                  name  = 'gmm',
-                 m     = 100):
+                 n     = 100,
+                 rng    = default_rng()):
         k           = mu.shape[0]
-        self.rng    = default_rng(seed)
+        self.rng    = rng
         self.mu     = mu.copy()
         self.sigma  = sigma.copy()
         self.name   = name
-        self.size   = (m,k)
+        self.size   = (n,k)
 
     def save(self):
-        m,k    = self.size
-        choice = self.rng.integers(0, high = k, size = m)
-        save(self.name, self.mu[choice] + self.sigma[choice]* self.rng.standard_normal(size=(k,m)))
+        n,k    = self.size
+        choice = self.rng.integers(0, high = k, size = n)
+        save(self.name, self.mu[choice] + self.sigma[choice]* self.rng.standard_normal(size=(n)))
 
     def load(self):
         with open(f'{self.name}.npy', 'rb') as f:
             return load(f)
 
-    def generate(self,m):
-        for i in range(m):
-            choice = self.rng.integers(0, high=k)
-            yield self.mu[choice] + self.sigma[choice] * self.rng.standard_normal()
 
+def parse_args():
+    parser = ArgumentParser(__doc__)
+    parser.add_argument('--K',     type=int,   default=3,                           help='Number of Gaussians')
+    parser.add_argument('--n',     type=int,   default=1000,                        help='Number of points')
+    parser.add_argument('--seed',  type=int,   default=None,                        help='Seed for random number generator')
+    parser.add_argument('--show',              default=False,  action='store_true', help='Controls whether plot displayed')
+    parser.add_argument('--sigma', type=float, default = 1.0,                       help='Standard deviation')
+    return parser.parse_args()
 
 if __name__=='__main__':
-    model = GaussionMixtureModel(mu    = array([-10,20]),
-                                 sigma = array([1,1]))
+    rcParams.update({
+        "text.usetex": True
+    })
+
+    args  = parse_args()
+    rng   = default_rng(args.seed)
+    sigma = array([args.sigma] * args.K)
+    mu    = array(sorted(rng.uniform(low  = 0,
+                                     high = 25,
+                                     size = args.K)))
+
+    model = GaussionMixtureModel(mu    = mu,
+                                sigma = sigma,
+                                rng   = rng,
+                                n     = args.n)
     model.save()
-    data =model.load()
-    print (data.shape)
-    # for x in model.generate(250):
-        # print (x)
+    data = model.load()
+    fig  = figure(figsize = (10,10))
+    ax   = fig.add_subplot(2,1,1)
+    ax.hist(data,bins=100)
+    ax.set_title(f'Gaussian Mixture Model with {args.K} centres')
+    fig.savefig('gmm')
+    if args.show:
+        show()
