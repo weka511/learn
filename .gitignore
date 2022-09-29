@@ -133,3 +133,4 @@ ENV/
 .Rhistory
 
 *.npy
+*.npz

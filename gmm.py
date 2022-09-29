@@ -22,7 +22,7 @@
 
 from argparse          import ArgumentParser
 from matplotlib.pyplot import figure, rcParams, show
-from numpy             import array, load, save, zeros
+from numpy             import array, load, savez, zeros
 from numpy.random      import default_rng
 
 class GaussionMixtureModel:
@@ -41,12 +41,20 @@ class GaussionMixtureModel:
     def save(self,
              rng    = default_rng()):
         n,k    = self.size
-        choice = rng.integers(0, high = k, size = n)
-        save(self.name, self.mu[choice] + self.sigma[choice]* rng.standard_normal(size=(n)))
+        self.choice = rng.integers(0, high = k, size = n)
+        savez(self.name,
+             data = self.mu[self.choice] + self.sigma[self.choice]* rng.standard_normal(size=(n)),
+             mu     = self.mu,
+             sigma  = self.sigma,
+             choice = self.choice)
 
     def load(self):
-        with open(f'{self.name}.npy', 'rb') as f:
-            return load(f)
+        with open(f'{self.name}.npz', 'rb') as f:
+            npzfile     = load(f)
+            self.mu     = npzfile['mu']
+            self.sigma  = npzfile['sigma']
+            self.choice = npzfile['choice']
+            return npzfile ['data']
 
 
 def parse_args():
@@ -71,13 +79,14 @@ if __name__=='__main__':
                                      size = args.K)))
 
     model = GaussionMixtureModel(mu    = mu,
-                                sigma = sigma,
-                                n     = args.n)
+                                sigma  = sigma,
+                                n      = args.n)
     model.save(rng = rng)
-    data = model.load()
-    fig  = figure(figsize = (10,5))
-    ax   = fig.add_subplot(1,1,1)
-    ax.hist(data,bins=100)
+    data  = model.load()
+    fig   = figure(figsize = (10,5))
+    ax    = fig.add_subplot(1,1,1)
+    n,_,_ = ax.hist(data,bins='sturges')
+    ax.vlines(model.mu,0,ax.get_ylim()[1],colors='xkcd:red',linestyles='dotted')
     ax.set_title(f'Gaussian Mixture Model with {args.K} centres')
     fig.savefig('gmm')
     if args.show:
