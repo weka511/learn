@@ -93,7 +93,7 @@ def cavi(x,
                         until we have at least this many iterations
     I have borrowed some ideas from Zhiya Zuo's blog--https://zhiyzuo.github.io/VI/
     '''
-    phi    = dirichlet([random()*randint(1, 10)]*K, len(x))
+
     m      = init_means(x,K)
     s2     = random(K)    # Variance of target q(...)
     ELBOs  = []
