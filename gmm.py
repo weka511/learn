@@ -56,10 +56,16 @@ class GaussionMixtureModel:
             self.choice = npzfile['choice']
             return npzfile ['data']
 
+def get_name(args):
+    '''Used to establish default file name'''
+    if args.name==None:
+        return f'gmm{args.K}'
+    else:
+        return args.name
 
 def parse_args():
     parser = ArgumentParser(__doc__)
-    parser.add_argument('--name',              default ='gmm')
+    parser.add_argument('--name',                                                    help='Base of name for files')
     parser.add_argument('--K',     type=int,   default=3,                           help='Number of Gaussians')
     parser.add_argument('--n',     type=int,   default=1000,                        help='Number of points')
     parser.add_argument('--seed',  type=int,   default=None,                        help='Seed for random number generator')
@@ -79,10 +85,10 @@ if __name__=='__main__':
                                      high = 25,
                                      size = args.K)))
 
-    model = GaussionMixtureModel(name   = args.name,
+    model = GaussionMixtureModel(name  = get_name(args),
                                  mu    = mu,
-                                 sigma  = sigma,
-                                 n      = args.n)
+                                 sigma = sigma,
+                                 n     = args.n)
     model.save(rng = rng)
     data  = model.load()
     fig   = figure(figsize = (10,5))
@@ -90,6 +96,6 @@ if __name__=='__main__':
     n,_,_ = ax.hist(data,bins='sturges')
     ax.vlines(model.mu,0,ax.get_ylim()[1],colors='xkcd:red',linestyles='dotted')
     ax.set_title(f'Gaussian Mixture Model with {args.K} centres')
-    fig.savefig('gmm')
+    fig.savefig(get_name(args))
     if args.show:
         show()
