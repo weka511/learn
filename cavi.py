@@ -47,7 +47,7 @@ class Cavi:
 
     def infer_hidden_parameters(self,x,rng = default_rng(),
                                 max_iterations = 100,
-                                tolerance      = 1e-8,
+                                tolerance      = 1e-12,
                                 sigma          = 1,
                                 min_iterations = 5):
         m      = self.init_means(x,rng)
@@ -122,13 +122,35 @@ if __name__=='__main__':
 
     x = model.load()
     cavi = Cavi(K=args.K)
-    ELBOs,phi,m,s = cavi.infer_hidden_parameters(x,rng = default_rng(args.seed))
-    print (model.mu)
-    print (m)
     fig  = figure(figsize = (10,5))
-    ax   = fig.add_subplot(1,1,1)
-    ax.hist(x,bins='sturges')
-    ax.set_title(f'Gaussian Mixture Model')
+    ax1   = fig.add_subplot(2,1,1)
+    ax2   = fig.add_subplot(2,1,2)
+    elbo_best = - float('inf')
+    phi_best = None
+    m_best   = None
+    s_best   = None
+    for i in range(10):
+        ELBOs,phi,m,s = cavi.infer_hidden_parameters(x,rng = default_rng(args.seed))
+        if ELBOs[-1]<elbo_best:
+            elbo_best = - float('inf')
+            phi_best = phi
+            m_best   = m
+            s_best   = s
+        ax2.plot(ELBOs)
+    ax1.hist(x,
+            bins = 'sturges',
+            color = 'xkcd:blue',
+            label = 'x')
+    ax1.vlines(model.mu,0,ax1.get_ylim()[1],
+              colors    = 'xkcd:red',
+              linestyles = 'dotted',
+              label      = 'Means (generated)')
+    ax1.vlines(m,0,ax1.get_ylim()[1],
+              colors     = 'xkcd:green',
+              linestyles = 'dashed',
+              label      = 'Means (fitted)')
+    ax1.set_title(f'Gaussian Mixture Model')
+    ax1.legend()
     fig.savefig('gmm')
     if args.show:
         show()
