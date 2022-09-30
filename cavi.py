@@ -47,7 +47,7 @@ class Cavi:
 
     def infer_hidden_parameters(self,x,rng = default_rng(),
                                 max_iterations = 100,
-                                tolerance      = 1e-12,
+                                tolerance      = 1e-6,
                                 sigma          = 1,
                                 min_iterations = 5):
         m      = self.init_means(x,rng)
@@ -105,10 +105,14 @@ class ELBO_Error(Exception):
 
 def parse_args():
     parser = ArgumentParser(__doc__)
+    parser.add_argument('--name',              default ='gmm')
     parser.add_argument('--seed',  type=int,   default=None,                        help='Seed for random number generator')
     parser.add_argument('--K',     type=int,   default=3,                           help='Number of Gaussians')
     parser.add_argument('--show',              default=False,  action='store_true', help='Controls whether plot displayed')
-
+    parser.add_argument('--N',     type=int,   default=250,                           help='Number of Gaussians')
+    parser.add_argument('--tol',     type=float,   default=1e-6,                           help='Number of Gaussians')
+    parser.add_argument('--sigma',     type=float,   default=1,                           help='Number of Gaussians')
+    parser.add_argument('--n',     type=int,   default=5,                           help='Number of Gaussians')
     return parser.parse_args()
 
 if __name__=='__main__':
@@ -118,11 +122,10 @@ if __name__=='__main__':
 
     args  = parse_args()
 
-    model = GaussionMixtureModel()
-
-    x = model.load()
-    cavi = Cavi(K=args.K)
-    fig  = figure(figsize = (10,5))
+    model = GaussionMixtureModel(name=args.name)
+    x     = model.load()
+    cavi  = Cavi(K=args.K)
+    fig   = figure(figsize = (10,5))
     ax1   = fig.add_subplot(2,1,1)
     ax2   = fig.add_subplot(2,1,2)
     elbo_best = - float('inf')
@@ -130,7 +133,12 @@ if __name__=='__main__':
     m_best   = None
     s_best   = None
     for i in range(10):
-        ELBOs,phi,m,s = cavi.infer_hidden_parameters(x,rng = default_rng(args.seed))
+        ELBOs,phi,m,s = cavi.infer_hidden_parameters(x,
+                                                     max_iterations=args.N,
+                                                     tolerance=args.tol,
+                                                     min_iterations=args.n,
+                                                     sigma=args.sigma,
+                                                     rng = default_rng(args.seed))
         if ELBOs[-1]<elbo_best:
             elbo_best = - float('inf')
             phi_best = phi

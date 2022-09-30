@@ -59,6 +59,7 @@ class GaussionMixtureModel:
 
 def parse_args():
     parser = ArgumentParser(__doc__)
+    parser.add_argument('--name',              default ='gmm')
     parser.add_argument('--K',     type=int,   default=3,                           help='Number of Gaussians')
     parser.add_argument('--n',     type=int,   default=1000,                        help='Number of points')
     parser.add_argument('--seed',  type=int,   default=None,                        help='Seed for random number generator')
@@ -78,9 +79,10 @@ if __name__=='__main__':
                                      high = 25,
                                      size = args.K)))
 
-    model = GaussionMixtureModel(mu    = mu,
-                                sigma  = sigma,
-                                n      = args.n)
+    model = GaussionMixtureModel(name   = args.name,
+                                 mu    = mu,
+                                 sigma  = sigma,
+                                 n      = args.n)
     model.save(rng = rng)
     data  = model.load()
     fig   = figure(figsize = (10,5))
