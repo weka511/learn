@@ -20,36 +20,55 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from numpy import array, exp, log, dot
+from argparse import ArgumentParser
+from numpy    import array, dot, exp, log
 
 def softmax(z):
     exp_z = exp(z)
     return exp_z/exp_z.sum()
 
-print ('Example 1')
-D = array([0.5, 0.5])
+if __name__=='__main__':
+    parser = ArgumentParser()
+    parser.add_argument('exercise', type=int,choices=[1,2])
+    args   = parser.parse_args()
+    if args.exercise==1:
+        print ('Example 1')
+        D = array([0.5, 0.5])
 
-A = array([[0.9, 0.3],
-           [0.1, 0.7]
-           ])
+        A = array([[0.9, 0.3],
+                   [0.1, 0.7]
+                   ])
 
-o = array([1,0])
-print (f'D={D}')
-print (f'A={A}')
-print (f'o={o}')
-s = softmax(log(D) + dot(log(A.transpose()),o))
-print (f's={s}')
+        o = array([1,0])
+        print (f'D={D}')
+        print (f'A={A}')
+        print (f'o={o}')
+        s = softmax(log(D) + dot(log(A.transpose()),o))
+        print (f's={s}')
 
-print ('Exercise 1')
-D = array([0.75, 0.25])
+        print ('Exercise 1')
+        D = array([0.75, 0.25])
 
-A = array([[0.8, 0.2],
-           [0.2, 0.8]
-           ])
+        A = array([[0.8, 0.2],
+                   [0.2, 0.8]
+                   ])
 
-o = array([1,0])
-print (f'D={D}')
-print (f'A={A}')
-print (f'o={o}')
-s = softmax(log(D) + dot(log(A.transpose()),o))
-print (f's={s}')
+        o = array([1,0])
+        print (f'D={D}')
+        print (f'A={A}')
+        print (f'o={o}')
+        s = softmax(log(D) + dot(log(A.transpose()),o))
+        print (f's={s}')
+
+    if args.exercise==2:
+        print ('Example 2 (WIP)')
+        D = array([0.75,0.25])
+        A = array([[0.8,0.2],[0.2,0.8]])
+        B = array([[0,1],[1,0]])
+        o = array([[1,0],[0,1]])
+        print (f'D={D}')
+        print (f'A={A}')
+        print (f'B={B}')
+        print (f'o={o}')
+        s = array([[0.5,0.5],[0.5,0.5]])
+        print (f's={s}')
