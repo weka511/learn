@@ -30,15 +30,18 @@ Sigma_p  = 1
 Sigma_u  = 1
 u        = 2
 
-def g(v):
-    return v*v
+'''
+   Exercise 2, posterior probabilities, from A tutorial on the free-energy
+   framework for modelling perception and learning, by Rafal Bogacz.
 
-def g_prime(v):
-    return 2*v
-
-def new_phi(phi0,N=500):
-    yield phi0
+   Find the most likely size for the food item
+'''
+def new_phi(phi0,
+            N       = 500,
+            g       = lambda v:v**2,
+            g_prime = lambda v: 2*v):
     phi = phi0
+    yield phi
     for i in range(N):
         df = (vp-phi)/Sigma_p + (u-g(phi))*g_prime(phi)/Sigma_u
         phi += dt*df
