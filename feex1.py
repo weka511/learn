@@ -26,10 +26,7 @@ from numpy             import linspace
 from scipy.integrate   import quad
 
 
-def g(v):
-    return v*v
-
-def p_u_v(u,v,Sigma_u  = 1):
+def p_u_v(u,v,Sigma_u  = 1, g=lambda v:v**2):
     return norm(g(v),Sigma_u).pdf(u)
 
 def p_v(v, vp = 3, Sigma_p  = 1):
@@ -37,7 +34,7 @@ def p_v(v, vp = 3, Sigma_p  = 1):
     return norm(vp, Sigma_p).pdf(v)
 
 def p_u(u):
-    return quad(lambda v:p_v(v)*p_u_v(u,v),0,6,epsabs=0.0001)[0]
+    return quad(lambda v:p_v(v)*p_u_v(u,v),0,5,epsabs=0.0001)[0]
 
 def get_posterior(v,u):
     evidence      = p_u(u)
