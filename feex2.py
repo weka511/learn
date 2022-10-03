@@ -15,8 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-# Exercise 2--most likely size-- from A tutorial on the free-energy
-# framework for modelling perception and learning, by Rafal Bogacz
+'''
+   Exercise 2, posterior probabilities, from A tutorial on the free-energy
+   framework for modelling perception and learning, by Rafal Bogacz.
+
+   Find the most likely size for the food item
+'''
 
 from matplotlib.pyplot import figure, show
 from matplotlib import rc
@@ -30,12 +34,7 @@ Sigma_p  = 1
 Sigma_u  = 1
 u        = 2
 
-'''
-   Exercise 2, posterior probabilities, from A tutorial on the free-energy
-   framework for modelling perception and learning, by Rafal Bogacz.
 
-   Find the most likely size for the food item
-'''
 def new_phi(phi0,
             N       = 500,
             g       = lambda v:v**2,
