@@ -19,14 +19,12 @@
    Exercise 1, posterior probabilities, from A tutorial on the free-energy
    framework for modelling perception and learning, by Rafal Bogacz
 '''
-from math              import ceil
+
 from scipy.stats       import norm
-from matplotlib.pyplot import legend, scatter, show, title, xlabel, ylabel, ylim
+from matplotlib.pyplot import figure, show, title
+from numpy             import linspace
 from scipy.integrate   import quad
 
-
-def round2(x,factor=10):
-    return ceil(x*factor)/factor
 
 def g(v):
     return v*v
@@ -41,15 +39,25 @@ def p_v(v, vp = 3, Sigma_p  = 1):
 def p_u(u):
     return quad(lambda v:p_v(v)*p_u_v(u,v),0,6,epsabs=0.0001)[0]
 
-u             = 2
-sizes         = [0.01 * i for i in range(1,501)]
-evidence      = p_u(u)
-probabilities = [p_v(v)*p_u_v(u,v)/evidence for v in sizes]
+def get_posterior(v,u):
+    evidence      = p_u(u)
+    return p_v(v)*p_u_v(u,v)/evidence
 
-scatter(sizes,probabilities,s=5,label='posterior probability for size')
-xlabel('v')
-ylabel('p(v|u)')
-ylim(0,round2(max(probabilities)))
-legend()
-title('Exercise 1')
+u             = 2
+Sizes         = linspace(0,5,num=500)
+evidence      = p_u(u)
+Posterior     = get_posterior(Sizes,u)
+
+
+fig = figure(figsize=(10,10))
+ax  = fig.add_subplot(1,1,1)
+ax.scatter(Sizes,Posterior,
+           s     = 5,
+           c     = 'xkcd:blue',
+           label = 'posterior probability for size')
+ax.set_xlabel('v')
+ax.set_ylabel('p(v|u)')
+ax.legend()
+ax.set_title('Exercise 1')
+fig.savefig('feex1')
 show()
