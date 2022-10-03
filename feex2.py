@@ -20,12 +20,11 @@
 
 from matplotlib.pyplot import figure, show
 from matplotlib import rc
+from numpy      import array, linspace
 
 rc('text', usetex=True)
 
 vp       = 3
-phis     = [vp]
-ts       = [0]
 dt       = 0.01
 Sigma_p  = 1
 Sigma_u  = 1
@@ -37,20 +36,28 @@ def g(v):
 def g_prime(v):
     return 2*v
 
-def new_phi(phi):
-    df = (vp-phi)/Sigma_p + (u-g(phi))*g_prime(phi)/Sigma_u
-    return phi + dt*df
+def new_phi(phi0,N=500):
+    yield phi0
+    phi = phi0
+    for i in range(N):
+        df = (vp-phi)/Sigma_p + (u-g(phi))*g_prime(phi)/Sigma_u
+        phi += dt*df
+        yield phi
 
-for t in range(1,501):
-    ts.append(dt*t)
-    phis.append(new_phi(phis[-1]))
+
+Ts   = linspace(0,5,num=501)
+Phis = array(list(new_phi(vp)))
 
 fig = figure(figsize=(10,10))
 ax  = fig.add_subplot(1,1,1)
-ax.scatter(ts,phis,s=1,label='Most likely size of food item')
+ax.scatter(Ts,Phis,
+           s     = 1,
+           c     = 'xkcd:blue',
+           label = 'Most likely size of food item')
 ax.set_title('Exercise 2')
 ax.set_ylim(0,3)
 ax.set_xlabel('t')
 ax.set_ylabel(r'$\phi$')
 ax.legend()
+fig.savefig('feex2')
 show()
