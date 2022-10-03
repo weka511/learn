@@ -21,7 +21,7 @@
 '''
 
 from scipy.stats       import norm
-from matplotlib.pyplot import figure, show, title
+from matplotlib.pyplot import figure, show
 from numpy             import linspace
 from scipy.integrate   import quad
 

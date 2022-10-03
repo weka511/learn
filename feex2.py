@@ -18,8 +18,9 @@
 # Exercise 2--most likely size-- from A tutorial on the free-energy
 # framework for modelling perception and learning, by Rafal Bogacz
 
-import matplotlib.pyplot as plt
+from matplotlib.pyplot import figure, show
 from matplotlib import rc
+
 rc('text', usetex=True)
 
 vp       = 3
@@ -44,10 +45,12 @@ for t in range(1,501):
     ts.append(dt*t)
     phis.append(new_phi(phis[-1]))
 
-plt.scatter(ts,phis,s=1,label='Most likely size of food item')
-plt.title('Exercise 2')
-plt.ylim(0,3)
-plt.xlabel('t')
-plt.ylabel(r'$\phi$')
-plt.legend()
-plt.show()
+fig = figure(figsize=(10,10))
+ax  = fig.add_subplot(1,1,1)
+ax.scatter(ts,phis,s=1,label='Most likely size of food item')
+ax.set_title('Exercise 2')
+ax.set_ylim(0,3)
+ax.set_xlabel('t')
+ax.set_ylabel(r'$\phi$')
+ax.legend()
+show()
