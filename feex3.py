@@ -18,12 +18,12 @@
 # Exercise 3--neural implementation-- from A tutorial on the free-energy
 # framework for modelling perception and learning, by Rafal Bogacz
 
-import matplotlib.pyplot as plt
+from matplotlib.pyplot import figure, show
 from matplotlib import rc
 rc('text', usetex=True)
 
 def g(v):
-    return v*v
+    return v**2
 
 def g_prime(v):
     return 2*v
@@ -35,12 +35,12 @@ u          = 2
 phi        = v_p
 epsilon_p  = 0
 epsilon_u  = 0
+dt         = 0.01
+
 phis       = [phi]
 epsilon_us = [epsilon_u]
 epsilon_ps = [epsilon_p]
 ts         = [0]
-
-dt         = 0.01
 
 for t in range(1,501):
     phi_dot       = epsilon_u*g_prime(phi) - epsilon_p
@@ -54,11 +54,24 @@ for t in range(1,501):
     epsilon_us.append(epsilon_u)
     epsilon_ps.append(epsilon_p)
 
-plt.scatter(ts,phis,s=1,label=r'$\phi$')
-plt.scatter(ts,epsilon_us,s=1,label=r'$\epsilon_u$')
-plt.scatter(ts,epsilon_ps,s=1,label=r'$\epsilon_p$')
-plt.ylim(-2,3.5)
-plt.xlabel('Time')
-plt.legend()
-plt.title('Exercise 3')
-plt.show()
+fig = figure(figsize=(10,10))
+ax  = fig.add_subplot(1,1,1)
+
+ax.scatter(ts,phis,
+           s     = 1,
+           c     = 'xkcd:blue',
+           label = r'$\phi$')
+ax.scatter(ts,epsilon_us,
+           s     = 1,
+           c     ='xkcd:red',
+           label = r'$\epsilon_u$')
+ax.scatter(ts,epsilon_ps,
+           s     = 1,
+           c     = 'xkcd:green',
+           label = r'$\epsilon_p$')
+
+ax.set_xlabel('Time')
+ax.legend()
+ax.set_title('Exercise 3')
+fig.savefig('feex3')
+show()
