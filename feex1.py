@@ -22,7 +22,7 @@
 
 from scipy.stats       import norm
 from matplotlib.pyplot import figure, show
-from numpy             import linspace
+from numpy             import argmax, linspace
 from scipy.integrate   import quad
 
 
@@ -40,20 +40,25 @@ def get_posterior(v,u):
     evidence      = p_u(u)
     return p_v(v)*p_u_v(u,v)/evidence
 
+def get_max_posterior(Posterior):
+    index_max = argmax(Posterior)
+    return Sizes[index_max],Posterior[index_max]
+
 u             = 2
 Sizes         = linspace(0,5,num=500)
 evidence      = p_u(u)
 Posterior     = get_posterior(Sizes,u)
-
+x,y           = get_max_posterior(Posterior)
 
 fig = figure(figsize=(10,10))
 ax  = fig.add_subplot(1,1,1)
 ax.scatter(Sizes,Posterior,
-           s     = 5,
+           s     = 1,
            c     = 'xkcd:blue',
-           label = 'posterior probability for size')
+           label = 'Posterior probability')
 ax.set_xlabel('v')
 ax.set_ylabel('p(v|u)')
+ax.text(x,y,f'Max posterior={x:.2f}')
 ax.legend()
 ax.set_title('Exercise 1')
 fig.savefig('feex1')
