@@ -58,7 +58,9 @@ ax.scatter(Sizes,Posterior,
            label = 'Posterior probability')
 ax.set_xlabel('v')
 ax.set_ylabel('p(v|u)')
-ax.text(x,y,f'Max posterior={x:.2f}')
+ax.vlines(x,0,y,colors='xkcd:red',
+          linestyles = 'dotted',
+          label=f'Max posterior={x:.2f}')
 ax.legend()
 ax.set_title('Exercise 1')
 fig.savefig('feex1')
