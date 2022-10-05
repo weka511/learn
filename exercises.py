@@ -27,6 +27,7 @@ def softmax(z):
     exp_z = exp(z)
     return exp_z/exp_z.sum()
 
+EPSILON = exp(-16)
 if __name__=='__main__':
     parser = ArgumentParser()
     parser.add_argument('exercise', type=int,choices=[1,2])

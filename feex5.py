@@ -15,10 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>
 
-# Exercise 5--learn variance-- from A tutorial on the free-energy
-# framework for modelling perception and learning, by Rafal Bogacz
+'''
+   Exercise 5--learn variance-- from A tutorial on the free-energy
+   framework for modelling perception and learning, by Rafal Bogacz
+'''
 
 import scipy.stats as stats
-import matplotlib.pyplot as plt
+from matplotlib.pyplot import figure, show
 import scipy.integrate as integrate
-import math
+

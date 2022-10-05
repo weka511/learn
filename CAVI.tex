@@ -48,7 +48,7 @@
 
 \newglossaryentry{gls:KL}{
 	name={Kullback-Leibler Divergence},
-	description={The Kullback-Leibler Divergence between two proabability distributions $\KLD{q(z)}{p(z)}$ measures the information lost by representing $p(x)$ by $q(x)$--\eqref{eq:kl}}
+	description={The Kullback-Leibler Divergence--\eqref{eq:kl}--between two probability distributions $\KLD{q(z)}{p(z)}$ measures the information lost by representing $p(x)$ by $q(x)$}
 }
 
 \begin{document}
@@ -180,10 +180,7 @@ The evidence is:
 Since, as \cite{blei2017variational} notes, this is generally intractable, we will use the \gls{gls:KL} to derive a bound.
 \begin{align*}
 \KLD{q(z)}{p(z\mid x)} \triangleq& \Expectation_q(\log{q(z)})-\Expectation_q(\log{p(z\mid x)}) \\
-	=& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z, x)}) + \Expectation_q(\log{p(x)})
-\end{align*}
-Rearranging
-\begin{align*}
+	=& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z, x)}) + \Expectation_q(\log{p(x)}) \text{, rearranging}\\
 	\Expectation_q(\log{p(x)})=&\KLD{q(z)}{p(z\mid x)}+\Expectation_q(\log{p(z, x)})-\Expectation_q(\log{q(z)})\\
 	=& \KLD{q(z)}{p(z\mid x)} + \ELBO{(q(z))} \numberthis \label{eq:ELBO:KL}
 \end{align*}
@@ -198,9 +195,7 @@ From Theorem \ref{thm:kl:ge}, $\KLD{q(z)}{p(z\mid x)}\ge0$, so \eqref{eq:ELBO:KL
 \gls{gls:VI} aims to find a $q\in\mathcal{Q}$ that matches $p$ as well as $\mathcal{Q}$ permits, by maximizing $\ELBO$.
 
 \section{Coordinate Ascent Variational Inference}\label{sect:cavi}
-I will derive the \gls{gls:ELBO} for \gls{gls:CAVI}. 
-
-From \eqref{eq:ELBO}
+I will derive the \gls{gls:ELBO} for \gls{gls:CAVI}. From \eqref{eq:ELBO}
 \begin{align*}
 	\ELBO{(q)} =& \Expectation_q\big[\log{p(\vec{z},\vec{x})}\big] - \Expectation_q\big[\log{q(\vec{x})}\big]  
 \end{align*}
@@ -230,7 +225,7 @@ I shall expand these terms separately in equations  (\ref{eq:ELBO:1}), (\ref{eq:
 	\end{align*}
 \end{lemma}
 \begin{proof}
-	See \cite[Equation (5.7.5)]{fisz1963probability}
+	See \cite[Equation (5.7.5)]{fisz1963probability}. Note that \eqref{eq:lemma:2} is immediate, since the integrand is odd, and \eqref{eq:lemma:3} can be deduced by differentiating \eqref{eq:lemma:1}.
 \end{proof}
 From (\ref{eq:gmm_q}) and (\ref{eq:gmm_p})
 \begin{align*}
