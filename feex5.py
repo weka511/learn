@@ -27,6 +27,9 @@ from random            import random
 
 rc('text', usetex=True)
 
+XKCD = ['xkcd:purple','xkcd:green','xkcd:blue','xkcd:pink',
+        'xkcd:brown','xkcd:red','xkcd:light blue',
+        'xkcd:teal','xkcd:orange','xkcd:light green','xkcd:magenta','xkcd:yellow',]
 phi_mean  = 5
 phi_sigma = 2
 phi_above = 5
@@ -38,21 +41,31 @@ LRate = 0.01
 
 Sigma = [1]
 
+fig = figure(figsize=(10,10))
+ax  = fig.add_subplot(2,1,1)
+k=0
 for i in range(N):
     error = [1]
     e     = [0]
     phi = phi_mean + sqrt(phi_sigma) * random()
-    for i in range(int(MaxT/dt)):
+    for j in range(int(MaxT/dt)):
         error1 = error[-1]+dt*(phi-phi_above - e[-1])
         e1     = e[-1] + dt *(Sigma[-1] * error[-1] - e[-1])
         error.append(error1)
         e.append(e1)
     Sigma.append(Sigma[-1] + LRate *(error[-1]*error[-1]-1))
+    if i%100==0:
+        ax.plot(error, linestyle='dotted', c=XKCD[k],label=f'error {i}')
+        ax.plot(e, linestyle='dashed', c=XKCD[k])
+        k+= 1
 
-fig = figure(figsize=(10,10))
-ax  = fig.add_subplot(1,1,1)
+ax.legend()
+
+ax  = fig.add_subplot(2,1,2)
+
 
 ax.plot(Sigma)
 ax.set_xlabel('Trial')
 ax.set_ylabel(r'$\Sigma$')
+fig.savefig('feex5')
 show()
