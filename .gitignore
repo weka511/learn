@@ -134,3 +134,6 @@ ENV/
 
 *.npy
 *.npz
+
+figs
+data
