@@ -1,4 +1,4 @@
-# Copyright (C) 202a Greenweaves Software Limited
+# Copyright (C) 2021-2024 Simon Crase
 
 # This is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,16 +16,18 @@
 # Torch snippets snarfed from
 # https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py
 
+'Neural Net with Pytorch'
+
+from argparse import ArgumentParser
+from os.path import splitext
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import matplotlib.pyplot as plt
-import numpy as np
-import argparse
-import os
 
 def imshow(img):
     img   = img / 2 + 0.5     # unnormalize
@@ -52,50 +54,42 @@ class Net(nn.Module):
         return x
 
 def train(args):
-    trainset    = torchvision.datasets.CIFAR10(root      = args.root,
-                                               train     = True,
-                                               download  = True,
-                                               transform = transform)
+    trainset = torchvision.datasets.CIFAR10(root      = args.root,
+                                            train     = True,
+                                            download  = True,
+                                            transform = transform)
 
     trainloader = torch.utils.data.DataLoader(trainset,
                                               batch_size  = 4,
                                               shuffle     = True,
                                               num_workers = 0)
 
-
-
     if args.show:
         # get some random training images
         dataiter = iter(trainloader)
-        images, labels = dataiter.next()
+        images, labels = next(dataiter) # https://stackoverflow.com/questions/74289077/attributeerror-multiprocessingdataloaderiter-object-has-no-attribute-next
 
-        # show images
         imshow(torchvision.utils.make_grid(images))
-        # print labels
-        print(' '.join('%5s' % classes[labels[j]] for j in range(4)))
-    net       = Net()
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(),
-                          lr       = args.lr,
-                          momentum = args.momentum)
-    losses    = []
 
-    for epoch in range(args.n):  # loop over the dataset multiple times
+    net = Net()
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr = args.lr,  momentum = args.momentum)
+    losses = []
+
+    for epoch in range(args.n):
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
             if i>2: break
-            inputs, labels = data # get the inputs; data is a list of [inputs, labels]
-            optimizer.zero_grad()  # zero the parameter gradients
+            inputs, labels = data
+            optimizer.zero_grad()
 
-            # forward + backward + optimize
             outputs = net(inputs)
             print (outputs)
             print (labels)
-            loss    = criterion(outputs, labels)
+            loss  = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
 
-            # print statistics
             running_loss += loss.item()
             if (i +1) % args.freq == 0:
                 print(f'{epoch + 1}, {i + 1}, {running_loss / args.freq}')
@@ -109,28 +103,27 @@ def train(args):
     plt.plot(losses)
     plt.ylim(bottom=0)
     plt.title(f'Training Loss: lr={args.lr}, momentum={args.momentum}')
-    filename, file_extension = os.path.splitext(args.plot)
+    filename, file_extension = splitext(args.plot)
     if len(file_extension)==0:
         filename = f'{filename}.png'
     plt.savefig(filename)
 
 def test(root,PATH):
 
-    testset        = torchvision.datasets.CIFAR10(root      = root,
-                                                  train     = False,
-                                                  download  = True,
-                                                  transform = transform)
+    testset = torchvision.datasets.CIFAR10(root      = root,
+                                           train     = False,
+                                           download  = True,
+                                           transform = transform)
 
-    testloader     = torch.utils.data.DataLoader(testset,
-                                                 batch_size  = 4,
-                                                 shuffle     = False,
-                                                 num_workers = 0)
+    testloader = torch.utils.data.DataLoader(testset,
+                                             batch_size  = 4,
+                                             shuffle     = False,
+                                             num_workers = 0)
 
-    classes        = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-    dataiter       = iter(testloader)
+    classes  = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+    dataiter = iter(testloader)
     images, labels = dataiter.next()
 
-    # print images
     imshow(torchvision.utils.make_grid(images))
     print('GroundTruth: ', ' '.join('%5s' % classes[labels[j]] for j in range(4)))
 
@@ -144,7 +137,7 @@ def test(root,PATH):
                                   for j in range(4)))
 
     correct = 0
-    total   = 0
+    total = 0
     with torch.no_grad():
         for data in testloader:
             images, labels = data
@@ -176,8 +169,7 @@ def test(root,PATH):
 
 
 if __name__=='__main__':
-
-    argparser = argparse.ArgumentParser('Neural Net with Pytorch')
+    argparser = ArgumentParser(__doc__)
     argparser.add_argument('--train',    default = False, action = 'store_true')
     argparser.add_argument('--test',     default = False, action = 'store_true')
     argparser.add_argument('--n',        default = 2,     type=int)
@@ -188,12 +180,11 @@ if __name__=='__main__':
     argparser.add_argument('--PATH',     default = './cifar_net.pth')
     argparser.add_argument('--root',     default = './data')
     argparser.add_argument('--plot',     default = './train.png')
-    args        = argparser.parse_args();
+    args = argparser.parse_args();
 
-    transform   = transforms.Compose([transforms.ToTensor(),
+    transform = transforms.Compose([transforms.ToTensor(),
                                       transforms.Normalize((0.5, 0.5, 0.5),
                                                            (0.5, 0.5, 0.5))])
-
 
     if args.train:
         train(args)
@@ -201,4 +192,5 @@ if __name__=='__main__':
     if args.test:
         test(args.root,args.PATH)
 
-    plt.show()
+    if args.show:
+        plt.show()
