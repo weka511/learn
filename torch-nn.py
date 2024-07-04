@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Copyright (C) 2021-2024 Simon Crase
 
 # This is free software: you can redistribute it and/or modify
@@ -122,7 +124,7 @@ def test(root,PATH):
 
     classes  = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
     dataiter = iter(testloader)
-    images, labels = dataiter.next()
+    images, labels = next(dataiter)
 
     imshow(torchvision.utils.make_grid(images))
     print('GroundTruth: ', ' '.join('%5s' % classes[labels[j]] for j in range(4)))
