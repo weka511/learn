@@ -1,7 +1,24 @@
 #!/usr/bin/env python
 
+#   Copyright (C) 2020-2024 Simon Crase
+
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 # MH sampler for the correlation model described in the Cognition cheat sheet titled "Metropolis-Hastings sampling."
 # Written by Ilker Yildirim, September 2012.
+
+'''Metropolis Hasting Sampler'''
 
 from os.path import basename, join
 from argparse import ArgumentParser
@@ -33,7 +50,17 @@ def sample(N,x,y,
            E = 10000,
            BURN_IN = 0,
            frequency = 100):
+    '''
+    Metropolis Hasting Sampler
 
+    Parameters:
+        N
+        x
+        y
+        E
+        BURN_IN
+        frequency
+    '''
     rho = 0 # Initialize the chain as if there's no correlation at all.
 
     # Store the samples
@@ -85,16 +112,26 @@ if __name__ == '__main__':
     fig = figure(figsize=(10,10))
     fig.tight_layout(pad=3.0)
 
-    ax1 = fig.add_subplot(311)
+    ax1 = fig.add_subplot(221)
     ax1.scatter(x,y,s=20,c='b',marker='o')
+    ax1.set_xlabel('x')
+    ax1.set_ylabel('y')
+    ax1.set_title('Data')
 
-    ax2 = fig.add_subplot(312)
-    ax2.plot(chain_rho,'b')
+    ax2 = fig.add_subplot(222)
+    ax2.plot(chain_rho,'b',label=r'$\rho$')
+    ax2.axhline(y=chain_rho.mean(), color='r', linestyle='dotted',label=r'$\mu$')
+    ax2.axhline(y=chain_rho.mean() + chain_rho.std(), color='r', linestyle='dashed',label=r'$\mu+\sigma$')
+    ax2.axhline(y=chain_rho.mean() - chain_rho.std(), color='r', linestyle='dashdot',label=r'$\mu-\sigma$')
     ax2.set_ylabel(r'$\rho$')
+    ax2.legend()
+    ax2.set_title('Chain')
 
-    ax3 = fig.add_subplot(313)
-    ax3.hist(chain_rho,50)
-    ax3.set_xlabel('$rho$')
+    ax3 = fig.add_subplot(223)
+    ax3.hist(chain_rho,50,color='blue',ec='blue')
+    ax3.set_xlabel(r'$\rho$')
+    ax3.set_title('Frequencies')
+
     fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}') )
     if args.show:
         show()
