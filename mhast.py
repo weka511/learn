@@ -3,9 +3,22 @@
 # MH sampler for the correlation model described in the Cognition cheat sheet titled "Metropolis-Hastings sampling."
 # Written by Ilker Yildirim, September 2012.
 
-import matplotlib.pyplot as plt
+from os.path import basename, join
+from argparse import ArgumentParser
+from matplotlib.pyplot import figure, show
 import numpy as np
 from numpy.random import default_rng
+
+def parse_args():
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument('--seed', type=int, help='Seed for random number generator')
+    parser.add_argument('--E',type=int,default = 5200, help='Number of Epochs')
+    parser.add_argument('--BURN_IN', type=int, default = 200, help='Burn in: number of Epochs to skip at begining')
+    parser.add_argument('--frequency', type=int, default = 100, help='For recording progress')
+    parser.add_argument('--N', type=int, default = 1000, help='Number of data points to generate')
+    parser.add_argument('--figs', default='./figs', help='Folder to store plots')
+    parser.add_argument('--show', default = False, action = 'store_true', help='Controls whether plot will be shown')
+    return parser.parse_args()
 
 def generate(rng, N = 1000):
     '''
@@ -14,24 +27,22 @@ def generate(rng, N = 1000):
     data = rng.multivariate_normal([0,0],[[1, 0.4],[0.4, 1]],N)
     x = data[:,0]
     y = data[:,1]
-    return N, data, x, y
+    return data, x, y
 
 def sample(N,x,y,
            E = 10000,
-           BURN_IN = 0):
-    # Gibbs sampler
+           BURN_IN = 0,
+           frequency = 100):
 
-
-    # Initialize the chain.
-    rho = 0 # as if there's no correlation at all.
+    rho = 0 # Initialize the chain as if there's no correlation at all.
 
     # Store the samples
-    chain_rho = np.array([0.]*(E-BURN_IN))
+    chain_rho = np.array([0.]*(E - BURN_IN))
 
     accepted_number = 0.
-    interval = 100
+
     for e in range(E):
-        if e%interval==0:
+        if e%frequency==0:
             print (f'At iteration {e}')
         # Draw a value from the proposal distribution, Uniform(rho-0.07,rho+0.07); Equation 7
         rho_candidate = rng.uniform(rho-0.07,2*0.07)
@@ -51,32 +62,39 @@ def sample(N,x,y,
         if rng.uniform(0,1) < accept:
             rho = rho_candidate
             accepted_number = accepted_number + 1
-        else:
-            rho = rho    #WTF?
 
-        # store
         if e >= BURN_IN:
             chain_rho[e-BURN_IN] = rho
 
     return accepted_number,chain_rho
 
 if __name__ == '__main__':
-    rng = default_rng(12345678)
-    E = 10000
-    N, data, x, y = generate(rng)
-    accepted_number,chain_rho = sample(N,x,y,E=E)
+    args = parse_args()
+    rng = default_rng(args.seed)
+    data, x, y = generate(rng, N=args.N)
+    accepted_number,chain_rho = sample(args.N,x,y,
+                                       E = args.E,
+                                       BURN_IN = args.BURN_IN,
+                                       frequency = args.frequency)
     print ('...Summary...')
-    print (f'Acceptance ratio is {accepted_number/E}')
+    print (f'Acceptance ratio is {accepted_number/args.E}')
     print (f'Mean rho is {chain_rho.mean()}')
     print (f'Std for rho is {chain_rho.std()}')
     print (f'Compare with numpy.cov function: {np.cov(data.T)}')
 
-    f, (ax1,ax2,ax3) = plt.subplots(3,1)
+    fig = figure(figsize=(10,10))
+    fig.tight_layout(pad=3.0)
+
+    ax1 = fig.add_subplot(311)
     ax1.scatter(x,y,s=20,c='b',marker='o')
 
+    ax2 = fig.add_subplot(312)
     ax2.plot(chain_rho,'b')
-    ax2.set_ylabel('$rho$')
+    ax2.set_ylabel(r'$\rho$')
+
+    ax3 = fig.add_subplot(313)
     ax3.hist(chain_rho,50)
     ax3.set_xlabel('$rho$')
-
-    plt.show()
+    fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}') )
+    if args.show:
+        show()
