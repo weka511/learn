@@ -28,7 +28,7 @@ from time import time
 from matplotlib.pyplot import figure, show
 import numpy as np
 from numpy.random import default_rng
-from scipy.stats import uniform, gamma, poisson
+# from scipy.stats import uniform, gamma, poisson
 
 def generate(rng, N = 50, a = 2, b = 1, K = 5):
     '''
