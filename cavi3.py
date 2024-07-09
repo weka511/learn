@@ -22,11 +22,10 @@
 
 from argparse import ArgumentParser
 from os.path import basename,join
-from matplotlib.pyplot import figure, rcParams, show
-from numpy import add, arange, argsort, array, asarray, exp, log, newaxis, outer, quantile, random, sqrt
-from numpy.random import dirichlet, normal, random, randint, uniform
-from random import gauss, randrange, seed
 from re import split
+from matplotlib.pyplot import figure, rcParams, show
+import numpy as np
+from numpy.random import default_rng
 from scipy.stats import norm
 
 
@@ -40,14 +39,15 @@ class ELBO_Error(Exception):
 
 
 def create_data(mu,
-                n      = 1000,
-                sigmas = []):
+                n  = 1000,
+                sigmas = [],
+                rng = default_rng()):
     '''
     Create test data following Gaussian Mixture Model
     '''
     def create_datum():
-        i = randrange(len(mu))
-        return (i,gauss(mu[i],sigmas[i]))
+        i = rng.choice(len(mu))
+        return (i,rng.normal(mu[i],scale=sigmas[i]))
     return list(zip(*[create_datum() for _ in range(n)]))
 
 def getELBO(s2,m,sigma,x,phi):
@@ -55,30 +55,31 @@ def getELBO(s2,m,sigma,x,phi):
     Calculate ELBO following Blei et al, equation (21)
     '''
     def get_sum_kK():   # First term in (21) -- sum k in 1:K
-        return (log(s2) - m/sigma**2).sum()
+        return (np.log(s2) - m/sigma**2).sum()
     def get_sum_iN():   # remaining terms == sum i in 1:N
-        t2  = -0.5*add.outer(x**2, s2+m**2)     # q?
-        t2 += outer(x, m)
-        t2 -= log(phi)                          # q?
+        t2  = -0.5*np.add.outer(x**2, s2+m**2)     # q?
+        t2 += np.outer(x, m)
+        t2 -= np.log(phi)                          # q?
         t2 *= phi
         return t2.sum()
     return get_sum_kK() + get_sum_iN() #log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
 
-def init_means(x,K):
+def init_means(x,K,rng=default_rng()):
     '''
     Initialize means to be roughly the 'K' quantiles, plus random noise
     '''
-    quantiles = [quantile(x,i/K) for i in range(1,K+1)]
+    quantiles = [np.quantile(x,i/K) for i in range(1,K+1)]
     epsilon   = min([a-b for (a,b) in zip(quantiles[1:],quantiles[:-1])] )/6
-    return array([q * normal(loc   = 1.0,
+    return np.array([q * rng.normal(loc   = 1.0,
                              scale = epsilon) for q in quantiles])
 
 def cavi(x,
-         K              = 3,
+         K = 3,
          max_iterations = 25,
-         tolerance      = 1e-12,
-         sigma          = 1,
-         min_iterations = 5):
+         tolerance = 1e-12,
+         sigma = 1,
+         min_iterations = 5,
+         rng = default_rng()):
     '''
     Perform Coordinate Ascent Mean-Field Variational Inference
 
@@ -93,48 +94,47 @@ def cavi(x,
     I have borrowed some ideas from Zhiya Zuo's blog--https://zhiyzuo.github.io/VI/
     '''
 
-    m      = init_means(x,K)
-    s2     = random(K)    # Variance of target q(...)
-    ELBOs  = []
+    m  = init_means(x,K,rng=rng)
+    s2 = rng.uniform(size=K)    # Variance of target q(...)
+    ELBOs = []
 
     # Perform update -- Blei et al, section 3.1
     while (True):
         # Blei et al, equation (26)
-        e_mu     = outer(x, m)                    # Expectation of mu - n x K
-        e_mu2    = -0.5*(m**2 + s2)               # Expectation of mu*mu - K x 1
-        phi      = exp(e_mu + e_mu2[newaxis, :])  # Unnormalized - n x K
-        phi      = phi / phi.sum(1)[:, newaxis]
+        e_mu = np.outer(x, m)                    # Expectation of mu - n x K
+        e_mu2 = -0.5*(m**2 + s2)               # Expectation of mu*mu - K x 1
+        phi = np.exp(e_mu + e_mu2[np.newaxis, :])  # Unnormalized - n x K
+        phi = phi / phi.sum(1)[:, np.newaxis]
 
         # Blei et al, equation (34)
-        s2       = 1/(1/sigma**2 + phi.sum(0))
-        m        = (phi*x[:, newaxis]).sum(0) * s2
+        s2 = 1/(1/sigma**2 + phi.sum(0))
+        m = (phi*x[:, np.newaxis]).sum(0) * s2
 
         ELBOs.append(getELBO(s2,m,sigma,x,phi))
 
-        if len(ELBOs)> min_iterations and abs(ELBOs[-1]/ELBOs[-2]-1)<tolerance:
-            return (ELBOs,phi,m,[sqrt(s) for s in s2])
-        if len(ELBOs)>max_iterations:
+        if len(ELBOs) > min_iterations and abs(ELBOs[-1]/ELBOs[-2]-1) < tolerance:
+            return (ELBOs,phi,m,[np.sqrt(s) for s in s2])
+        if len(ELBOs) > max_iterations:
             raise ELBO_Error(f'ELBO has not converged to within {tolerance} after {max_iterations} iterations',ELBOs)
 
-def plot_data(xs,
-              cs,
-              mu      = [],
-              sigmas  = [],
-              m       = 0,
-              s       = [1],
-              nbins   = 25,
+def plot_data(xs, cs,
+              mu = [],
+              sigmas = [],
+              m = 0,
+              s = [1],
+              nbins = 25,
               colours = ['r', 'g', 'b'],
-              ax      = None):
+              ax = None):
     '''
     Plot raw data and estimates of sufficient statistics
     '''
     def sort_stats(m,s):
         '''Reorder both m and s so that m is ascending '''
-        indices = argsort(m)
+        indices = np.argsort(m)
         return ([m[i] for i in indices], [s[i] for i in indices])
 
     ax.hist(xs,
-             bins  = nbins,
+             bins = nbins,
              alpha = 0.5)
 
     m,s = sort_stats(m,s)
@@ -142,23 +142,23 @@ def plot_data(xs,
     for i in range(len(mu)):
         x0s           = [xs[j] for j in range(len(xs)) if cs[j]==i ]
         n,bins,_      = ax.hist(x0s,
-                            bins      = 25,
-                            alpha     = 0.5,
-                            facecolor = colours[i])
-        x_values      = arange(min(xs), max(xs), 0.1)
-        y_values      = norm(mu[i], sigmas[i])
+                                bins = 25,
+                                alpha = 0.5,
+                                facecolor = colours[i])
+        x_values = np.arange(min(xs), max(xs), 0.1)
+        y_values = norm(mu[i], sigmas[i])
         y_values_cavi = norm(m[i], s[i])
-        ys            = y_values.pdf(x_values)
-        ys_cavi       = y_values_cavi.pdf(x_values)
+        ys = y_values.pdf(x_values)
+        ys_cavi = y_values_cavi.pdf(x_values)
         ax.plot(x_values,
                  [y*max(n)/max(ys) for y in ys],
-                 c     = colours[i],
+                 c  = colours[i],
                  label = fr'$\mu=${mu[i]:.3f}, $\sigma=${sigmas[i]:.1f}')
 
         ax.plot(x_values,
                 [y*max(n)/max(ys_cavi) for y in ys_cavi],
-                label     = fr'$\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f} (CAVI)',
-                c         = colours[i],
+                label = fr'$\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f} (CAVI)',
+                c = colours[i],
                 linestyle = '--')
 
     ax.legend()
@@ -175,11 +175,11 @@ def plotELBO(ELBOs,
         '''
         Used to avoid cluttering x axis if calculation has gone on for too many iterations
         '''
-        freq   = 1
+        freq = 1
         nticks = len(ELBOs)
-        if nticks<= maximum_ticks: return nticks
-        while nticks>maximum_ticks:
-            freq   *= modulus
+        if nticks <= maximum_ticks: return nticks
+        while nticks > maximum_ticks:
+            freq *= modulus
             nticks /= modulus
         return freq
 
@@ -205,22 +205,22 @@ def create_xkcd_colours(file_name = 'rgb.txt',
         for row in colours:
             parts = split(r'\s+#',row.strip())
             if len(parts)>1:
-                rgb  = int(parts[1],16)
-                B    = rgb%256
+                rgb = int(parts[1],16)
+                B = rgb%256
                 rest = (rgb-B)//256
-                G    = rest%256
-                R    = (rest-G)//256
+                G = rest%256
+                R = (rest-G)//256
                 if filter(R,G,B):
                     yield f'{prefix}{parts[0]}'
 
 def parse_args():
     parser = ArgumentParser(__doc__)
-    parser.add_argument('--K',         type=int,   default=2,                           help='Number of Gaussians')
-    parser.add_argument('--n',         type=int,   default=1000,                        help='Number of points')
-    parser.add_argument('--N',         type=int,   default=250,                         help='Number of iterations')
-    parser.add_argument('--tolerance', type=float, default=1.0e-6,                      help='Convergence criterion')
-    parser.add_argument('--seed',      type=int,   default=None,                        help='Seed for random number generator')
-    parser.add_argument('--show',                  default=False,  action='store_true', help='Controls whether plot displayed')
+    parser.add_argument('--K', type=int, default=2, help='Number of Gaussians')
+    parser.add_argument('--n', type=int, default=1000, help='Number of points')
+    parser.add_argument('--N', type=int, default=250, help='Number of iterations')
+    parser.add_argument('--tolerance', type=float, default=1.0e-6, help='Convergence criterion')
+    parser.add_argument('--seed', type=int, default=None,  help='Seed for random number generator')
+    parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     return parser.parse_args()
 
@@ -230,28 +230,30 @@ if __name__=='__main__':
     })
 
     args = parse_args()
-    seed(args.seed)
+    rng = default_rng(args.seed)
 
     sigmas = [1.0]*args.K
-    mu     = sorted(uniform(low  = 0,
+    mu = sorted(rng.uniform(low  = 0,
                             high = 5,
                             size = args.K))
     cs,xs = create_data(mu,
                         sigmas = sigmas,
-                        n      = args.n)
+                        n = args.n,
+                        rng = rng)
     fig = figure(figsize = (10,10))
     try:
-        ELBOs,phi,m,s = cavi(x              = asarray(xs),
-                             K              = args.K,
+        ELBOs,phi,m,s = cavi(x = np.asarray(xs),
+                             K = args.K,
                              max_iterations = args.N,
-                             tolerance      = args.tolerance)
+                             tolerance = args.tolerance,
+                             rng = rng)
 
         plot_data(xs,cs,
-                  mu      = mu,
-                  sigmas  = sigmas,
-                  m       = m,
-                  s       = s,
-                  ax      = fig.add_subplot(2,1,1),
+                  mu = mu,
+                  sigmas = sigmas,
+                  m = m,
+                  s = s,
+                  ax = fig.add_subplot(2,1,1),
                   colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1])
 
         plotELBO(ELBOs,
@@ -261,7 +263,7 @@ if __name__=='__main__':
         print (e)
         figure(figsize=(10,10))
         plotELBO(e.ELBOs,
-                 ax    = fig.add_subplot(1,1,1),
+                 ax = fig.add_subplot(1,1,1),
                  title = str(e))
 
     fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}') )

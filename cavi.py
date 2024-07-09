@@ -149,12 +149,12 @@ if __name__=='__main__':
             print (e)
             Failures.append(e.ELBOs)
 
-    i_best   = argmax([solution.ELBOs[-1] for solution in Solutions])
+    i_best = argmax([solution.ELBOs[-1] for solution in Solutions])
 
     nrows = 2 if len(Failures)==0 else 3
-    fig      = figure(figsize = (10,10))
+    fig = figure(figsize = (10,10))
 
-    ax1      = fig.add_subplot(nrows,1,1)
+    ax1 = fig.add_subplot(nrows,1,1)
     n,_,_=ax1.hist(x,
             bins = 'sturges',
             color = 'xkcd:blue',
@@ -171,22 +171,22 @@ if __name__=='__main__':
     ax1.legend()
 
     colours = [colour for colour in create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)][::-1]
-    ax2   = fig.add_subplot(nrows,1,2)
+    ax2 = fig.add_subplot(nrows,1,2)
     for i in range(len(Solutions)):
         ax2.plot(Solutions[i].ELBOs,
-                 label     = f'Best: {len(Solutions[i].ELBOs)} iterations, tolerance={args.tol}'  if i==i_best else None,
+                 label = f'Best: {len(Solutions[i].ELBOs)} iterations, tolerance={args.tol}'  if i==i_best else None,
                  linestyle = 'solid' if i==i_best else 'dotted',
-                 c         = colours[0 if i==i_best else (i+i) if i<i_best else i])
+                 c = colours[0 if i==i_best else (i+i) if i<i_best else i])
     ax2.set_ylabel('ELBO')
     ax2.legend()
 
     if len(Failures)>0:
-        ax3   = fig.add_subplot(nrows,1,3)
+        ax3 = fig.add_subplot(nrows,1,3)
         for i in range(len(Failures)):
             ax3.plot(Failures[i])
         ax3.set_ylabel('ELBO (Failed)')
 
-    fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}) )
+    fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}') )
 
     if args.show:
         show()

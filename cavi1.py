@@ -29,60 +29,53 @@
 '''
 
 from argparse import ArgumentParser
-from em  import maximize_likelihood
-from math import sqrt, log
-from matplotlib.pyplot import figure, rcParams, show
-from numpy import mean, std
-from numpy.random import normal
 from os.path import basename, join
-from random import gauss, seed
-from scipy.stats import norm
 from time import time
+from matplotlib.pyplot import figure, rcParams, show
+import numpy as np
+from numpy.random import default_rng
+from scipy.stats import norm
+from em  import maximize_likelihood
 
-# cavi
-#
-# Perform Coordinate Ascent Mean-Field Variational Inference
-#
 
 def cavi(xs,
          N         = 25,
-         tolerance = 1e-6):
+         tolerance = 1e-6,rng=default_rng()):
+    '''Perform Coordinate Ascent Mean-Field Variational Inference'''
 
-    # calcELBO
-    #
-    # Calculate ELBO following Blei et al, equation (21)
     def calcELBO():
-        log_p_x     = -(0.5 / sigma) * sum([(x-mu)**2 for x in xs])
-        log_p_mu    = -(0.5 / sigma) * sum([(x-mu_0)**2 for x in xs])
-        log_p_sigma = (-alpha_0-1) * log(sigma) - beta_0/sigma
-        log_q_mu    = -(0.5 / sigma) *(1/(len(xs)+1)) * (mu - mu_n) **2
-        log_q_sigma = (alpha_n-1) * log(sigma) - beta_n/sigma
+        '''Calculate ELBO following Blei et al, equation (21)'''
+        log_p_x = -(0.5 / sigma) * sum([(x-mu)**2 for x in xs])
+        log_p_mu = -(0.5 / sigma) * sum([(x-mu_0)**2 for x in xs])
+        log_p_sigma = (-alpha_0-1) * np.log(sigma) - beta_0/sigma
+        log_q_mu = -(0.5 / sigma) *(1/(len(xs)+1)) * (mu - mu_n) **2
+        log_q_sigma = (alpha_n-1) * np.log(sigma) - beta_n/sigma
 
         return log_p_x + log_p_mu + log_p_sigma - log_q_mu - log_q_sigma
 
-    x_bar    = mean(xs)
-    ndata    = len(xs)
-    ELBOs    = [1,2]
+    x_bar = np.mean(xs)
+    ndata = len(xs)
+    ELBOs = [1,2]
     # hyperpriors
-    mu_0     = 0
-    alpha_0  = 0
-    beta_0   = 0
-    sigma_0  = 2
+    mu_0 = 0
+    alpha_0 = 0
+    beta_0  = 0
+    sigma_0 = 2
 
-    mu_n    = mu_0
+    mu_n = mu_0
     alpha_n = alpha_0
-    beta_n  = beta_0
+    beta_n = beta_0
 
-    sigma   = sigma_0
-    mu      = gauss(mu_0,sigma)
+    sigma = sigma_0
+    mu = rng.normal(mu_0,scale=sigma)
 
-    while (abs((ELBOs[-1]-ELBOs[-2])/ELBOs[-2])>tolerance):
-        mu_n    = (ndata*x_bar + mu_0)/(ndata + 1)
-        mu      = mu_n
+    while (abs((ELBOs[-1]-ELBOs[-2])/ELBOs[-2]) > tolerance):
+        mu_n = (ndata*x_bar + mu_0)/(ndata + 1)
+        mu = mu_n
         alpha_n = alpha_0 + (ndata + 1)/2
-        beta_n  = beta_0 +  0.5*sum(x**2 for x in xs) - x_bar * sum(xs)   \
-                  + ((ndata+1)/2)*(sigma/ndata + x_bar**2) - mu_0*x_bar + 0.5*mu_0**2
-        sigma   = sqrt((beta_n-1)/alpha_n)
+        beta_n = (beta_0 +  0.5*sum(x**2 for x in xs) - x_bar * sum(xs)
+                  + ((ndata+1)/2)*(sigma/ndata + x_bar**2) - mu_0*x_bar + 0.5*mu_0**2)
+        sigma = np.sqrt((beta_n-1)/alpha_n)
         ELBOs.append(calcELBO())
         if len(ELBOs)>N:
             raise Exception(f'ELBO has not converged to within {tolerance} after {N} iterations')
@@ -94,7 +87,7 @@ def plot_data(xs,mu,sigma,mus_em,sigmas_em,ax=None):
         return [factor*y for y in ys]
 
     n,bins,_ = ax.hist(xs, bins=50,
-                     label=fr'1: Data $\mu=${mean(xs):.3f}, $\sigma=${std(xs):.3f}',
+                     label=fr'1: Data $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',
                      color='b')
     bins_mid = [0.5*(bins[i-1]+bins[i]) for i in range(1,len(bins))]
     ax.plot(bins_mid,normalize([norm.pdf(x,loc=mu,scale=sigma) for x in bins_mid]),
@@ -135,22 +128,22 @@ if __name__=='__main__':
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     args = parser.parse_args()
 
-    seed(args.seed)
-    start                    = time()
-    xs                       = normal(loc   = args.mean,
-                                      scale = args.sigma,
-                                      size  = args.N)
-    mu,sigma,ELBOs           = cavi(xs,tolerance = 1e-6)
-    time_cavi                = time()
-    mus_em                   = []
-    sigmas_em                = []
+    rng = default_rng(args.seed)
+    start = time()
+    xs = rng.normal(loc = args.mean,
+                scale = args.sigma,
+                size  = args.N)
+    mu,sigma,ELBOs = cavi(xs,tolerance = 1e-6,rng=rng)
+    time_cavi = time()
+    mus_em  = []
+    sigmas_em = []
     if args.em:
         _,_,mus_em,sigmas_em = maximize_likelihood(xs,
-                                                   mus    = [mean(xs)],
+                                                   mus = [mean(xs)],
                                                    sigmas = [2],
                                                    alphas = [1],
                                                    K = 1)
-    time_em                 = time()
+    time_em = time()
     fig = figure(figsize=(10,10))
     plot_data(xs,
               mu,sigma,
@@ -160,7 +153,7 @@ if __name__=='__main__':
 
     fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}') )
     elapsed_cavi = time_cavi - start
-    elapsed_em   = time_em   - time_cavi
+    elapsed_em = time_em   - time_cavi
     print (f'N={args.N}, CAVI: {elapsed_cavi:.3f} sec, EM: {(elapsed_em):.3f} sec, ratio={(elapsed_em/elapsed_cavi):.1f}')
     if args.show:
         show()
