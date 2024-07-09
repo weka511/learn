@@ -18,7 +18,10 @@
 # MH sampler for the correlation model described in the Cognition cheat sheet titled "Metropolis-Hastings sampling."
 # Written by Ilker Yildirim, September 2012.
 
-'''Metropolis Hasting Sampler'''
+'''
+Metropolis Hasting Sampler for the correlation model described in the
+Cognition cheat sheet titled "Metropolis-Hastings sampling."
+'''
 
 from os.path import basename, join
 from argparse import ArgumentParser
@@ -46,52 +49,48 @@ def generate(rng, N = 1000):
     y = data[:,1]
     return data, x, y
 
-def sample(N,x,y,
+def sample(x,y,
            E = 10000,
            BURN_IN = 0,
-           frequency = 100):
+           frequency = 100,
+           width = 0.14):
     '''
     Metropolis Hasting Sampler
 
     Parameters:
-        N
         x
         y
-        E
-        BURN_IN
-        frequency
+        E         Number of Epoch
+        BURN_IN   Burn in: number of Epochs to skip at begining
+        frequency For recording progress
+        width     Used to generate candidate vakues of rho
     '''
-    rho = 0 # Initialize the chain as if there's no correlation at all.
+    def get_acceptance_probability(rho,rho_candidate):
+        '''
+        Compute the acceptance probability, Equation 8 and Equation 6.
+        We will do both equations in log domain to avoid underflow.
+        '''
+        def get_acceptance_factor(rho):
+            return (-(3/2) * np.log(1.-rho**2)
+                    - N * np.log((1.-rho**2)**(1./2))
+                    - sum(1./(2.*(1.-rho**2))*(x**2-2.*rho*x*y+y**2)))
+        return np.exp(min([0,get_acceptance_factor(rho_candidate)-get_acceptance_factor(rho)]))
 
-    # Store the samples
+    N = len(x)
+    rho = 0
     chain_rho = np.array([0.]*(E - BURN_IN))
-
-    accepted_number = 0.
+    accepted_number = 0
 
     for e in range(E):
-        if e%frequency==0:
-            print (f'At iteration {e}')
-        # Draw a value from the proposal distribution, Uniform(rho-0.07,rho+0.07); Equation 7
-        rho_candidate = rng.uniform(rho-0.07,2*0.07)
+        rho_candidate = rng.uniform(low=rho-width/2,high=rho+width/2) # Draw a value from the proposal distribution, Equation 7
 
-        # Compute the acceptance probability, Equation 8 and Equation 6.
-        # We will do both equations in log domain here to avoid underflow.
-        accept = (-3./2*np.log(1.-rho_candidate**2)
-                  - N*np.log((1.-rho_candidate**2)**(1./2))
-                  - sum(1./(2.*(1.-rho_candidate**2))*(x**2-2.*rho_candidate*x*y+y**2)))
-        accept = accept - (-3./2*np.log(1.-rho**2)
-                           - N*np.log((1.-rho**2)**(1./2))
-                           - sum(1./(2.*(1.-rho**2))*(x**2-2.*rho*x*y+y**2)))
-        accept = min([0,accept])
-        accept = np.exp(accept)
-
-        # Accept rho_candidate with probability accept.
-        if rng.uniform(0,1) < accept:
+        if rng.uniform(0,1) < get_acceptance_probability(rho,rho_candidate):
             rho = rho_candidate
             accepted_number = accepted_number + 1
-
         if e >= BURN_IN:
             chain_rho[e-BURN_IN] = rho
+        if e%frequency==0:
+            print (f'At iteration {e}')
 
     return accepted_number,chain_rho
 
@@ -99,7 +98,7 @@ if __name__ == '__main__':
     args = parse_args()
     rng = default_rng(args.seed)
     data, x, y = generate(rng, N=args.N)
-    accepted_number,chain_rho = sample(args.N,x,y,
+    accepted_number,chain_rho = sample(x,y,
                                        E = args.E,
                                        BURN_IN = args.BURN_IN,
                                        frequency = args.frequency)
