@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2022 Greenweaves Software Limited
+# Copyright (C) 2022-2024 Greenweaves Software Limited
 #
 # Simon A. Crase -- simon@greenweaves.nz of +64 210 220 2257
 
@@ -20,12 +20,13 @@
 
 '''Generate data for Gaussion Mixture Model'''
 
-from argparse          import ArgumentParser
-from cavi3             import create_xkcd_colours
-from gmm               import GaussionMixtureModel, get_name
+from argparse import ArgumentParser
+from os.path import basename,join
+from cavi3 import create_xkcd_colours
+from gmm import GaussionMixtureModel, get_name
 from matplotlib.pyplot import figure, rcParams, show
-from numpy             import add, argmax, array, exp, log, newaxis, outer, quantile, sqrt
-from numpy.random      import default_rng
+from numpy import add, argmax, array, exp, log, newaxis, outer, quantile, sqrt
+from numpy.random import default_rng
 
 class Cavi:
     '''
@@ -120,6 +121,7 @@ def parse_args():
     parser.add_argument('--tol',   type=float, default=1e-6,                        help='Tolerance for improving ELBO')
     parser.add_argument('--sigma', type=float, default=1,                           help='Standard deviation')
     parser.add_argument('--n',     type=int,   default=5,                           help='Burn in period')
+    parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     return parser.parse_args()
 
 if __name__=='__main__':
@@ -184,7 +186,7 @@ if __name__=='__main__':
             ax3.plot(Failures[i])
         ax3.set_ylabel('ELBO (Failed)')
 
-    fig.savefig(get_name(args))
+    fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}) )
 
     if args.show:
         show()

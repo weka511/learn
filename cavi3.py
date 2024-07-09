@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#    Copyright (C) 2020-2022 Greenweaves Software Limited
+#    Copyright (C) 2020-2024 Greenweaves Software Limited
 
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -20,15 +20,14 @@
    David M. Blei, Alp Kucukelbir & Jon D. McAuliffe (2017) Variational Inference: A Review for Statisticians
 '''
 
-from argparse          import ArgumentParser
-from math              import sqrt
+from argparse import ArgumentParser
+from os.path import basename,join
 from matplotlib.pyplot import figure, rcParams, show
-from numpy             import add, arange, argsort, array, asarray, exp, log, newaxis, outer, quantile, random
-from numpy.random      import dirichlet, normal, random, randint, uniform
-from os.path           import basename
-from random            import gauss, randrange, seed
-from re                import split
-from scipy.stats       import norm
+from numpy import add, arange, argsort, array, asarray, exp, log, newaxis, outer, quantile, random, sqrt
+from numpy.random import dirichlet, normal, random, randint, uniform
+from random import gauss, randrange, seed
+from re import split
+from scipy.stats import norm
 
 
 class ELBO_Error(Exception):
@@ -222,6 +221,7 @@ def parse_args():
     parser.add_argument('--tolerance', type=float, default=1.0e-6,                      help='Convergence criterion')
     parser.add_argument('--seed',      type=int,   default=None,                        help='Seed for random number generator')
     parser.add_argument('--show',                  default=False,  action='store_true', help='Controls whether plot displayed')
+    parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     return parser.parse_args()
 
 if __name__=='__main__':
@@ -264,7 +264,7 @@ if __name__=='__main__':
                  ax    = fig.add_subplot(1,1,1),
                  title = str(e))
 
-    fig.savefig(basename(__file__).split('.')[0] )
+    fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}') )
 
     if args.show:
         show()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2020-2022 Greenweaves Software Limited
+# Copyright (C) 2020-2024 Greenweaves Software Limited
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,16 +28,16 @@
  https://suzyahyah.github.io/bayesian%20inference/machine%20learning/variational%20inference/2019/03/20/CAVI.html
 '''
 
-from argparse          import ArgumentParser
-from em                import maximize_likelihood
-from math              import sqrt, log
+from argparse import ArgumentParser
+from em  import maximize_likelihood
+from math import sqrt, log
 from matplotlib.pyplot import figure, rcParams, show
-from numpy             import mean, std
-from numpy.random      import normal
-from os.path           import basename
-from random            import gauss, seed
-from scipy.stats       import norm
-from time              import time
+from numpy import mean, std
+from numpy.random import normal
+from os.path import basename, join
+from random import gauss, seed
+from scipy.stats import norm
+from time import time
 
 # cavi
 #
@@ -132,6 +132,7 @@ if __name__=='__main__':
     parser.add_argument('--seed',  type = int,            default = None,  help = 'Seed for random number generator')
     parser.add_argument('--show',  action = 'store_true', default = False, help = 'Show plots')
     parser.add_argument('--em',    action = 'store_true', default = False, help = 'Uses Expectation maximization')
+    parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     args = parser.parse_args()
 
     seed(args.seed)
@@ -157,7 +158,7 @@ if __name__=='__main__':
               ax = fig.add_subplot(211))
     plot_ELBO(ELBOs,ax=fig.add_subplot(212))
 
-    fig.savefig(basename(__file__).split('.')[0] )
+    fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}') )
     elapsed_cavi = time_cavi - start
     elapsed_em   = time_em   - time_cavi
     print (f'N={args.N}, CAVI: {elapsed_cavi:.3f} sec, EM: {(elapsed_em):.3f} sec, ratio={(elapsed_em/elapsed_cavi):.1f}')
