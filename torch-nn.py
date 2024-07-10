@@ -169,24 +169,26 @@ def test(root,PATH):
         print('Accuracy of %5s : %2d %%' % (
             classes[i], 100 * class_correct[i] / class_total[i]))
 
+def parse_args():
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument('--train', default = False, action = 'store_true')
+    parser.add_argument('--test', default = False, action = 'store_true')
+    parser.add_argument('--n', default = 2, type=int)
+    parser.add_argument('--freq', default = 2000, type=int)
+    parser.add_argument('--lr', default = 0.001, type=float)
+    parser.add_argument('--momentum', default = 0.9,   type=int)
+    parser.add_argument('--show', default = False, action = 'store_true')
+    parser.add_argument('--PATH', default = './cifar_net.pth')
+    parser.add_argument('--root', default = './data')
+    parser.add_argument('--plot', default = './train.png')
+    return parser.parse_args()
 
 if __name__=='__main__':
-    argparser = ArgumentParser(__doc__)
-    argparser.add_argument('--train',    default = False, action = 'store_true')
-    argparser.add_argument('--test',     default = False, action = 'store_true')
-    argparser.add_argument('--n',        default = 2,     type=int)
-    argparser.add_argument('--freq',     default = 2000,  type=int)
-    argparser.add_argument('--lr',       default = 0.001, type=float)
-    argparser.add_argument('--momentum', default = 0.9,   type=int)
-    argparser.add_argument('--show',     default = False, action = 'store_true')
-    argparser.add_argument('--PATH',     default = './cifar_net.pth')
-    argparser.add_argument('--root',     default = './data')
-    argparser.add_argument('--plot',     default = './train.png')
-    args = argparser.parse_args();
+    args = parse_args()
 
     transform = transforms.Compose([transforms.ToTensor(),
-                                      transforms.Normalize((0.5, 0.5, 0.5),
-                                                           (0.5, 0.5, 0.5))])
+                                    transforms.Normalize((0.5, 0.5, 0.5),
+                                                         (0.5, 0.5, 0.5))])
 
     if args.train:
         train(args)

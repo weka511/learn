@@ -1,4 +1,7 @@
-# example of preparing and making a prediction with a naive bayes model
+#!/usr/bin/env python
+
+'''example of preparing and making a prediction with a naive bayes model'''
+
 #
 # snarfed from https://machinelearningmastery.com/classification-as-conditional-probability-and-the-naive-bayes-algorithm/
 
@@ -54,7 +57,7 @@ plt.figure()
 for cluster in [0,1]:
     xs=[]
     ys=[]
-    zs=[]    
+    zs=[]
     m = '+' if cluster==0 else 'x'
     for i in range(len(y)):
         Xsample,ysample = X[i],y[i]

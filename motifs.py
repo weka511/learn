@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #    Copyright (C) 2020 Greenweaves Software Limited
 
 #   This program is free software: you can redistribute it and/or modify
@@ -25,7 +27,7 @@ def FindMotifs(k,Dna,
                N_CHAINS   = 1):
     Bases = {'A':0, 'C':1, 'G':2, 'T':3}
     BaseList= list(Bases.keys())
-    
+
     def getCounts(sample,excluded=None,cromwell=0):
         Counts = np.full((4,k),cromwell)
         for i in range(len(Dna)):
@@ -37,10 +39,10 @@ def FindMotifs(k,Dna,
 
     def getProfile(sample,excluded=None,cromwell=1):
         return np.divide(getCounts(sample,excluded,cromwell=cromwell),4*(1+cromwell))
-        
+
     def initialize_motifs():
         return [random.randrange(0,l+1) for l in max_starts]
-    
+
     def get_probability(motif_index,start,Profile):
         P = 1
         for i in range(k):
@@ -48,23 +50,23 @@ def FindMotifs(k,Dna,
             P *= Profile[row][i]
             x=0
         return P
-    
+
     def modify_one_motif(motif_index,sample):
         Profile = getProfile(sample,excluded=motif_index)
         probabilities = [get_probability(motif_index,i,Profile) for i in range(max_starts[motif_index])]
         return np.argmax(probabilities)
 
-    
+
     def get_distance(consensus,motif):
         return sum(consensus[i]!=motif[i] for i in range(k))
-    
+
     def get_score(motifs): #FIXME - need consensus
         Counts     = np.transpose(getCounts(motifs))
         consensus  = [np.argmax(row) for row in Counts]
         return sum([get_distance(Dna[i][motifs[i]:motifs[i]+k], ''.join([BaseList[c] for c in consensus])) for i in range(len(motifs)) ])
-                
+
     max_starts = [len(s) - k for s in Dna]
-    
+
     def create_chain():
         chain   = gibbs.gibbs([],
                               E          = E,
@@ -76,26 +78,26 @@ def FindMotifs(k,Dna,
                               allindices = False)
         scores = [get_score(link) for link in chain]
         index  = np.argmin(scores)
- 
+
         return (scores[index], [Dna[i][chain[index][i]:chain[index][i]+k] for i in range(len(chain[index]))])
-                
+
     return [create_chain() for _ in range(N_CHAINS)]
-    
+
 if __name__=='__main__':
     import argparse
     import logomaker as lm
     import matplotlib.pyplot as plt
     import os
- 
+
     def get_name_with_extension(name,ext='txt'):
         if len(os.path.splitext(name)[1])==0:
             return f'{name}.{ext}'
         else:
             return name
-        
+
     result = None
     expected = []
-    
+
     parser = argparse.ArgumentParser('Find motifs using Gibbs sampler')
     parser.add_argument('data',         type=str, nargs='?')
     parser.add_argument('--path',       type=str, default = './datasets')
@@ -111,7 +113,7 @@ if __name__=='__main__':
                                 'GGGCGAGGTATGTGTAAGTGCCAAGGTGCCAG',
                                 'TAGTACCGAGACCGAAAGAAGTATACAGGCGT',
                                 'TAGATCAAGTTTCAGGTGCACGTCGGTGAACC',
-                                'AATCCACCAGCTCCACGTGCAATGTTGGCCTA'    
+                                'AATCCACCAGCTCCACGTGCAATGTTGGCCTA'
                                 ],
                             E         = 1000,
                             BURN_IN   = 0,
@@ -139,30 +141,30 @@ if __name__=='__main__':
                 elif state==3:
                     if line.strip()=='Output': continue
                     expected.append(line.strip())
-        
+
         if args.expected!=None:
             with open(os.path.join(args.path,
-                                   get_name_with_extension(args.expected))) as expected_file: 
+                                   get_name_with_extension(args.expected))) as expected_file:
                 expected = [line.strip() for line in expected_file]
-                
-        expected.sort()            
+
+        expected.sort()
         result = FindMotifs(k,
                             Dna,
                             E         = N,
                             frequency = 0,
                             N_CHAINS  = args.starts)
-    
+
     scores = [score for score,_ in result]
     best = np.argmin(scores)
-    score,motifs = result[best] 
-    
+    score,motifs = result[best]
+
     if args.output:
         with open(os.path.join(args.path,
                                get_name_with_extension(args.output)),
                   'w') as output_file:
             for motif in motifs:
                 output_file.write(f'{motif}\n')
-            
+
     f, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(10,10))
     f.tight_layout(pad=1.0)
 
@@ -170,12 +172,12 @@ if __name__=='__main__':
     ax1.set_xlabel('Score')
     ax1.set_title('Scores')
     motifs.sort()
- 
+
     print ("Motifs")
     for motif in motifs:
         print (motif)
-        
-    if len(expected)>0:  
+
+    if len(expected)>0:
         differences = 0
         for e,m in zip(expected,motifs):
             if e!=m:
@@ -184,18 +186,18 @@ if __name__=='__main__':
                 print (e,m)
                 differences+=1
         if differences==0:
-            print ('No differences detected') 
-            
+            print ('No differences detected')
+
     alignment_matrix    = lm.alignment_to_matrix(motifs)
     most_frequent_bases = alignment_matrix.idxmax(axis=1)
     consensus           = ''.join(most_frequent_bases.tolist())
     ax1.set_title(consensus)
     lm.Logo(alignment_matrix,ax=ax3)
-    
+
     if len(expected)>0:
         ax4.set_title("Expected")
         lm.Logo(lm.alignment_to_matrix(expected),ax=ax4)
     plt.savefig(os.path.basename(__file__).split('.')[0] )
-    
+
     plt.show()
 

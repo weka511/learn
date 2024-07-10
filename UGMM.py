@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # snarfed from https://zhiyzuo.github.io/VI/#python-implementation
 
 import matplotlib.pyplot as plt
@@ -49,7 +50,7 @@ class UGMM(object):
                 print('ELBO converged with ll %.3f at iteration %d'%(self.elbo_values[-1],
                                                                      iter_))
                 break
-       
+
         if iter_ == max_iter:
             print('ELBO ended with ll %.3f'%(self.elbo_values[-1]))
 
@@ -64,7 +65,7 @@ class UGMM(object):
         exponent = t1 + t2[np.newaxis, :]
         self.phi = np.exp(exponent)
         self.phi = self.phi / self.phi.sum(1)[:, np.newaxis]
- 
+
 
     def _update_mu(self):
         self.m = (self.phi*self.X[:, np.newaxis]).sum(0) * (1/self.sigma2 + self.phi.sum(0))**(-1)
@@ -93,4 +94,4 @@ ugmm = UGMM(X, 3)
 ugmm.fit()
 ax1=plt.subplot(2,1,2)
 ax1.plot(ugmm.elbo_values)
-plt.show()    
+plt.show()
