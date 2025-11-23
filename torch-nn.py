@@ -77,29 +77,36 @@ def get_filename(plot):
 
 def train(root='./data', show=False, lr=0.001, momentum=0.9, n=1000, freq=20, plot='./train.png',
           PATH='./cifar_net.pth', figs='./figs',transform=None):
-    trainset = torchvision.datasets.CIFAR10(root=root,
-                                            train=True,
-                                            download=True,
-                                            transform=transform)
+    '''
+    Train network against CIFAR10 data
 
-    trainloader = torch.utils.data.DataLoader(trainset,
-                                              batch_size=4,
-                                              shuffle=True,
-                                              num_workers=0)
+    Parameters:
+        root
+        show
+        lr
+        momentum
+        n
+        freq
+        plot
+        PATH
+        figs
+        transform
+    '''
+    trainset = torchvision.datasets.CIFAR10(root=root, train=True, download=True, transform=transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True, num_workers=0)
 
-
-    # get some random training images
-    dataiter = iter(trainloader)
-    images, labels = next(dataiter) # https://stackoverflow.com/questions/74289077/attributeerror-multiprocessingdataloaderiter-object-has-no-attribute-next
     fig = figure(figsize=(10, 10))
+    # display some random training images
+    dataiter = iter(trainloader)
+    images, _ = next(dataiter)
     imshow(torchvision.utils.make_grid(images),ax = fig.add_subplot(2, 1, 1))
 
     net = Net()
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum)
+    optimizer = optim.SGD(net.parameters(), lr=lr, momentum=momentum)
     losses = []
 
-    for epoch in range(args.n):
+    for epoch in range(n):
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
             inputs, labels = data
@@ -111,24 +118,31 @@ def train(root='./data', show=False, lr=0.001, momentum=0.9, n=1000, freq=20, pl
             optimizer.step()
 
             running_loss += loss.item()
-            if (i + 1) % args.freq == 0:
-                print(f'{epoch + 1}, {i + 1}, {running_loss / args.freq}')
-                losses.append(running_loss / args.freq)
+            if i % freq == 1:
+                print(f'{epoch + 1}, {i + 1}, {running_loss / freq}')
+                losses.append(running_loss/freq)
                 running_loss = 0.0
 
     print('Finished Training')
-    torch.save(net.state_dict(), args.PATH)
+    torch.save(net.state_dict(), PATH)
 
     ax = fig.add_subplot(2, 1, 2)
-    ax.plot(losses)
+    ax.plot(losses,label=f'Loss: n={n}, lr={lr}, momentum={momentum}')
     ax.set_ylim(bottom=0)
-    ax.set_title(f'Training Loss: lr={args.lr}, momentum={args.momentum}')
+    ax.set_title('Training ')
 
     fig.savefig(join(figs,get_filename(plot)))
 
 
 def test(root='./data', PATH='./cifar_net.pth',transform=None):
+    '''
+    Train network against CIFAR10 data
 
+    Parameters:
+        root
+        PATH
+        transform
+    '''
     testset = torchvision.datasets.CIFAR10(root=root,
                                            train=False,
                                            download=True,
@@ -201,22 +215,24 @@ def parse_args():
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     return parser.parse_args()
 
+def create_transform():
+    '''
+    '''
+    return transforms.Compose([transforms.ToTensor(),
+                               transforms.Normalize((0.5, 0.5, 0.5),
+                                                    (0.5, 0.5, 0.5))])
 
 if __name__ == '__main__':
     start  = time()
     args = parse_args()
 
-    transform = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize((0.5, 0.5, 0.5),
-                                                         (0.5, 0.5, 0.5))])
-
     match args.action:
         case 'train':
             train(root=args.root, show=args.show, lr=args.lr, momentum=args.momentum, n=args.n,
-                  freq=args.freq, plot=args.plot, PATH=args.PATH,figs=args.figs, transform=transform)
+                  freq=args.freq, plot=args.plot, PATH=args.PATH,figs=args.figs, transform=create_transform())
 
         case 'test':
-            test(root=args.root, PATH=args.PATH, transform=transform)
+            test(root=args.root, PATH=args.PATH, transform=create_transform())
 
     elapsed = time() - start
     minutes = int(elapsed/60)
