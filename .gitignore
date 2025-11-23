@@ -137,3 +137,6 @@ ENV/
 
 figs
 data
+
+# torch stuff
+cifar_net.pth
