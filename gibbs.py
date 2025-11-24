@@ -18,7 +18,7 @@
 '''
 Gibbs sampler for the change-point model described in a Cognition cheat sheet titled "Gibbs sampling."
 
-This is a Python implementation of the procedure at http://www.cmpe.boun.edu.tr/courses/cmpe58n/fall2009/
+This is a Python implementation of the procedure at https://sites.math.rutgers.edu/~zeilberg/EM20/GibbsYildirim.pdf
 Written by Ilker Yildirim, September 2012.
 '''
 
@@ -45,14 +45,11 @@ def generate(rng, N = 50, a = 2, b = 1, K = 5):
         x       Observations
         lambdas Intensity values
     '''
-
     for k in range(K):
         try:
             n = int(round(rng.uniform()*N)) # Change-point: where the intensity parameter changes.
-
-            # Intensity values
-            lambda1 = rng.gamma(a,scale=1./b)
-            lambda2 = rng.gamma(a,scale=1./b)
+            lambda1 = rng.gamma(a,scale=1./b) # Intensity value
+            lambda2 = rng.gamma(a,scale=1./b) # Intensity value
 
             lambdas = np.empty((N))
             lambdas[0:n] = lambda1
@@ -62,50 +59,49 @@ def generate(rng, N = 50, a = 2, b = 1, K = 5):
 
             return x, lambdas
         except ValueError as value_error:
-            print (value_error)
+            print (f'Failed to generate data\n{value_error}')
+            exit(1)
 
 
-def gibbs(rng, x, E  = 5200, BURN_IN = 200, frequency = 100, a = 2, b = 1):
-    '''Gibbs sampler
+def gibbs(rng, x, E  = 5200, BURN_IN = 200, frequency = 100, a = 2, b = 1, report = lambda epoch: print (f'Epoch={epoch}')):
+    '''
+    Gibbs sampler. We simulate samples by sweeping through all the posterior conditionals,
+    one random variable at a time.
 
     Parameters:
-        E
-        BURN_IN
-        frequency
+        rng        Random number generator
+        x          Sequence of counts for analysis
+        E          Number of epochs for sampling
+        BURN_IN    Burn in period (number of epochs that will not be recorded)
+        frequency  Frequencey for reporting
+        a          loc parameter for gamma distribution
+        b          1/scale parameter for gamma distribution
+        report     Reporter function called every frequency epochs
 
     Returns:
         chain_lambda1
         chain_lambda2
         chain_n
-        a
-        b
     '''
     N = len(x)
-    n = int(round(rng.uniform()*N))
-    lambda1 = rng.gamma(a,scale=1./b)
-    lambda2 = rng.gamma(a,scale=1./b)
-
+    n = rng.choice(N)
     chain_n = np.zeros(E - BURN_IN)
     chain_lambda1 = np.zeros(E - BURN_IN)
     chain_lambda2 = np.zeros(E - BURN_IN)
 
     for epoch in range(E):
-        if epoch%frequency==0:
-            print (f'Epoch={epoch}')
-        # sample lambda1 and lambda2 from their posterior conditionals
-        lambda1 = rng.gamma(a+sum(x[0:n]), scale=1./(n+b))  # Equation 8
-        lambda2 = rng.gamma(a+sum(x[n:N]), scale=1./(N-n+b)) # Equation 9
-
-        # Now sample n
-        mult_n = np.zeros(N)
+        if epoch%frequency == 0: report(epoch)
+        lambda1 = rng.gamma(a+sum(x[0:n]), scale=1./(n+b))  # sample lambda1 from its  posterior conditional,Equation 8
+        lambda2 = rng.gamma(a+sum(x[n:N]), scale=1./(N-n+b)) # sample ambda2 from its posterior conditional, Equation 9
+        mult_n = np.zeros(N)          # Now sample n
         for i in range(N): # Equation 10
             mult_n[i] = sum(x[0:i])*np.log(lambda1) - i*lambda1 + sum(x[i:N])*np.log(lambda2) - (N-i)*lambda2
 
         n = np.nonzero(rng.multinomial(1,softmax(mult_n),size=1))[1][0]
-        if epoch >= BURN_IN:
-            chain_n[epoch - BURN_IN] = n
-            chain_lambda1[epoch - BURN_IN] = lambda1
-            chain_lambda2[epoch - BURN_IN] = lambda2
+        if epoch < BURN_IN: continue
+        chain_n[epoch - BURN_IN] = n
+        chain_lambda1[epoch - BURN_IN] = lambda1
+        chain_lambda2[epoch - BURN_IN] = lambda2
 
     return (chain_lambda1,chain_lambda2,chain_n)
 
@@ -114,7 +110,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, help='Seed for random number generator')
     parser.add_argument('--E',type=int,default = 5200, help='Number of Epochs')
     parser.add_argument('--BURN_IN', type=int, default = 200, help='Burn in: number of Epochs to skip at begining')
-    parser.add_argument('--frequency', type=int, default = 100, help='For recording progress')
+    parser.add_argument('--frequency', type=int, default = 1000, help='For recording progress')
     parser.add_argument('--a', type=float, default = 2, help='Paramater for lambda1')
     parser.add_argument('--b', type=float,default = 1, help='Paramater for lambda2')
     parser.add_argument('--N', type=int, default = 50, help='Number of data points to generate')
@@ -130,15 +126,19 @@ if __name__=='__main__':
     x, lambdas  = generate(rng,N = args.N, a = args.a, b = args.b)
     fig = figure(figsize=(14,14))
     fig.tight_layout(pad=3.0)
+    fig.suptitle('Gibbs sampler for a change-point model')
+
+    ax1 = fig.add_subplot(args.m,4,1)
+    ax1.stem(range(len(x)),x,linefmt='b-', markerfmt='bo',label='Counts')
+    ax1.plot(range(len(x)),lambdas,'r--',label=r'$\lambda$')
+    ax1.set_ylabel('Counts')
+    ax1.set_title('Observations')
+    ax1.legend()
+
     for i in range(args.m):
-        chain_lambda1,chain_lambda2,chain_n = gibbs(rng,x, E=args.E, BURN_IN=args.BURN_IN, frequency=args.frequency, a = args.a, b = args.b)
-        ax1 = fig.add_subplot(args.m,4,4*i+1)
-        ax1.stem(range(len(x)),x,linefmt='b-', markerfmt='bo',label='Counts')
-        ax1.plot(range(len(x)),lambdas,'r--',label=r'$\lambda$')
-        ax1.set_ylabel('Counts')
-        if i==0:
-            ax1.set_title('Observations')
-        ax1.legend()
+        chain_lambda1,chain_lambda2,chain_n = gibbs(rng,x, E=args.E, BURN_IN=args.BURN_IN, frequency=args.frequency,
+                                                    a = args.a, b = args.b,
+                                                    report = lambda epoch: print (f'Run={i},Epoch={epoch}'))
 
         ax2 = fig.add_subplot(args.m,4,4*i+2)
         ax2.plot(chain_lambda1,'b',label=r'$\lambda 1$')
