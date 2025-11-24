@@ -5,7 +5,6 @@ Experiments in machine learning
 
  File  | Remarks
 ---------------|--------------------------------------------
-ae.py|Simple autoencoder tutorial
 gibbs.py| A generic Gibbs sampler, based on [gibbs.py](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 hopfield.py | Hopfield network
 learn.bib|Bibliography
@@ -55,16 +54,3 @@ cavi.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example fr
 em.py|Expectation Maximization
 gmm.py|Generate data in accordance with Gaussian Mixture Model
 motifs.py|Gibbs sampler for finding motifs--[Implement GibbsSampler](http://rosalind.info/problems/ba2g/)
-
-
-## Free Energy
-
-Programs based on [A tutorial on the free-energy framework for modelling perception
-and learning, by Rafal Bogacz](https://www.sciencedirect.com/science/article/pii/S0022249615000759)
-
- File  | Remarks |
----------------|-------------------------------------------------------------------------------------------
-feex1.py| Exercise 1--posterior probabilities
-feex2.py| Exercise 2--most likely size
-feex3.py| Exercise 3--neural implementation
-feex5.py| Exercise 5--learn variance
