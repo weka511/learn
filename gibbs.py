@@ -28,6 +28,7 @@ from time import time
 from matplotlib.pyplot import figure, show
 import numpy as np
 from numpy.random import default_rng
+from pymdp.maths import softmax
 
 def generate(rng, N = 50, a = 2, b = 1, K = 5):
     '''
@@ -64,24 +65,7 @@ def generate(rng, N = 50, a = 2, b = 1, K = 5):
             print (value_error)
 
 
-def stable_softmax(x):
-    '''
-    Convert a vector to proababilities, using the stable softmax described in
-    https://stackoverflow.com/questions/42599498/numerically-stable-softmax
-    and https://www.deeplearningbook.org/contents/numerical.html
-    '''
-    z = x - max(x)
-    numerator = np.exp(z)
-    denominator = np.sum(numerator)
-    return numerator/denominator
-
-def gibbs(rng,
-          x,
-          E  = 5200,
-          BURN_IN = 200,
-          frequency = 100,
-          a = 2,
-          b = 1):
+def gibbs(rng, x, E  = 5200, BURN_IN = 200, frequency = 100, a = 2, b = 1):
     '''Gibbs sampler
 
     Parameters:
@@ -93,6 +77,8 @@ def gibbs(rng,
         chain_lambda1
         chain_lambda2
         chain_n
+        a
+        b
     '''
     N = len(x)
     n = int(round(rng.uniform()*N))
@@ -115,7 +101,7 @@ def gibbs(rng,
         for i in range(N): # Equation 10
             mult_n[i] = sum(x[0:i])*np.log(lambda1) - i*lambda1 + sum(x[i:N])*np.log(lambda2) - (N-i)*lambda2
 
-        n = np.nonzero(rng.multinomial(1,stable_softmax(mult_n),size=1))[1][0]
+        n = np.nonzero(rng.multinomial(1,softmax(mult_n),size=1))[1][0]
         if epoch >= BURN_IN:
             chain_n[epoch - BURN_IN] = n
             chain_lambda1[epoch - BURN_IN] = lambda1
@@ -141,47 +127,43 @@ if __name__=='__main__':
     start = time()
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-
     x, lambdas  = generate(rng,N = args.N, a = args.a, b = args.b)
+    fig = figure(figsize=(14,14))
+    fig.tight_layout(pad=3.0)
     for i in range(args.m):
-        chain_lambda1,chain_lambda2,chain_n = gibbs(rng,x,
-                                                    E = args.E,
-                                                    BURN_IN =args.BURN_IN,
-                                                    frequency = args.frequency,
-                                                    a = args.a,
-                                                    b = args.b)
-        fig = figure(figsize=(10,10))
-        fig.tight_layout(pad=3.0)
-
-        ax1 = fig.add_subplot(221)
+        chain_lambda1,chain_lambda2,chain_n = gibbs(rng,x, E=args.E, BURN_IN=args.BURN_IN, frequency=args.frequency, a = args.a, b = args.b)
+        ax1 = fig.add_subplot(args.m,4,4*i+1)
         ax1.stem(range(len(x)),x,linefmt='b-', markerfmt='bo',label='Counts')
         ax1.plot(range(len(x)),lambdas,'r--',label=r'$\lambda$')
         ax1.set_ylabel('Counts')
-        ax1.set_title('Observations')
+        if i==0:
+            ax1.set_title('Observations')
         ax1.legend()
 
-        ax2 = fig.add_subplot(222)
+        ax2 = fig.add_subplot(args.m,4,4*i+2)
         ax2.plot(chain_lambda1,'b',label=r'$\lambda 1$')
         ax2.plot(chain_lambda2,'g',label=r'$\lambda 2$')
-        ax2.set_xlabel(r'$Epoch$')
+        if i== args.m - 1:
+            ax2.set_xlabel(r'$Epoch$')
         ax2.set_ylabel(r'$\lambda$')
         ax2.legend()
 
-        ax3 = fig.add_subplot(223)
+        ax3 = fig.add_subplot(args.m,4,4*i+3)
         ax3.hist(chain_lambda2,20,color='g',label=r'$\lambda 2$',alpha=0.5)
         ax3.hist(chain_lambda1,20,color='b',label=r'$\lambda 1$',alpha=0.5)
         ax3.set_xlim([0,12])
-        ax3.set_title(r'$\lambda$')
+        if i==0:
+            ax3.set_title(r'$\lambda$')
         ax3.legend()
 
-        ax4 = fig.add_subplot(224)
+        ax4 = fig.add_subplot(args.m,4,4*i+4)
         ax4.hist(chain_n,args.N,label='n')
-        ax4.set_title('Histogram for Change Point')
+        if i==0:
+            ax4.set_title('Histogram for Change Point')
         ax4.set_xlim([0,args.N])
         ax4.legend()
 
-        fig.suptitle(f'Run {i+1}')
-        fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}{i+1}') )
+    fig.savefig(join(args.figs,f'{basename(__file__).split('.')[0]}') )
 
     elapsed = time() - start
     minutes = int(elapsed/60)
