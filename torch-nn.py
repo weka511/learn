@@ -172,7 +172,7 @@ def train(root='./data', show=False, lr=0.001, momentum=0.9, n=1000, freq=20, pl
 
 def test(root='./data', PATH='./cifar_net.pth',transform=None):
     '''
-    Train network against CIFAR10 data
+    Test network against CIFAR10 data
 
     Parameters:
         root        Path to folder where data are stored
@@ -218,8 +218,8 @@ def test(root='./data', PATH='./cifar_net.pth',transform=None):
 
     print('Accuracy of the network on the 10000 test images: %d %%' % (100 * correct / total))
 
-    class_correct = list(0. for _ in range(len(classes)))
-    class_total = list(0. for _ in range(len(classes)))
+    class_correct = np.zeros((len(classes)),dtype=int)
+    class_total = np.zeros((len(classes)),dtype=int)
 
     with torch.no_grad():
         for data in testloader:
