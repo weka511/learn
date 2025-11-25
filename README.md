@@ -5,39 +5,15 @@ Experiments in machine learning
 
  File  | Remarks
 ---------------|--------------------------------------------
-gibbs.py| A generic Gibbs sampler, based on [gibbs.py](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
+gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 hopfield.py | Hopfield network
+mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 learn.bib|Bibliography
 learn.wpr | Project file for Wing IDE
-
-
-
-## Imported from elsewhere
-
- File  | Remarks
--------------------------|------------------------------------------------------------------------------------
- bayes1.py |Simple  demo for pymc3-Code from [Estimating Probabilities with Bayesian Modeling in Python](https://towardsdatascience.com/estimating-probabilities-with-bayesian-modeling-in-python-7144be007815)
- gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
- mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
- naive.py | Code from [How to Develop a Naive Bayes Classifier from Scratch in Python](https://machinelearningmastery.com/classification-as-conditional-probability-and-the-naive-bayes-algorithm/)
- UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
-
-
-## Keras and Tensorflow explorations
-
- File  | Remarks |
----------------|--------------------------------------------
 LeNet5.py|LeNet-5 CNN in keras
-losses.R|Plot loss and accuracy for Training and Validation data from logfiles
-tf1.py|[Tensorflow Tutorial](https://www.tensorflow.org/tutorials/quickstart/beginner)
-tf2.py|Modification of tf1 to use Convolutional layer
-
-
-## Pytorch Learnings
-
- File  | Remarks |
----------------|--------------------------------------------
+naive.py | Code from [How to Develop a Naive Bayes Classifier from Scratch in Python](https://machinelearningmastery.com/classification-as-conditional-probability-and-the-naive-bayes-algorithm/)
 torch-nn.py|[train](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)
+UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
 
 ## Variational Inference
 
@@ -53,4 +29,4 @@ cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example f
 cavi.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
 em.py|Expectation Maximization
 gmm.py|Generate data in accordance with Gaussian Mixture Model
-motifs.py|Gibbs sampler for finding motifs--[Implement GibbsSampler](http://rosalind.info/problems/ba2g/)
+xkcd.py|Build lists of [XKCD colours](https://xkcd.com/color/rgb/)
