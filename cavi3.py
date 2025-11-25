@@ -70,7 +70,7 @@ def init_means(x,K,rng=np.random.default_rng()):
     epsilon = min([a-b for (a,b) in zip(quantiles[1:],quantiles[:-1])] )/6
     return np.array([q * rng.normal(loc   = 1.0, scale = epsilon) for q in quantiles])
 
-def cavi(x, K = 3, N = 25, tolerance = 1e-12, sigma = 1, min_iterations = 5, rng = np.random.default_rng()):
+def cavi(x, K = 3, N = 25, atol = 1e-12, sigma = 1, min_iterations = 5, rng = np.random.default_rng()):
     '''
     Perform Coordinate Ascent Mean-Field Variational Inference
 
@@ -78,7 +78,7 @@ def cavi(x, K = 3, N = 25, tolerance = 1e-12, sigma = 1, min_iterations = 5, rng
         K               Number of Gaussians to be fitted
         N               Maximum number of iterations -- if limit exceeded.
                         we deem cavi to have failed to converge
-        tolerance       For assessing convergence
+        atol       For assessing convergence
         sigma
         min_iterations  Minimum number of iterations -- don't check for convergence
                         until we have at least this many iterations
@@ -103,10 +103,10 @@ def cavi(x, K = 3, N = 25, tolerance = 1e-12, sigma = 1, min_iterations = 5, rng
 
         ELBOs.append(getELBO(s2,m,sigma,x,phi))
 
-        if len(ELBOs) > min_iterations and abs(ELBOs[-1]/ELBOs[-2]-1) < tolerance:
+        if len(ELBOs) > min_iterations and abs(ELBOs[-1]/ELBOs[-2]-1) < atol:
             return (ELBOs,phi,m,[np.sqrt(s) for s in s2])
         if len(ELBOs) > N:
-            raise ELBO_Error(f'ELBO has not converged to within {tolerance} after {N} iterations',ELBOs)
+            raise ELBO_Error(f'ELBO has not converged to within {atol} after {N} iterations',ELBOs)
 
 def plot_data(xs, cs, mu = [], sigmas = [], m = 0, s = [1], nbins = 25, colours = ['r', 'g', 'b'], ax = None):
     '''
@@ -176,7 +176,7 @@ def parse_args():
     parser.add_argument('--K', type=int, default=2, help='Number of Gaussians')
     parser.add_argument('--n', type=int, default=1000, help='Number of points')
     parser.add_argument('--N', type=int, default=250, help='Number of iterations')
-    parser.add_argument('--tolerance', type=float, default=1.0e-6, help='Convergence criterion')
+    parser.add_argument('--atol', type=float, default=1.0e-6, help='Convergence criterion')
     parser.add_argument('--seed', type=int, default=None,  help='Seed for random number generator')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
@@ -195,7 +195,7 @@ if __name__=='__main__':
     cs,xs = create_data(mu, sigmas = sigmas, n = args.n, rng = rng)
     fig = figure(figsize = (10,10))
     try:
-        ELBOs,phi,m,s = cavi(x = np.asarray(xs), K = args.K, N = args.N, tolerance = args.tolerance, rng = rng)
+        ELBOs,phi,m,s = cavi(x = np.asarray(xs), K = args.K, N = args.N, atol = args.atol, rng = rng)
 
         plot_data(xs,cs, mu = mu,sigmas = sigmas, m = m,s = s,ax = fig.add_subplot(2,1,1),
                   colours = create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32))

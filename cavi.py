@@ -36,7 +36,7 @@ class Cavi:
         K               Number of Gaussians to be fitted
         max_iterations  Maximum number of iterations -- if limit exceeded.
                         we deem cavi to have failed to converge
-        tolerance       For assessing convergence
+        atol       For assessing convergence
         sigma
         min_iterations  Minimum number of iterations -- don't check for convergence
                         until we have at least this many iterations
@@ -48,7 +48,7 @@ class Cavi:
 
     def infer_hidden_parameters(self, x, rng=np.random.default_rng(),
                                 max_iterations=100,
-                                tolerance=1e-6,
+                                atol=1e-6,
                                 sigma=1,
                                 min_iterations=5):
         m = self.init_means(x, rng)
@@ -67,10 +67,10 @@ class Cavi:
 
             ELBOs.append(self.getELBO(s2, m, sigma, x, phi))
 
-            if len(ELBOs) > min_iterations and abs(ELBOs[-1] / ELBOs[-2] - 1) < tolerance:
+            if len(ELBOs) > min_iterations and abs(ELBOs[-1] / ELBOs[-2] - 1) < atol:
                 return Solution(ELBOs, phi, m, np.sqrt(s2))
             if len(ELBOs) > max_iterations:
-                raise ELBO_Error(f'ELBO has not converged to within {tolerance} after {max_iterations} iterations', ELBOs)
+                raise ELBO_Error(f'ELBO has not converged to within {atol} after {max_iterations} iterations', ELBOs)
 
     def init_means(self, x, rng=np.random.default_rng()):
         '''
@@ -144,7 +144,7 @@ if __name__ == '__main__':
         try:
             Solutions.append(cavi.infer_hidden_parameters(x,
                                                           max_iterations=args.N,
-                                                          tolerance=args.tol,
+                                                          atol=args.tol,
                                                           min_iterations=args.n,
                                                           sigma=args.sigma,
                                                           rng=np.random.default_rng(args.seed)))
@@ -177,7 +177,7 @@ if __name__ == '__main__':
     ax2 = fig.add_subplot(nrows, 1, 2)
     for i in range(len(Solutions)):
         ax2.plot(Solutions[i].ELBOs,
-                 label=f'Best: {len(Solutions[i].ELBOs)} iterations, tolerance={args.tol}' if i == i_best else None,
+                 label=f'Best: {len(Solutions[i].ELBOs)} iterations, atol={args.tol}' if i == i_best else None,
                  linestyle='solid' if i == i_best else 'dotted',
                  c=colours[0 if i == i_best else (i + i) if i < i_best else i])
     ax2.set_ylabel('ELBO')
