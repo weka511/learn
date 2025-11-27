@@ -23,7 +23,7 @@
 '''
 
 from argparse import ArgumentParser
-from os.path import basename
+from os.path import basename,join
 from random import choice
 from time import time
 from scipy.stats import norm
@@ -137,6 +137,7 @@ def parse_args():
     parser.add_argument('--sigma', type=float, default=0.5, help='Standard deviation')
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
     parser.add_argument('--show', action='store_true', default=False, help='Show plots')
+    parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     return parser.parse_args()
 
 
@@ -156,7 +157,7 @@ if __name__ == '__main__':
     plot_data(xs, mu, sigma, ax=fig.add_subplot(2,1,1))
 
     plot_Likelihoods(L, ax=fig.add_subplot(2,1,2))
-    fig.savefig(basename(__file__).split('.')[0])
+    fig.savefig(join(args.figs,basename(__file__).split('.')[0]))
 
     print(f'N={args.N},  EM: {(time() - start):.3f} sec')
     if args.show:
