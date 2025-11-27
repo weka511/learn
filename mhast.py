@@ -17,6 +17,8 @@
 
 '''
 Metropolis Hasting Sampler after the Cognition cheat sheet
+
+https://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheet/MetropolisHastingsSampling.pdf
 '''
 
 from os.path import basename, join
@@ -38,7 +40,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def generate(N=1000, mean=np.array([0, 0]), cov=np.array([[1, 0.4], [0.4, 1]]), rng=np.random.default_rng()):
+def create_data(N=1000, mean=np.array([0, 0]), cov=np.array([[1, 0.4], [0.4, 1]]), rng=np.random.default_rng()):
     '''
     Generate data
 
@@ -54,7 +56,7 @@ def generate(N=1000, mean=np.array([0, 0]), cov=np.array([[1, 0.4], [0.4, 1]]), 
     return data, x, y
 
 
-def sample(x, y, E=10000, BURN_IN=0, frequency=100, width=0.14):
+def sample(x, y, E=10000, BURN_IN=0, frequency=100, width=0.14,rng=np.random.default_rng()):
     '''
     Metropolis Hasting Sampler
 
@@ -67,8 +69,8 @@ def sample(x, y, E=10000, BURN_IN=0, frequency=100, width=0.14):
         width     Used to generate candidate values of rho
 
     Returns:
-        acceptance_ratio  Acceptance ratio for sampling
-        chain_rho         Chain of estimates for rho
+        acceptance  Acceptance ratio for sampling
+        chain_rho   Chain of estimates for rho
     '''
     def get_acceptance_probability(rho, rho_candidate):
         '''
@@ -84,7 +86,7 @@ def sample(x, y, E=10000, BURN_IN=0, frequency=100, width=0.14):
             Compute p(rho) from Equation 6
 
             Parameters:
-                rho     Either an exisiting rho or rho_candidate
+                rho     Either an existing rho or rho_candidate
             '''
             return (-(3/2) * np.log(1 - rho**2)
                     - N * np.log((1 - rho**2)**(1/2))
@@ -96,15 +98,16 @@ def sample(x, y, E=10000, BURN_IN=0, frequency=100, width=0.14):
     assert len(x) == len(y)
 
     N = len(x)
-    rho = 0    # Starting value assumes x and y are not correlated
+    rho = 0    # Starting value: setting it to zero assumes x and y are not correlated
     chain_rho = np.empty((E - BURN_IN))
     accepted = 0
 
     for iteration in range(E):
         # Draw a value from the proposal distribution, Equation 7
-        rho_candidate = rng.uniform(low=rho - width / 2, high=rho + width / 2)
+        rho_candidate = rng.uniform(low=rho - width/2, high=rho + width/2)
 
         if rng.uniform(0, 1) < get_acceptance_probability(rho, rho_candidate):
+            # Accept candidate
             rho = rho_candidate
             if iteration >= BURN_IN:
                 accepted += 1
@@ -120,13 +123,14 @@ def sample(x, y, E=10000, BURN_IN=0, frequency=100, width=0.14):
 if __name__ == '__main__':
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-    data, x, y = generate(N=args.N, rng=rng)
-    acceptance_ratio, chain_rho = sample(x, y, E=args.E, BURN_IN=args.BURN_IN, frequency=args.frequency, width=args.width)
+    data, x, y = create_data(N=args.N, rng=rng)
+    acceptance, chain_rho = sample(x, y, E=args.E, BURN_IN=args.BURN_IN, frequency=args.frequency, width=args.width,rng=rng)
+
     print('...Summary...')
-    print(f'Acceptance ratio is {acceptance_ratio}')
+    print(f'Acceptance ratio is {acceptance}')
     print(f'Mean rho is {chain_rho.mean()}')
     print(f'Std for rho is {chain_rho.std()}')
-    print(f'Compare with numpy.cov function: {np.cov(data.T)}')
+    print(f'Compare with numpy.cov function:\n{np.cov(data.T)}')
 
     fig = figure(figsize=(10, 10))
     fig.tight_layout(pad=3.0)
@@ -144,14 +148,14 @@ if __name__ == '__main__':
     ax2.axhline(y=chain_rho.mean() - chain_rho.std(), color='r', linestyle='dashdot', label=r'$\mu-\sigma$')
     ax2.set_ylabel(r'$\rho$')
     ax2.legend()
-    ax2.set_title(rf'Chain: acceptance ratio={acceptance_ratio:.2f}, $\sigma=${chain_rho.std():.2f}')
+    ax2.set_title(rf'Chain: acceptance ratio={acceptance:.2f}, $\sigma=${chain_rho.std():.2f}')
 
     ax3 = fig.add_subplot(3, 1, 3)
     ax3.hist(chain_rho, 50, color='blue', ec='blue', density=True)
     ax3.set_xlabel(r'$\rho$')
     ax3.set_title(r'Histogram for $\rho$')
 
-    fig.suptitle(__doc__)
+    fig.suptitle('Metropolis Hasting Sampler after the Cognition cheat sheet')
     fig.tight_layout(pad=3, h_pad=4, w_pad=3)
     fig.savefig(join(args.figs, f'{basename(__file__).split('.')[0]}'))
 
