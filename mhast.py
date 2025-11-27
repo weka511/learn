@@ -16,9 +16,9 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 '''
-Metropolis Hasting Sampler after the Cognition cheat sheet
+    Metropolis Hasting Sampler after the Cognition cheat sheet
 
-https://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheet/MetropolisHastingsSampling.pdf
+    https://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheet/MetropolisHastingsSampling.pdf
 '''
 
 from os.path import basename, join
@@ -72,27 +72,37 @@ def sample(x, y, E=10000, BURN_IN=0, frequency=100, width=0.14,rng=np.random.def
         acceptance  Acceptance ratio for sampling
         chain_rho   Chain of estimates for rho
     '''
+
+    def draw_value():
+        '''
+        Draw a value from the proposal distribution, Equation 7
+        '''
+        return rng.uniform(low=rho - width/2, high=rho + width/2)
+
     def get_acceptance_probability(rho, rho_candidate):
         '''
         Compute the acceptance probability, Equation 8 and Equation 6.
         We will do both equations in log domain to avoid underflow.
 
         Parameters:
-            rho
-            rho_candidate
+            rho            Currently accepted value of correlation coefficient
+            rho_candidate  Proposed new value of correlation coefficient
+
+        Returns:
+            Ratio posterior_rho_given_data(rho_candidate)/posterior_rho_given_data(rho)
         '''
-        def get_acceptance_factor(rho):
+        def get_log_posterior_rho_given_data(rho):
             '''
-            Compute p(rho) from Equation 6
+            Compute log posterior probability of correlation constant given data from Equation 6
 
             Parameters:
-                rho     Either an existing rho or rho_candidate
+                rho     Correlation constant: either an existing rho or rho_candidate
             '''
             return (-(3/2) * np.log(1 - rho**2)
                     - N * np.log((1 - rho**2)**(1/2))
                     - sum(1/(2 * (1 - rho**2)) * (x**2 - 2*rho*x*y + y**2)))
 
-        return np.exp(min([0, get_acceptance_factor(rho_candidate) - get_acceptance_factor(rho)]))
+        return np.exp(get_log_posterior_rho_given_data(rho_candidate) - get_log_posterior_rho_given_data(rho))
 
     assert E > BURN_IN
     assert len(x) == len(y)
@@ -103,9 +113,7 @@ def sample(x, y, E=10000, BURN_IN=0, frequency=100, width=0.14,rng=np.random.def
     accepted = 0
 
     for iteration in range(E):
-        # Draw a value from the proposal distribution, Equation 7
-        rho_candidate = rng.uniform(low=rho - width/2, high=rho + width/2)
-
+        rho_candidate = draw_value()
         if rng.uniform(0, 1) < get_acceptance_probability(rho, rho_candidate):
             # Accept candidate
             rho = rho_candidate
@@ -115,7 +123,7 @@ def sample(x, y, E=10000, BURN_IN=0, frequency=100, width=0.14,rng=np.random.def
         if iteration >= BURN_IN:
             chain_rho[iteration - BURN_IN] = rho
             if iteration % frequency == 0:
-                print(f'At iteration {iteration}')
+                print(f'At iteration {iteration}, rho={rho}')
 
     return accepted / (E - BURN_IN), chain_rho
 
