@@ -100,16 +100,34 @@ def show_images(images, title_texts,figs='./figs',cols = 5):
 
 def display_images(x_train, y_train, x_test, y_test,rng = np.random.default_rng(),n_train=10,n_test=5):
     def add_images(x,y,selected,title):
-        n = len(x)
         for i in range(len(selected)):
-            images_2_show.append(x[selected[i]])
-            titles_2_show.append(f'{title} image [' + str(selected[i]) + '] = ' + str(y[selected[i]]))
+            images.append(x[selected[i]])
+            titles.append(f'{title} image [' + str(selected[i]) + '] = ' + str(y[selected[i]]))
 
-    images_2_show = []
-    titles_2_show = []
+    images = []
+    titles = []
     add_images(x_train,y_train, rng.integers(1, len(x_train),size=n_train),'training')
     add_images(x_test,y_test,rng.integers(1, len(x_test),size=n_test),'test')
-    show_images(images_2_show, titles_2_show,figs=args.figs)
+    show_images(images, titles,figs=args.figs)
+
+def prepare(x,y):
+    x_np = np.array(x, dtype=np.float32)
+    y_np = np.array(y, dtype=np.float32)
+    x_normalized= x_np.astype("float32") / 255.0
+    return torch.tensor(x_normalized, dtype=torch.float32),torch.tensor(y_np, dtype=torch.float32).reshape(-1, 1)
+
+def train(x, y):
+    Xt,yt = prepare(x,y)
+    print (Xt.shape,yt.shape)
+    model = nn.Sequential(
+        nn.Linear(28, 12),
+        nn.ReLU(),
+        nn.Linear(12, 8),
+        nn.ReLU(),
+        nn.Linear(8, 1),
+        nn.Sigmoid())
+    print (model)
+    print ('TBP')
 
 if __name__=='__main__':
     rc('font', **{'family': 'serif',
@@ -130,7 +148,7 @@ if __name__=='__main__':
             display_images(x_train, y_train, x_test, y_test,rng=rng)
 
         case 'train':
-            print ('TBP')
+            train(x_train, y_train)
 
     elapsed = time() - start
     minutes = int(elapsed/60)
