@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#   Copyright (C) 2023 Simon Crase
+#   Copyright (C) 2025 Simon Crase
 
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ if __name__=='__main__':
     with torch.no_grad():
         y_pred = model(X)
     accuracy = (y_pred.round() == y).float().mean()
-    print(f"Accuracy {accuracy}")
+    print(f'Accuracy {accuracy}')
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
