@@ -10,6 +10,7 @@ hopfield.py | Hopfield network
 mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 learn.bib|Bibliography
 learn.wpr | Project file for Wing IDE
+mnist.py|Testbed for deep neural networks, using ideas from Goodfellow et al. Learn to recognize images from the NIST dataset
 torch-nn.py|[train](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)
 UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
 
