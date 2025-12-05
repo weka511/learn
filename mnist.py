@@ -22,6 +22,7 @@
 from argparse import ArgumentParser
 from array import array
 from os.path import join
+from pathlib import Path
 from struct import unpack
 from time import time
 import numpy as np
@@ -78,24 +79,23 @@ def parse_args():
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     parser.add_argument('--seed', default=None,type=int)
-    parser.add_argument('--action', choices=['display','train'])
+    parser.add_argument('--action', choices=['display','train'], default='train')
     return parser.parse_args()
 
 def show_images(images, title_texts,figs='./figs'):
     cols = 5
     rows = int(len(images)/cols) + 1
     fig = figure(figsize=(30,20))
-    index = 1
-    for x in zip(images, title_texts):
+
+    for i,x in enumerate(zip(images, title_texts)):
         image = x[0]
         title_text = x[1]
-        ax = fig.add_subplot(rows, cols, index)
+        ax = fig.add_subplot(rows, cols, i+1)
         ax.imshow(image, cmap=cm.gray)
         if (title_text != ''):
             ax.set_title(title_text, fontsize = 15);
-        index += 1
-
-    fig.tight_layout(pad=3, h_pad=4, w_pad=3)
+    fig.suptitle(f'From {Path(__file__).stem}')
+    fig.tight_layout(pad=5, h_pad=4, w_pad=3)
     fig.savefig(join(figs, 'mnist-images'))
 
 if __name__=='__main__':
@@ -128,6 +128,9 @@ if __name__=='__main__':
                 titles_2_show.append('test image [' + str(r) + '] = ' + str(y_test[r]))
 
             show_images(images_2_show, titles_2_show,figs=args.figs)
+
+        case 'train':
+            print ('TBP')
 
     elapsed = time() - start
     minutes = int(elapsed/60)
