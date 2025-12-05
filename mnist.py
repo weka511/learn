@@ -15,9 +15,10 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-'''Learn to recognize images from the NIST dataset'''
-
-# https://machinelearningmastery.com/develop-your-first-neural-network-with-pytorch-step-by-step/
+'''
+    Testbed for deep neural networks, using ideas from Goodfellow et al.
+    Learn to recognize images from the NIST dataset
+'''
 
 from argparse import ArgumentParser
 from array import array
@@ -82,8 +83,7 @@ def parse_args():
     parser.add_argument('--action', choices=['display','train'], default='train')
     return parser.parse_args()
 
-def show_images(images, title_texts,figs='./figs'):
-    cols = 5
+def show_images(images, title_texts,figs='./figs',cols = 5):
     rows = int(len(images)/cols) + 1
     fig = figure(figsize=(30,20))
 
@@ -98,6 +98,19 @@ def show_images(images, title_texts,figs='./figs'):
     fig.tight_layout(pad=5, h_pad=4, w_pad=3)
     fig.savefig(join(figs, 'mnist-images'))
 
+def display_images(x_train, y_train, x_test, y_test,rng = np.random.default_rng(),n_train=10,n_test=5):
+    def add_images(x,y,selected,title):
+        n = len(x)
+        for i in range(len(selected)):
+            images_2_show.append(x[selected[i]])
+            titles_2_show.append(f'{title} image [' + str(selected[i]) + '] = ' + str(y[selected[i]]))
+
+    images_2_show = []
+    titles_2_show = []
+    add_images(x_train,y_train, rng.integers(1, len(x_train),size=n_train),'training')
+    add_images(x_test,y_test,rng.integers(1, len(x_test),size=n_test),'test')
+    show_images(images_2_show, titles_2_show,figs=args.figs)
+
 if __name__=='__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
@@ -106,28 +119,15 @@ if __name__=='__main__':
     start  = time()
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-    training_images = join(args.data, 'train-images-idx3-ubyte/train-images-idx3-ubyte')
-    training_labels = join(args.data, 'train-labels-idx1-ubyte/train-labels-idx1-ubyte')
-    test_images = join(args.data, 't10k-images-idx3-ubyte/t10k-images-idx3-ubyte')
-    test_labels = join(args.data, 't10k-labels-idx1-ubyte/t10k-labels-idx1-ubyte')
-    mnist_dataloader = MnistDataloader(training_images, training_labels,test_images, test_labels)
-    (x_train, y_train), (x_test, y_test) = mnist_dataloader.load_data()
+    dataloader = MnistDataloader(training_images = join(args.data, 'train-images-idx3-ubyte/train-images-idx3-ubyte'),
+                                 training_labels = join(args.data, 'train-labels-idx1-ubyte/train-labels-idx1-ubyte'),
+                                 test_images = join(args.data, 't10k-images-idx3-ubyte/t10k-images-idx3-ubyte'),
+                                 test_labels = join(args.data, 't10k-labels-idx1-ubyte/t10k-labels-idx1-ubyte'))
+    (x_train, y_train), (x_test, y_test) = dataloader.load_data()
 
     match args.action:
         case 'display':
-            images_2_show = []
-            titles_2_show = []
-            for i in range(0, 10):
-                r = rng.integers(1, 60000)
-                images_2_show.append(x_train[r])
-                titles_2_show.append('training image [' + str(r) + '] = ' + str(y_train[r]))
-
-            for i in range(0, 5):
-                r = rng.integers(1, 10000)
-                images_2_show.append(x_test[r])
-                titles_2_show.append('test image [' + str(r) + '] = ' + str(y_test[r]))
-
-            show_images(images_2_show, titles_2_show,figs=args.figs)
+            display_images(x_train, y_train, x_test, y_test,rng=rng)
 
         case 'train':
             print ('TBP')
