@@ -15,7 +15,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-'''Template for python script using pytorch'''
+'''Learn to recognize images from the NIST dataset'''
 
 # https://machinelearningmastery.com/develop-your-first-neural-network-with-pytorch-step-by-step/
 
@@ -47,16 +47,16 @@ class MnistDataloader(object):
     def read_images_labels(self, images, labels_filepath):
         labels = []
         with open(labels_filepath, 'rb') as file:
-            magic, size = unpack(">II", file.read(8))
+            magic, size = unpack('>II', file.read(8))
             if magic != 2049:
                 raise ValueError('Magic number mismatch, expected 2049, got {}'.format(magic))
-            labels = array("B", file.read())
+            labels = array('B', file.read())
 
         with open(images, 'rb') as file:
-            magic, size, rows, cols = unpack(">IIII", file.read(16))
+            magic, size, rows, cols = unpack('>IIII', file.read(16))
             if magic != 2051:
                 raise ValueError('Magic number mismatch, expected 2051, got {}'.format(magic))
-            image_data = array("B", file.read())
+            image_data = array('B', file.read())
         images = []
         for i in range(size):
             images.append([0] * rows * cols)
@@ -78,9 +78,10 @@ def parse_args():
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     parser.add_argument('--seed', default=None,type=int)
+    parser.add_argument('--action', choices=['display','train'])
     return parser.parse_args()
 
-def show_images(images, title_texts):
+def show_images(images, title_texts,figs='./figs'):
     cols = 5
     rows = int(len(images)/cols) + 1
     fig = figure(figsize=(30,20))
@@ -93,6 +94,9 @@ def show_images(images, title_texts):
         if (title_text != ''):
             ax.set_title(title_text, fontsize = 15);
         index += 1
+
+    fig.tight_layout(pad=3, h_pad=4, w_pad=3)
+    fig.savefig(join(figs, 'mnist-images'))
 
 if __name__=='__main__':
     rc('font', **{'family': 'serif',
@@ -109,19 +113,22 @@ if __name__=='__main__':
     mnist_dataloader = MnistDataloader(training_images, training_labels,test_images, test_labels)
     (x_train, y_train), (x_test, y_test) = mnist_dataloader.load_data()
 
-    images_2_show = []
-    titles_2_show = []
-    for i in range(0, 10):
-        r = rng.integers(1, 60000)
-        images_2_show.append(x_train[r])
-        titles_2_show.append('training image [' + str(r) + '] = ' + str(y_train[r]))
+    match args.action:
+        case 'display':
+            images_2_show = []
+            titles_2_show = []
+            for i in range(0, 10):
+                r = rng.integers(1, 60000)
+                images_2_show.append(x_train[r])
+                titles_2_show.append('training image [' + str(r) + '] = ' + str(y_train[r]))
 
-    for i in range(0, 5):
-        r = rng.integers(1, 10000)
-        images_2_show.append(x_test[r])
-        titles_2_show.append('test image [' + str(r) + '] = ' + str(y_test[r]))
+            for i in range(0, 5):
+                r = rng.integers(1, 10000)
+                images_2_show.append(x_test[r])
+                titles_2_show.append('test image [' + str(r) + '] = ' + str(y_test[r]))
 
-    show_images(images_2_show, titles_2_show)
+            show_images(images_2_show, titles_2_show,figs=args.figs)
+
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
