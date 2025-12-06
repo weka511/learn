@@ -80,8 +80,8 @@ class MnistModel(nn.Module,ABC):
     def save(self,name):
         torch.save(self.state_dict(), f'{name}.pth')
 
-    def load(self):
-        self.load_state_dict(torch.load(self.get_path()))
+    def load(self,file):
+        self.load_state_dict(torch.load(file))
 
     def predict(self, img):
         xb = img.unsqueeze(0)
@@ -131,6 +131,7 @@ def parse_args(factory):
     parser.add_argument('--action', choices=['train', 'test'], default='train')
     parser.add_argument('--model',choices=factory.choices,default=factory.choices[0])
     parser.add_argument('--params', default='./params', help='Location for storing plot files')
+    parser.add_argument('--file', default=None)
 
     return parser.parse_args()
 
@@ -140,7 +141,7 @@ def create_short_name(args):
 
 def create_long_name(args):
     seed = '' if args.seed == None else f'-{args.seed}'
-    return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}'
+    return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, from {args.file}'
 
 def accuracy(outputs, labels):
     _, preds = torch.max(outputs, dim=1)
@@ -205,7 +206,7 @@ if __name__ == '__main__':
 
         case 'test':
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
-            model.load()
+            model.load(args.file)
             selection = rng.integers(len(dataset),size=args.n)
             n_cols = 4
             n_rows = args.n // n_cols
@@ -220,9 +221,9 @@ if __name__ == '__main__':
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
 
-            fig.suptitle('Testing', fontsize=12)
+            fig.suptitle(create_long_name(args), fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
-            # fig.savefig(join(args.figs, Path(__file__).stem))
+            fig.savefig(join(args.figs, Path(args.file).stem.replace('train','test')))
 
             test_loader = DataLoader(dataset, batch_size = 256)
             print (evaluate(model, test_loader))
