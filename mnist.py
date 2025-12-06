@@ -33,11 +33,11 @@ from matplotlib.pyplot import figure, show, cm
 from matplotlib import rc
 import torch
 import torch.nn as nn
-# from torch.optim import Adam
 from torchvision.datasets import MNIST
 import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
+
 
 class MnistModel(nn.Module):
     def __init__(self, width=28, height=28, n_classes=10):
@@ -48,11 +48,30 @@ class MnistModel(nn.Module):
 
     def forward(self, xb):
         xb = xb.reshape(-1, self.input_size)
-        print(xb)
-        out = self.linear(xb)
-        print(out)
-        return out
+        return self.linear(xb)
 
+    def training_step(self, batch):
+        images, labels = batch
+        out = self(images) ## Generate predictions
+        loss = F.cross_entropy(out, labels) ## Calculate the loss
+        return(loss)
+
+    def validation_step(self, batch):
+        images, labels = batch
+        out = self(images)
+        loss = F.cross_entropy(out, labels)
+        acc = accuracy(out, labels)
+        return({'val_loss':loss, 'val_acc': acc})
+
+    def validation_epoch_end(self, outputs):
+        batch_losses = [x['val_loss'] for x in outputs]
+        epoch_loss = torch.stack(batch_losses).mean()
+        batch_accs = [x['val_acc'] for x in outputs]
+        epoch_acc = torch.stack(batch_accs).mean()
+        return({'val_loss': epoch_loss.item(), 'val_acc' : epoch_acc.item()})
+
+    def epoch_end(self, epoch,result):
+        print('Epoch [{}], val_loss: {:.4f}, val_acc: {:.4f}'.format(epoch, result['val_loss'], result['val_acc']))
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
@@ -63,9 +82,29 @@ def parse_args():
     parser.add_argument('--action', choices=['train', 'test'], default='train')
     return parser.parse_args()
 
+
 def accuracy(outputs, labels):
-    _, preds = torch.max(outputs, dim = 1)
-    return(torch.tensor(torch.sum(preds == labels).item()/ len(preds)))
+    _, preds = torch.max(outputs, dim=1)
+    return (torch.tensor(torch.sum(preds == labels).item() / len(preds)))
+
+def evaluate(model, val_loader):
+    outputs = [model.validation_step(batch) for batch in val_loader]
+    return model.validation_epoch_end(outputs)
+
+def fit(epochs, lr, model, train_loader, val_loader, opt_func = torch.optim.SGD):
+    history = []
+    optimizer = opt_func(model.parameters(), lr)
+    for epoch in range(epochs):
+        for batch in train_loader:
+            loss = model.training_step(batch)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+        result = evaluate(model, val_loader)
+        model.epoch_end(epoch, result)
+        history.append(result)
+    return(history)
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -78,39 +117,28 @@ if __name__ == '__main__':
     match args.action:
         case 'train':
             dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
-            print(dataset)
             image_tensor, label = dataset[0]
-            print(image_tensor.shape, label)
             train_data, validation_data = random_split(dataset, [50000, 10000])
-            print(f'length of Train Datasets: {len(train_data)}')
-            print(f'length of Validation Datasets: {len(validation_data)}')
             batch_size = 128
             train_loader = DataLoader(train_data, batch_size, shuffle=True)
             val_loader = DataLoader(validation_data, batch_size, shuffle=False)
             model = MnistModel()
-            print(model.linear.weight.shape, model.linear.bias.shape)
-            list(model.parameters())
-            for images, labels in train_loader:
-                outputs = model(images)
-                break
-            print('outputs shape: ', outputs.shape)
-            print('Sample outputs: \n', outputs[:2].data)
-            probs = F.softmax(outputs, dim = 1)
-            print("Sample probabilities:\n", probs[:2].data)
-            print("Sum: ", torch.sum(probs[0]).item())
-            max_probs, preds = torch.max(probs, dim = 1)
-            print("\n")
-            print(preds)
-            print("\n")
-            print(max_probs)
-            print("Accuracy: ",accuracy(outputs, labels))
-            print("\n")
-            loss_fn = F.cross_entropy
-            print("Loss Function: ",loss_fn)
-            print("\n")
-            ## Loss for the current batch
-            loss = loss_fn(outputs, labels)
-            print (loss)
+            history = [evaluate(model, val_loader)]
+            for i in range(5):
+                history += fit(5, 0.001, model, train_loader, val_loader)
+            accuracies = [result['val_acc'] for result in history]
+            losses = [result['val_loss'] for result in history]
+            fig = figure(figsize=(10,10))
+            ax = fig.add_subplot(1,1,1)
+            ax.plot(accuracies, '-x',label='Accuracy')
+            ax.plot(losses, '-o',label='Loss')
+            ax.legend()
+            ax.set_xlabel('epoch')
+            ax.set_title('Accuracy Vs. No. of epochs')
+            fig.suptitle('MNIST', fontsize=12)
+            fig.tight_layout(pad=3, h_pad=4, w_pad=3)
+            fig.savefig(join(args.figs, Path(__file__).stem))
+
 
         case 'test':
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
