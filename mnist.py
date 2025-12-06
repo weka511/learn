@@ -182,6 +182,9 @@ if __name__ == '__main__':
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             # fig.savefig(join(args.figs, Path(__file__).stem))
 
+            test_loader = DataLoader(dataset, batch_size = 256)
+            print (evaluate(model, test_loader))
+
     elapsed = time() - start
     minutes = int(elapsed / 60)
     seconds = elapsed - 60 * minutes
