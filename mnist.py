@@ -79,6 +79,8 @@ def parse_args():
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     parser.add_argument('--seed', default=None, type=int)
+    parser.add_argument('--batch_size', default=128, type=int)
+    parser.add_argument('--N', default=5, type=int)
     parser.add_argument('--action', choices=['train', 'test'], default='train')
     return parser.parse_args()
 
@@ -117,17 +119,16 @@ if __name__ == '__main__':
     match args.action:
         case 'train':
             dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
-            image_tensor, label = dataset[0]
             train_data, validation_data = random_split(dataset, [50000, 10000])
-            batch_size = 128
-            train_loader = DataLoader(train_data, batch_size, shuffle=True)
-            val_loader = DataLoader(validation_data, batch_size, shuffle=False)
+            train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
+            val_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
             model = MnistModel()
             history = [evaluate(model, val_loader)]
-            for i in range(5):
+            for i in range(args.N):
                 history += fit(5, 0.001, model, train_loader, val_loader)
             accuracies = [result['val_acc'] for result in history]
             losses = [result['val_loss'] for result in history]
+
             fig = figure(figsize=(10,10))
             ax = fig.add_subplot(1,1,1)
             ax.plot(accuracies, '-x',label='Accuracy')
