@@ -22,6 +22,7 @@
     Snarfed from https://www.kaggle.com/code/geekysaint/solving-mnist-using-pytorch
 '''
 
+from abc import ABC, abstractmethod
 from argparse import ArgumentParser
 from array import array
 from os.path import join
@@ -38,23 +39,23 @@ import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 
-
-class MnistModel(nn.Module):
+class MnistModel(nn.Module,ABC):
+    '''
+    This class implements a neural network model
+    '''
     def __init__(self, width=28, height=28, n_classes=10):
         super().__init__()
         self.input_size = width * height
         self.n_classes = n_classes
-        self.linear = nn.Linear(self.input_size, self.n_classes)
 
+    @abstractmethod
     def forward(self, xb):
-        xb = xb.reshape(-1, self.input_size)
-        return self.linear(xb)
+        pass
 
     def training_step(self, batch):
         images, labels = batch
-        out = self(images) ## Generate predictions
-        loss = F.cross_entropy(out, labels) ## Calculate the loss
-        return (loss)
+        out = self(images)
+        return F.cross_entropy(out, labels)
 
     def validation_step(self, batch):
         images, labels = batch
@@ -73,11 +74,11 @@ class MnistModel(nn.Module):
     def epoch_end(self, epoch, result):
         print('Epoch [{}], val_loss: {:.4f}, val_acc: {:.4f}'.format(epoch, result['val_loss'], result['val_acc']))
 
-    def get_path(self):
-        return 'mnist-logistic.pth'
+    # def get_path(self):
+        # return 'mnist-logistic.pth'
 
-    def save(self):
-        torch.save(self.state_dict(), self.get_path())
+    def save(self,name):
+        torch.save(self.state_dict(), f'{name}.pth')
 
     def load(self):
         self.load_state_dict(torch.load(self.get_path()))
@@ -88,8 +89,37 @@ class MnistModel(nn.Module):
         _, preds = torch.max(yb, dim=1)
         return preds[0].item()
 
+class LinearRegressionModel(MnistModel):
+    '''
+    Perform a simple linear regression
+    '''
+    def __init__(self, width=28, height=28, n_classes=10):
+        super().__init__(width=width,height=height,n_classes=n_classes)
+        self.linear = nn.Linear(self.input_size, n_classes)
 
-def parse_args():
+    def forward(self, xb):
+        xb = xb.reshape(-1, self.input_size)
+        return self.linear(xb)
+
+class ModelFactory:
+    '''
+    This class instantiates a model
+    '''
+    def __init__(self):
+        self.choices = ['linear']
+
+    def create(self,name):
+        '''
+        Create model
+
+        Parameters:
+            name
+        '''
+        match name:
+            case 'linear':
+                return LinearRegressionModel()
+
+def parse_args(factory):
     parser = ArgumentParser(description=__doc__)
     parser.add_argument('--data', default='./data')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
@@ -99,8 +129,18 @@ def parse_args():
     parser.add_argument('--N', default=5, type=int)
     parser.add_argument('--n', default=12, type=int)
     parser.add_argument('--action', choices=['train', 'test'], default='train')
+    parser.add_argument('--model',choices=factory.choices,default=factory.choices[0])
+    parser.add_argument('--params', default='./params', help='Location for storing plot files')
+
     return parser.parse_args()
 
+def create_short_name(args):
+    seed = '' if args.seed == None else f'-{args.seed}'
+    return f'{args.model}-{args.action}-{args.N}-{args.batch_size}{seed}'
+
+def create_long_name(args):
+    seed = '' if args.seed == None else f'-{args.seed}'
+    return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}'
 
 def accuracy(outputs, labels):
     _, preds = torch.max(outputs, dim=1)
@@ -133,12 +173,13 @@ if __name__ == '__main__':
                   'serif': ['Palatino'],
                   'size': 8})
     rc('text', usetex=True)
+    factory = ModelFactory()
     fig = figure(figsize=(12, 12))
 
     start = time()
-    args = parse_args()
+    args = parse_args(factory)
     rng = np.random.default_rng(args.seed)
-    model = MnistModel()
+    model = factory.create(args.model)
     match args.action:
         case 'train':
             dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
@@ -150,16 +191,17 @@ if __name__ == '__main__':
                 history += fit(5, 0.001, model, train_loader, val_loader)
             accuracies = [result['val_acc'] for result in history]
             losses = [result['val_loss'] for result in history]
-            model.save()
+            model.save(join(args.params,create_short_name(args)))
+
             ax = fig.add_subplot(1, 1, 1)
             ax.plot(accuracies, '-x', label='Accuracy')
             ax.plot(losses, '-o', label='Loss')
             ax.legend()
             ax.set_xlabel('epoch')
             ax.set_title('Accuracy Vs. No. of epochs')
-            fig.suptitle('Training', fontsize=12)
+            fig.suptitle(create_long_name(args), fontsize=12)
             fig.tight_layout(pad=3, h_pad=4, w_pad=3)
-            fig.savefig(join(args.figs, Path(__file__).stem))
+            fig.savefig(join(args.figs, create_short_name(args)))
 
         case 'test':
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
