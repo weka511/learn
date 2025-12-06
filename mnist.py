@@ -18,6 +18,8 @@
 '''
     Testbed for deep neural networks, using ideas from Goodfellow et al.
     Learn to recognize images from the NIST dataset
+
+    Snarfed from https://www.kaggle.com/code/geekysaint/solving-mnist-using-pytorch
 '''
 
 from argparse import ArgumentParser
@@ -31,129 +33,93 @@ from matplotlib.pyplot import figure, show, cm
 from matplotlib import rc
 import torch
 import torch.nn as nn
-from torch.optim import Adam
+# from torch.optim import Adam
+from torchvision.datasets import MNIST
+import torchvision.transforms as tr
+from torch.utils.data import DataLoader, random_split
+import torch.nn.functional as F
 
-class MnistDataloader(object):
-    '''
-    This class loads the MNIST dataset
+class MnistModel(nn.Module):
+    def __init__(self, width=28, height=28, n_classes=10):
+        super().__init__()
+        self.input_size = width * height
+        self.n_classes = n_classes
+        self.linear = nn.Linear(self.input_size, self.n_classes)
 
-    Snarfed from https://www.kaggle.com/code/talhaahmed121/mnist-simple-cnn
-    '''
-    def __init__(self, training_images,training_labels,
-                 test_images, test_labels):
-        self.training_images = training_images
-        self.training_labels = training_labels
-        self.test_images = test_images
-        self.test_labels = test_labels
+    def forward(self, xb):
+        xb = xb.reshape(-1, self.input_size)
+        print(xb)
+        out = self.linear(xb)
+        print(out)
+        return out
 
-    def read_images_labels(self, images, labels_filepath):
-        labels = []
-        with open(labels_filepath, 'rb') as file:
-            magic, size = unpack('>II', file.read(8))
-            if magic != 2049:
-                raise ValueError('Magic number mismatch, expected 2049, got {}'.format(magic))
-            labels = array('B', file.read())
-
-        with open(images, 'rb') as file:
-            magic, size, rows, cols = unpack('>IIII', file.read(16))
-            if magic != 2051:
-                raise ValueError('Magic number mismatch, expected 2051, got {}'.format(magic))
-            image_data = array('B', file.read())
-        images = []
-        for i in range(size):
-            images.append([0] * rows * cols)
-        for i in range(size):
-            img = np.array(image_data[i * rows * cols:(i + 1) * rows * cols])
-            img = img.reshape(28, 28)
-            images[i][:] = img
-
-        return images, labels
-
-    def load_data(self):
-        x_train, y_train = self.read_images_labels(self.training_images, self.training_labels)
-        x_test, y_test = self.read_images_labels(self.test_images, self.test_labels)
-        return (x_train, y_train),(x_test, y_test)
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--data', default='./data/mnist')
+    parser.add_argument('--data', default='./data')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
-    parser.add_argument('--seed', default=None,type=int)
-    parser.add_argument('--action', choices=['display','train'], default='train')
+    parser.add_argument('--seed', default=None, type=int)
+    parser.add_argument('--action', choices=['train', 'test'], default='train')
     return parser.parse_args()
 
-def show_images(images, title_texts,figs='./figs',cols = 5):
-    rows = int(len(images)/cols) + 1
-    fig = figure(figsize=(30,20))
+def accuracy(outputs, labels):
+    _, preds = torch.max(outputs, dim = 1)
+    return(torch.tensor(torch.sum(preds == labels).item()/ len(preds)))
 
-    for i,x in enumerate(zip(images, title_texts)):
-        image = x[0]
-        title_text = x[1]
-        ax = fig.add_subplot(rows, cols, i+1)
-        ax.imshow(image, cmap=cm.gray)
-        if (title_text != ''):
-            ax.set_title(title_text, fontsize = 15);
-    fig.suptitle(f'From {Path(__file__).stem}')
-    fig.tight_layout(pad=5, h_pad=4, w_pad=3)
-    fig.savefig(join(figs, 'mnist-images'))
-
-def display_images(x_train, y_train, x_test, y_test,rng = np.random.default_rng(),n_train=10,n_test=5):
-    def add_images(x,y,selected,title):
-        for i in range(len(selected)):
-            images.append(x[selected[i]])
-            titles.append(f'{title} image [' + str(selected[i]) + '] = ' + str(y[selected[i]]))
-
-    images = []
-    titles = []
-    add_images(x_train,y_train, rng.integers(1, len(x_train),size=n_train),'training')
-    add_images(x_test,y_test,rng.integers(1, len(x_test),size=n_test),'test')
-    show_images(images, titles,figs=args.figs)
-
-def prepare(x,y):
-    x_np = np.array(x, dtype=np.float32)
-    y_np = np.array(y, dtype=np.float32)
-    x_normalized= x_np.astype("float32") / 255.0
-    return torch.tensor(x_normalized, dtype=torch.float32),torch.tensor(y_np, dtype=torch.float32).reshape(-1, 1)
-
-def train(x, y):
-    Xt,yt = prepare(x,y)
-    print (Xt.shape,yt.shape)
-    model = nn.Sequential(
-        nn.Linear(28, 12),
-        nn.ReLU(),
-        nn.Linear(12, 8),
-        nn.ReLU(),
-        nn.Linear(8, 1),
-        nn.Sigmoid())
-    print (model)
-    print ('TBP')
-
-if __name__=='__main__':
+if __name__ == '__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
                   'size': 8})
     rc('text', usetex=True)
-    start  = time()
+    start = time()
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-    dataloader = MnistDataloader(training_images = join(args.data, 'train-images-idx3-ubyte/train-images-idx3-ubyte'),
-                                 training_labels = join(args.data, 'train-labels-idx1-ubyte/train-labels-idx1-ubyte'),
-                                 test_images = join(args.data, 't10k-images-idx3-ubyte/t10k-images-idx3-ubyte'),
-                                 test_labels = join(args.data, 't10k-labels-idx1-ubyte/t10k-labels-idx1-ubyte'))
-    (x_train, y_train), (x_test, y_test) = dataloader.load_data()
-
     match args.action:
-        case 'display':
-            display_images(x_train, y_train, x_test, y_test,rng=rng)
-
         case 'train':
-            train(x_train, y_train)
+            dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
+            print(dataset)
+            image_tensor, label = dataset[0]
+            print(image_tensor.shape, label)
+            train_data, validation_data = random_split(dataset, [50000, 10000])
+            print(f'length of Train Datasets: {len(train_data)}')
+            print(f'length of Validation Datasets: {len(validation_data)}')
+            batch_size = 128
+            train_loader = DataLoader(train_data, batch_size, shuffle=True)
+            val_loader = DataLoader(validation_data, batch_size, shuffle=False)
+            model = MnistModel()
+            print(model.linear.weight.shape, model.linear.bias.shape)
+            list(model.parameters())
+            for images, labels in train_loader:
+                outputs = model(images)
+                break
+            print('outputs shape: ', outputs.shape)
+            print('Sample outputs: \n', outputs[:2].data)
+            probs = F.softmax(outputs, dim = 1)
+            print("Sample probabilities:\n", probs[:2].data)
+            print("Sum: ", torch.sum(probs[0]).item())
+            max_probs, preds = torch.max(probs, dim = 1)
+            print("\n")
+            print(preds)
+            print("\n")
+            print(max_probs)
+            print("Accuracy: ",accuracy(outputs, labels))
+            print("\n")
+            loss_fn = F.cross_entropy
+            print("Loss Function: ",loss_fn)
+            print("\n")
+            ## Loss for the current batch
+            loss = loss_fn(outputs, labels)
+            print (loss)
+
+        case 'test':
+            dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+            print(len(dataset))
 
     elapsed = time() - start
-    minutes = int(elapsed/60)
-    seconds = elapsed - 60*minutes
-    print (f'Elapsed Time {minutes} m {seconds:.2f} s')
+    minutes = int(elapsed / 60)
+    seconds = elapsed - 60 * minutes
+    print(f'Elapsed Time {minutes} m {seconds:.2f} s')
 
     if args.show:
         show()
