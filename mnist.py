@@ -25,6 +25,7 @@
 from abc import ABC, abstractmethod
 from argparse import ArgumentParser
 from array import array
+from os import remove
 from os.path import join
 from pathlib import Path
 from struct import unpack
@@ -207,6 +208,16 @@ def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD):
         history.append(result)
     return (history)
 
+def killed(killfile='kill.txt'):
+    '''
+    Used to verufy that there is a killfile.
+    '''
+    killfile_path = Path(killfile)
+    killed = killfile_path.is_file()
+    if killed:
+        print (f'{killfile} detected')
+        remove(killfile)
+    return killed
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -229,6 +240,8 @@ if __name__ == '__main__':
             history = [evaluate(model, val_loader)]
             for i in range(args.N):
                 history += fit(args.steps, args.lr, model, train_loader, val_loader)
+                if killed():
+                    break
             accuracies = [result['val_acc'] for result in history]
             losses = [result['val_loss'] for result in history]
             model.save(join(args.params, create_short_name(args)))
