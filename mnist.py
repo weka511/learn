@@ -93,23 +93,44 @@ class LinearRegressionModel(MnistModel):
     '''
     Perform a simple linear regression
     '''
+    name = 'linear'
 
     def __init__(self, width=28, height=28, n_classes=10):
         super().__init__(width=width, height=height, n_classes=n_classes)
-        self.linear = nn.Linear(self.input_size, n_classes)
+        self.model = nn.Linear(self.input_size, n_classes)
 
     def forward(self, xb):
         xb = xb.reshape(-1, self.input_size)
-        return self.linear(xb)
+        return self.model(xb)
+
+class PerceptronModel(MnistModel):
+    '''
+    A simple multi layer perceptron
+    '''
+    name = 'perceptron'
+
+    def __init__(self, width=28, height=28, n_classes=10):
+        super().__init__(width=width, height=height, n_classes=n_classes)
+        self.model = nn.Sequential(
+            nn.Linear(self.input_size, 90),
+            nn.ReLU(),
+            nn.Linear(90, 10),
+            nn.ReLU())
+
+    def forward(self, xb):
+        xb = xb.reshape(-1, self.input_size)
+        return self.model(xb)
 
 
 class ModelFactory:
     '''
-    This class instantiates a model
+    This class instantiates models as required
     '''
-
     def __init__(self):
-        self.choices = ['linear']
+        self.choices = [
+            LinearRegressionModel.name,
+            PerceptronModel.name
+        ]
 
     def create(self, name):
         '''
@@ -119,8 +140,10 @@ class ModelFactory:
             name
         '''
         match name:
-            case 'linear':
+            case LinearRegressionModel.name:
                 return LinearRegressionModel()
+            case PerceptronModel.name:
+                return PerceptronModel()
 
 
 def parse_args(factory):
@@ -154,13 +177,15 @@ def create_short_name(args):
 
 def create_long_name(args):
     seed = '' if args.seed == None else f'-{args.seed}'
-    return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, from {args.file}'
+    if args.file == None:
+        return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, from {args.file}'
+    else:
+        return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}'
 
 
 def accuracy(outputs, labels):
     _, preds = torch.max(outputs, dim=1)
     return (torch.tensor(torch.sum(preds == labels).item() / len(preds)))
-
 
 def evaluate(model, val_loader):
     outputs = [model.validation_step(batch) for batch in val_loader]
