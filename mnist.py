@@ -74,8 +74,8 @@ class MnistModel(nn.Module, ABC):
         epoch_acc = torch.stack(batch_accs).mean()
         return ({'val_loss': epoch_loss.item(), 'val_acc': epoch_acc.item()})
 
-    def epoch_end(self, epoch, result):
-        print('Epoch [{}], val_loss: {:.4f}, val_acc: {:.4f}'.format(epoch, result['val_loss'], result['val_acc']))
+    def epoch_end(self, epoch, result,logger=None):
+        logger.log('Epoch {}, val_loss: {:.4f}, val_acc: {:.4f}'.format(epoch, result['val_loss'], result['val_acc']))
 
     def save(self, name):
         torch.save(self.state_dict(), f'{name}.pth')
@@ -146,6 +146,25 @@ class ModelFactory:
             case PerceptronModel.name:
                 return PerceptronModel()
 
+class Logger(object):
+    '''
+    This class records text in a logfile
+    '''
+    def __init__(self,name):
+        self.name = name + '.log'
+        self.file = None
+
+    def __enter__(self):
+        self.file = open(self.name,'w')
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.file != None:
+            self.file.close()
+
+    def log(self,line):
+        print (line)
+        self.file.write(line + '\n')
 
 def parse_args(factory):
     parser = ArgumentParser(description=__doc__)
@@ -158,12 +177,14 @@ def parse_args(factory):
     training_group.add_argument('--model', choices=factory.choices, default=factory.choices[0],help='Type of model to train')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
+
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None)
     test_group.add_argument('--n', default=12, type=int, help='Number of images for test')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data', help='Location of data files')
+    shared_group.add_argument('--logfiles', default='./logfiles', help='Location of log files')
     shared_group.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     shared_group.add_argument('--figs', default='./figs', help='Location for storing plot files')
     shared_group.add_argument('--seed', default=None, type=int,help='Used to initialize random number generator')
@@ -193,7 +214,7 @@ def evaluate(model, val_loader):
     return model.validation_epoch_end(outputs)
 
 
-def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD):
+def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD,logger=None):
     history = []
     optimizer = opt_func(model.parameters(), lr)
     for epoch in range(epochs):
@@ -204,7 +225,7 @@ def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD):
             optimizer.zero_grad()
 
         result = evaluate(model, val_loader)
-        model.epoch_end(epoch, result)
+        model.epoch_end(epoch, result,logger=logger)
         history.append(result)
     return (history)
 
@@ -218,6 +239,8 @@ def killed(killfile='kill.txt'):
         print (f'{killfile} detected')
         remove(killfile)
     return killed
+
+
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -233,28 +256,29 @@ if __name__ == '__main__':
     model = factory.create(args.model)
     match args.action:
         case 'train':
-            dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
-            train_data, validation_data = random_split(dataset, [50000, 10000])
-            train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
-            val_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
-            history = [evaluate(model, val_loader)]
-            for i in range(args.N):
-                history += fit(args.steps, args.lr, model, train_loader, val_loader)
-                if killed():
-                    break
-            accuracies = [result['val_acc'] for result in history]
-            losses = [result['val_loss'] for result in history]
-            model.save(join(args.params, create_short_name(args)))
+            with Logger(join(args.logfiles, create_short_name(args))) as logger:
+                dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
+                train_data, validation_data = random_split(dataset, [50000, 10000])
+                train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
+                val_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
+                history = [evaluate(model, val_loader)]
+                for i in range(args.N):
+                    history += fit(args.steps, args.lr, model, train_loader, val_loader,logger=logger)
+                    if killed():
+                        break
+                accuracies = [result['val_acc'] for result in history]
+                losses = [result['val_loss'] for result in history]
+                model.save(join(args.params, create_short_name(args)))
 
-            ax = fig.add_subplot(1, 1, 1)
-            ax.plot(accuracies, '-x', label='Accuracy')
-            ax.plot(losses, '-o', label='Loss')
-            ax.legend()
-            ax.set_xlabel('epoch')
-            ax.set_title('Accuracy Vs. No. of epochs')
-            fig.suptitle(create_long_name(args), fontsize=12)
-            fig.tight_layout(pad=3, h_pad=4, w_pad=3)
-            fig.savefig(join(args.figs, create_short_name(args)))
+                ax = fig.add_subplot(1, 1, 1)
+                ax.plot(accuracies, '-x', label='Accuracy')
+                ax.plot(losses, '-o', label='Loss')
+                ax.legend()
+                ax.set_xlabel('epoch')
+                ax.set_title('Accuracy Vs. No. of epochs')
+                fig.suptitle(create_long_name(args), fontsize=12)
+                fig.tight_layout(pad=3, h_pad=4, w_pad=3)
+                fig.savefig(join(args.figs, create_short_name(args)))
 
         case 'test':
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
