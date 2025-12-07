@@ -5,6 +5,7 @@ Experiments in machine learning
 
  File  | Remarks
 ---------------|--------------------------------------------
+chainsaw.py|Cut logs up and process them
 gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 hopfield.py | Hopfield network
 mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)

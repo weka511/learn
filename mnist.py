@@ -77,11 +77,11 @@ class MnistModel(nn.Module, ABC):
         epoch_acc = torch.stack(batch_accs).mean()
         return ({'val_loss': epoch_loss.item(), 'val_acc': epoch_acc.item()})
 
-    def log_loss_and_accuracy(self, epoch, result,logger=None):
+    def log_loss_and_accuracy(self, step, result, logger=None):
         '''
         Used while training to record loss and accuracy
         '''
-        logger.log('Epoch {}, val_loss: {:.4f}, val_acc: {:.4f}'.format(epoch, result['val_loss'], result['val_acc']))
+        logger.log(f'Step: {step}, val_loss: {result['val_loss']:.4f}, val_acc: {result['val_acc']:.4f}')
 
     def save(self, name):
         '''
@@ -119,6 +119,7 @@ class LinearRegressionModel(MnistModel):
         xb = xb.reshape(-1, self.input_size)
         return self.model(xb)
 
+
 class PerceptronModel(MnistModel):
     '''
     A simple multi layer perceptron
@@ -142,6 +143,7 @@ class ModelFactory:
     '''
     This class instantiates models as required
     '''
+
     def __init__(self):
         self.choices = [
             LinearRegressionModel.name,
@@ -161,35 +163,38 @@ class ModelFactory:
             case PerceptronModel.name:
                 return PerceptronModel()
 
+
 class Logger(object):
     '''
     This class records text in a logfile
     '''
-    def __init__(self,name):
+
+    def __init__(self, name):
         self.name = name + '.log'
         self.file = None
 
     def __enter__(self):
-        self.file = open(self.name,'w')
+        self.file = open(self.name, 'w')
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.file != None:
             self.file.close()
 
-    def log(self,line):
-        print (line)
+    def log(self, line):
+        print(line)
         self.file.write(line + '\n')
+
 
 def parse_args(factory):
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--action', choices=['train', 'test'], default='train',help='Chooses between training or testint')
+    parser.add_argument('--action', choices=['train', 'test'], default='train', help='Chooses between training or testint')
 
     training_group = parser.add_argument_group('Parameters for --action train')
     training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
     training_group.add_argument('--steps', default=5, type=int, help='Number of steps to an epoch')
-    training_group.add_argument('--model', choices=factory.choices, default=factory.choices[0],help='Type of model to train')
+    training_group.add_argument('--model', choices=factory.choices, default=factory.choices[0], help='Type of model to train')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
 
@@ -202,7 +207,7 @@ def parse_args(factory):
     shared_group.add_argument('--logfiles', default='./logfiles', help='Location of log files')
     shared_group.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     shared_group.add_argument('--figs', default='./figs', help='Location for storing plot files')
-    shared_group.add_argument('--seed', default=None, type=int,help='Used to initialize random number generator')
+    shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
 
     return parser.parse_args()
 
@@ -224,15 +229,16 @@ def accuracy(outputs, labels):
     _, preds = torch.max(outputs, dim=1)
     return (torch.tensor(torch.sum(preds == labels).item() / len(preds)))
 
+
 def evaluate(model, val_loader):
     outputs = [model.validation_step(batch) for batch in val_loader]
     return model.get_loss_and_accuracy(outputs)
 
 
-def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD,logger=None):
+def fit(epoch, n_steps, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD, logger=None):
     history = []
     optimizer = opt_func(model.parameters(), lr)
-    for epoch in range(epochs):
+    for i in range(n_steps):
         for batch in train_loader:
             loss = model.training_step(batch)
             loss.backward()
@@ -240,9 +246,10 @@ def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD,lo
             optimizer.zero_grad()
 
         result = evaluate(model, val_loader)
-        model.log_loss_and_accuracy(epoch, result,logger=logger)
+        model.log_loss_and_accuracy(n_steps*epoch + i, result, logger=logger)
         history.append(result)
     return (history)
+
 
 def killed(killfile='kill.txt'):
     '''
@@ -251,10 +258,9 @@ def killed(killfile='kill.txt'):
     killfile_path = Path(killfile)
     killed = killfile_path.is_file()
     if killed:
-        print (f'{killfile} detected')
+        print(f'{killfile} detected')
         remove(killfile)
     return killed
-
 
 
 if __name__ == '__main__':
@@ -278,7 +284,7 @@ if __name__ == '__main__':
                 val_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
                 history = [evaluate(model, val_loader)]
                 for i in range(args.N):
-                    history += fit(args.steps, args.lr, model, train_loader, val_loader,logger=logger)
+                    history += fit(i, args.steps, args.lr, model, train_loader, val_loader, logger=logger)
                     if killed():
                         break
                 accuracies = [result['val_acc'] for result in history]
