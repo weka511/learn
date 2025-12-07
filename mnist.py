@@ -39,10 +39,12 @@ import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 
-class MnistModel(nn.Module,ABC):
+
+class MnistModel(nn.Module, ABC):
     '''
     This class implements a neural network model
     '''
+
     def __init__(self, width=28, height=28, n_classes=10):
         super().__init__()
         self.input_size = width * height
@@ -74,13 +76,10 @@ class MnistModel(nn.Module,ABC):
     def epoch_end(self, epoch, result):
         print('Epoch [{}], val_loss: {:.4f}, val_acc: {:.4f}'.format(epoch, result['val_loss'], result['val_acc']))
 
-    # def get_path(self):
-        # return 'mnist-logistic.pth'
-
-    def save(self,name):
+    def save(self, name):
         torch.save(self.state_dict(), f'{name}.pth')
 
-    def load(self,file):
+    def load(self, file):
         self.load_state_dict(torch.load(file))
 
     def predict(self, img):
@@ -89,26 +88,30 @@ class MnistModel(nn.Module,ABC):
         _, preds = torch.max(yb, dim=1)
         return preds[0].item()
 
+
 class LinearRegressionModel(MnistModel):
     '''
     Perform a simple linear regression
     '''
+
     def __init__(self, width=28, height=28, n_classes=10):
-        super().__init__(width=width,height=height,n_classes=n_classes)
+        super().__init__(width=width, height=height, n_classes=n_classes)
         self.linear = nn.Linear(self.input_size, n_classes)
 
     def forward(self, xb):
         xb = xb.reshape(-1, self.input_size)
         return self.linear(xb)
 
+
 class ModelFactory:
     '''
     This class instantiates a model
     '''
+
     def __init__(self):
         self.choices = ['linear']
 
-    def create(self,name):
+    def create(self, name):
         '''
         Create model
 
@@ -119,29 +122,40 @@ class ModelFactory:
             case 'linear':
                 return LinearRegressionModel()
 
+
 def parse_args(factory):
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--data', default='./data')
-    parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
-    parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
-    parser.add_argument('--seed', default=None, type=int)
-    parser.add_argument('--batch_size', default=128, type=int)
-    parser.add_argument('--N', default=5, type=int)
-    parser.add_argument('--n', default=12, type=int)
-    parser.add_argument('--action', choices=['train', 'test'], default='train')
-    parser.add_argument('--model',choices=factory.choices,default=factory.choices[0])
-    parser.add_argument('--params', default='./params', help='Location for storing plot files')
-    parser.add_argument('--file', default=None)
+    parser.add_argument('--action', choices=['train', 'test'], default='train',help='Chooses between training or testint')
+
+    training_group = parser.add_argument_group('Parameters for --action train')
+    training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
+    training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
+    training_group.add_argument('--steps', default=5, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--model', choices=factory.choices, default=factory.choices[0],help='Type of model to train')
+    training_group.add_argument('--params', default='./params', help='Location for storing plot files')
+    training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
+    test_group = parser.add_argument_group('Parameters for --action test')
+    test_group.add_argument('--file', default=None)
+    test_group.add_argument('--n', default=12, type=int, help='Number of images for test')
+
+    shared_group = parser.add_argument_group('General Parameters')
+    shared_group.add_argument('--data', default='./data', help='Location of data files')
+    shared_group.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
+    shared_group.add_argument('--figs', default='./figs', help='Location for storing plot files')
+    shared_group.add_argument('--seed', default=None, type=int,help='Used to initialize random number generator')
 
     return parser.parse_args()
+
 
 def create_short_name(args):
     seed = '' if args.seed == None else f'-{args.seed}'
     return f'{args.model}-{args.action}-{args.N}-{args.batch_size}{seed}'
 
+
 def create_long_name(args):
     seed = '' if args.seed == None else f'-{args.seed}'
     return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, from {args.file}'
+
 
 def accuracy(outputs, labels):
     _, preds = torch.max(outputs, dim=1)
@@ -189,10 +203,10 @@ if __name__ == '__main__':
             val_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
             history = [evaluate(model, val_loader)]
             for i in range(args.N):
-                history += fit(5, 0.001, model, train_loader, val_loader)
+                history += fit(args.steps, args.lr, model, train_loader, val_loader)
             accuracies = [result['val_acc'] for result in history]
             losses = [result['val_loss'] for result in history]
-            model.save(join(args.params,create_short_name(args)))
+            model.save(join(args.params, create_short_name(args)))
 
             ax = fig.add_subplot(1, 1, 1)
             ax.plot(accuracies, '-x', label='Accuracy')
@@ -207,15 +221,15 @@ if __name__ == '__main__':
         case 'test':
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             model.load(args.file)
-            selection = rng.integers(len(dataset),size=args.n)
+            selection = rng.integers(len(dataset), size=args.n)
             n_cols = 4
             n_rows = args.n // n_cols
-            while n_rows*n_cols < args.n:
-                n_rows +=1
+            while n_rows * n_cols < args.n:
+                n_rows += 1
 
             for i in range(args.n):
                 img, label = dataset[i]
-                ax = fig.add_subplot(n_rows, n_cols, i+1)
+                ax = fig.add_subplot(n_rows, n_cols, i + 1)
                 ax.imshow(img[0], cmap='gray')
                 ax.set_title(f'Label: {label}, Predicted: {model.predict(img)}')
                 ax.get_xaxis().set_visible(False)
@@ -223,10 +237,10 @@ if __name__ == '__main__':
 
             fig.suptitle(create_long_name(args), fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
-            fig.savefig(join(args.figs, Path(args.file).stem.replace('train','test')))
+            fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
 
-            test_loader = DataLoader(dataset, batch_size = 256)
-            print (evaluate(model, test_loader))
+            test_loader = DataLoader(dataset, batch_size=256)
+            print(evaluate(model, test_loader))
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
