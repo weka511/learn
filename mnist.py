@@ -67,23 +67,38 @@ class MnistModel(nn.Module, ABC):
         acc = accuracy(out, labels)
         return ({'val_loss': loss, 'val_acc': acc})
 
-    def validation_epoch_end(self, outputs):
+    def get_loss_and_accuracy(self, outputs):
+        '''
+        Used to evaluate goodness of fit
+        '''
         batch_losses = [x['val_loss'] for x in outputs]
         epoch_loss = torch.stack(batch_losses).mean()
         batch_accs = [x['val_acc'] for x in outputs]
         epoch_acc = torch.stack(batch_accs).mean()
         return ({'val_loss': epoch_loss.item(), 'val_acc': epoch_acc.item()})
 
-    def epoch_end(self, epoch, result,logger=None):
+    def log_loss_and_accuracy(self, epoch, result,logger=None):
+        '''
+        Used while training to record loss and accuracy
+        '''
         logger.log('Epoch {}, val_loss: {:.4f}, val_acc: {:.4f}'.format(epoch, result['val_loss'], result['val_acc']))
 
     def save(self, name):
+        '''
+        Used to save weights
+        '''
         torch.save(self.state_dict(), f'{name}.pth')
 
     def load(self, file):
+        '''
+        Used to recall a previous set of weights
+        '''
         self.load_state_dict(torch.load(file))
 
     def predict(self, img):
+        '''
+        Used while calculating performance with test dataset
+        '''
         xb = img.unsqueeze(0)
         yb = self(xb)
         _, preds = torch.max(yb, dim=1)
@@ -211,7 +226,7 @@ def accuracy(outputs, labels):
 
 def evaluate(model, val_loader):
     outputs = [model.validation_step(batch) for batch in val_loader]
-    return model.validation_epoch_end(outputs)
+    return model.get_loss_and_accuracy(outputs)
 
 
 def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD,logger=None):
@@ -225,7 +240,7 @@ def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD,lo
             optimizer.zero_grad()
 
         result = evaluate(model, val_loader)
-        model.epoch_end(epoch, result,logger=logger)
+        model.log_loss_and_accuracy(epoch, result,logger=logger)
         history.append(result)
     return (history)
 
