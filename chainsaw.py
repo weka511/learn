@@ -28,6 +28,7 @@ from time import time
 import numpy as np
 from matplotlib.pyplot import figure, show
 from matplotlib import rc
+from xkcd import generate_xkcd_colours
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
@@ -43,6 +44,8 @@ def generate_logfile_names(args):
     for name in set(logfile_names):
         yield(join(args.logfiles,name)),name.split('.')[0]
 
+
+
 if __name__=='__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
@@ -54,6 +57,7 @@ if __name__=='__main__':
     ax = fig.add_subplot(1,1,1)
     pattern = compile(r'Step: ([0-9]+), val_loss: ([\.0-9]+), val_acc: ([\.0-9]+)')
 
+    colours = generate_xkcd_colours()
     for name,short_name in generate_logfile_names(args):
         steps = []
         losses = []
@@ -64,7 +68,7 @@ if __name__=='__main__':
                 steps.append(int(matched.group(1)))
                 losses.append(float(matched.group(2)))
                 accuracy.append(float(matched.group(3)))
-        ax.scatter(steps,losses,label=short_name,s=1)
+        ax.scatter(steps,losses,label=short_name,s=5,c=next(colours))
 
     ax.legend()
     ax.set_title('Losses')
