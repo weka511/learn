@@ -241,18 +241,18 @@ def create_short_name(args):
     Used as the stem for file names
     '''
     seed = '' if args.seed == None else f'-{args.seed}'
-    return f'{args.model}-{args.action}-{args.N}-{args.batch_size}{seed}-{args.optimizer}'
+    name = f'{args.model}-{args.action}-{args.N}-{args.batch_size}{seed}-{args.optimizer}-{args.lr}-{args.weight_decay}'
+    return name.replace('.','_')
 
 
 def create_long_name(args):
     '''
     Used for titles
     '''
-    seed = '' if args.seed == None else f'-{args.seed}'
-    if args.file == None:
-        return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, optimizer={args.optimizer}'
-    else:
-        return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, optimizer={args.optimizer}, from {args.file}'
+    seed = '' if args.seed == None else f', seed={args.seed}'
+    title= (f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, '
+            f'optimizer={args.optimizer}, lr={args.lr}, weight decay={args.weight_decay}')
+    return title if args.file == None else title + name
 
 
 def accuracy(outputs, labels):
