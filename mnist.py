@@ -143,14 +143,13 @@ class ModelFactory:
     '''
     This class instantiates models as specified by the command line parameters
     '''
+    choices = [
+        LinearRegressionModel.name,
+        PerceptronModel.name
+    ]
 
-    def __init__(self):
-        self.choices = [
-            LinearRegressionModel.name,
-            PerceptronModel.name
-        ]
-
-    def create(self, name):
+    @staticmethod
+    def create(name):
         '''
         Create model
 
@@ -165,7 +164,7 @@ class ModelFactory:
 
 class OptimizerFactory:
     '''
-    This class instantiates models as specified by the command line parameters
+    This class instantiates optimizers as specified by the command line parameters
     '''
 
     choices = [
@@ -199,8 +198,12 @@ class Logger(object):
             self.file.close()
 
     def log(self, line):
-        print(line)
+        '''
+        Output one line of text to console and file, flushing as we go
+        '''
+        print(line,flush=True)
         self.file.write(line + '\n')
+        self.file.flush()
 
 
 def parse_args(factory):
@@ -211,11 +214,13 @@ def parse_args(factory):
     training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
     training_group.add_argument('--steps', default=5, type=int, help='Number of steps to an epoch')
-    training_group.add_argument('--model', choices=factory.choices, default=factory.choices[0], help='Type of model to train')
+    training_group.add_argument('--model', choices=ModelFactory.choices, default=ModelFactory.choices[0],
+                                help='Type of model to train')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
-    training_group.add_argument('--optimizer', default=OptimizerFactory.choices)
+    training_group.add_argument('--optimizer', choices=OptimizerFactory.choices,default=OptimizerFactory.choices[0],
+                                help='Optimizer to be used for training')
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None)
@@ -232,11 +237,17 @@ def parse_args(factory):
 
 
 def create_short_name(args):
+    '''
+    Used as the stem for file names
+    '''
     seed = '' if args.seed == None else f'-{args.seed}'
     return f'{args.model}-{args.action}-{args.N}-{args.batch_size}{seed}-{args.optimizer}'
 
 
 def create_long_name(args):
+    '''
+    Used for titles
+    '''
     seed = '' if args.seed == None else f'-{args.seed}'
     if args.file == None:
         return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, optimizer={args.optimizer}'
@@ -245,12 +256,18 @@ def create_long_name(args):
 
 
 def accuracy(outputs, labels):
+    '''
+    Calculate accuracy, i.e. how frequently prediction matches labels
+    '''
     _, preds = torch.max(outputs, dim=1)
     return (torch.tensor(torch.sum(preds == labels).item() / len(preds)))
 
 
-def evaluate(model, val_loader):
-    outputs = [model.validation_step(batch) for batch in val_loader]
+def evaluate(model, loader):
+    '''
+    Used to evaluate goodness of fit
+    '''
+    outputs = [model.validation_step(batch) for batch in loader]
     return model.get_loss_and_accuracy(outputs)
 
 
@@ -296,7 +313,7 @@ if __name__ == '__main__':
     start = time()
     args = parse_args(factory)
     rng = np.random.default_rng(args.seed)
-    model = factory.create(args.model)
+    model = ModelFactory.create(args.model)
     match args.action:
         case 'train':
             with Logger(join(args.logfiles, create_short_name(args))) as logger:
