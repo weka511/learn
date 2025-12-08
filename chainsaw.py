@@ -38,6 +38,7 @@ def parse_args():
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--glob', default=False, action='store_true', help='If set, program performs it own globbing')
+    parser.add_argument('--skip', default=0, type=int, help='Skip points at start')
     return parser.parse_args()
 
 
@@ -80,9 +81,12 @@ if __name__ == '__main__':
         with open(name) as input:
             for line in input:
                 matched = input_pattern.match(line.strip())
-                steps.append(int(matched.group(1)))
+                step = int(matched.group(1))
+                if step < args.skip: continue
+                steps.append(step)
                 losses.append(float(matched.group(2)))
                 accuracy.append(float(matched.group(3)))
+
         c = next(colour)
         ax1.scatter(steps, losses, label=short_name, s=5, c=c)
         ax2.scatter(steps, accuracy, label=short_name, s=5, c=c)
@@ -91,6 +95,9 @@ if __name__ == '__main__':
     ax1.set_title('Losses')
     ax2.legend()
     ax2.set_title('Accuracy')
+
+    skipping = '' if args.skip==0 else f', skipping first {args.skip} entries'
+    fig.suptitle(f'{Path(__file__).stem.title()}{skipping}')
     fig.tight_layout(pad=3, h_pad=4, w_pad=3)
     fig.savefig(join(args.figs, Path(__file__).stem))
 
