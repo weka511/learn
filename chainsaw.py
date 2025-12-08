@@ -15,13 +15,14 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-'''Cut logs up and process them'''
-
-# https://machinelearningmastery.com/develop-your-first-neural-network-with-pytorch-step-by-step/
+'''
+    Cut logs up and process them
+'''
 
 from argparse import ArgumentParser
 from glob import glob
 from os.path import join
+from pathlib import Path
 from re import compile
 from time import time
 import numpy as np
@@ -43,6 +44,10 @@ def generate_logfile_names(args):
         yield(join(args.logfiles,name)),name.split('.')[0]
 
 if __name__=='__main__':
+    rc('font', **{'family': 'serif',
+                  'serif': ['Palatino'],
+                  'size': 8})
+    rc('text', usetex=True)
     start  = time()
     args = parse_args()
     fig = figure(figsize=(12,12))
@@ -62,6 +67,10 @@ if __name__=='__main__':
         ax.scatter(steps,losses,label=short_name,s=1)
 
     ax.legend()
+    ax.set_title('Losses')
+    fig.tight_layout(pad=3, h_pad=4, w_pad=3)
+    fig.savefig(join(args.figs, Path(__file__).stem))
+
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
