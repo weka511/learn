@@ -39,7 +39,7 @@ from torchvision.datasets import MNIST
 import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
-
+from torch.optim import SGD, Adam
 
 class MnistModel(nn.Module, ABC):
     '''
@@ -141,7 +141,7 @@ class PerceptronModel(MnistModel):
 
 class ModelFactory:
     '''
-    This class instantiates models as required
+    This class instantiates models as specified by the command line parameters
     '''
 
     def __init__(self):
@@ -163,6 +163,23 @@ class ModelFactory:
             case PerceptronModel.name:
                 return PerceptronModel()
 
+class OptimizerFactory:
+    '''
+    This class instantiates models as specified by the command line parameters
+    '''
+
+    choices = [
+            'SGD',
+            'Adam'
+    ]
+
+    @staticmethod
+    def create(model,args):
+        match args.optimizer:
+            case 'SGD':
+                return SGD(model.parameters(), lr=args.lr)
+            case 'Adam':
+                return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 class Logger(object):
     '''
@@ -197,6 +214,8 @@ def parse_args(factory):
     training_group.add_argument('--model', choices=factory.choices, default=factory.choices[0], help='Type of model to train')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
+    training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
+    training_group.add_argument('--optimizer', default=OptimizerFactory.choices)
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None)
@@ -214,15 +233,15 @@ def parse_args(factory):
 
 def create_short_name(args):
     seed = '' if args.seed == None else f'-{args.seed}'
-    return f'{args.model}-{args.action}-{args.N}-{args.batch_size}{seed}'
+    return f'{args.model}-{args.action}-{args.N}-{args.batch_size}{seed}-{args.optimizer}'
 
 
 def create_long_name(args):
     seed = '' if args.seed == None else f'-{args.seed}'
     if args.file == None:
-        return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, from {args.file}'
+        return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, optimizer={args.optimizer}'
     else:
-        return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}'
+        return f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, optimizer={args.optimizer}, from {args.file}'
 
 
 def accuracy(outputs, labels):
@@ -235,9 +254,12 @@ def evaluate(model, val_loader):
     return model.get_loss_and_accuracy(outputs)
 
 
-def fit(epoch, n_steps, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD, logger=None):
+def fit(epoch, n_steps, model, train_loader, val_loader, optimizer = None, logger=None):
+    '''
+    Fit parameters to training data
+    '''
     history = []
-    optimizer = opt_func(model.parameters(), lr)
+
     for i in range(n_steps):
         for batch in train_loader:
             loss = model.training_step(batch)
@@ -253,7 +275,7 @@ def fit(epoch, n_steps, lr, model, train_loader, val_loader, opt_func=torch.opti
 
 def killed(killfile='kill.txt'):
     '''
-    Used to verufy that there is a killfile.
+    Used to verify that there is a killfile, so the program can shut down gracefully
     '''
     killfile_path = Path(killfile)
     killed = killfile_path.is_file()
@@ -278,13 +300,15 @@ if __name__ == '__main__':
     match args.action:
         case 'train':
             with Logger(join(args.logfiles, create_short_name(args))) as logger:
+                optimizer = OptimizerFactory.create(model,args)
                 dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
                 train_data, validation_data = random_split(dataset, [50000, 10000])
                 train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
                 val_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
                 history = [evaluate(model, val_loader)]
                 for i in range(args.N):
-                    history += fit(i, args.steps, args.lr, model, train_loader, val_loader, logger=logger)
+                    history += fit(i, args.steps,  model, train_loader, val_loader,
+                                   optimizer=optimizer,logger=logger)
                     if killed():
                         break
                 accuracies = [result['val_acc'] for result in history]
