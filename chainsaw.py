@@ -22,30 +22,50 @@
 from argparse import ArgumentParser
 from glob import glob
 from os.path import join
+from re import compile
 from time import time
 import numpy as np
-import torch
-import torch.nn as nn
-from torch.optim import Adam
+from matplotlib.pyplot import figure, show
+from matplotlib import rc
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
     parser.add_argument('files', nargs='+')
     parser.add_argument('--logfiles', default='./logfiles', help='Location of log files')
+    parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
+    parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     return parser.parse_args()
 
 def generate_logfile_names(args):
     file_names = [glob(pathname,root_dir=args.logfiles) for pathname in args.files]
     logfile_names= [f for file_name_list in file_names for f in file_name_list]
     for name in set(logfile_names):
-        yield(join(args.logfiles,name))
+        yield(join(args.logfiles,name)),name.split('.')[0]
 
 if __name__=='__main__':
     start  = time()
     args = parse_args()
-    for name in generate_logfile_names(args):
-        print (name)
+    fig = figure(figsize=(12,12))
+    ax = fig.add_subplot(1,1,1)
+    pattern = compile(r'Step: ([0-9]+), val_loss: ([\.0-9]+), val_acc: ([\.0-9]+)')
+
+    for name,short_name in generate_logfile_names(args):
+        steps = []
+        losses = []
+        accuracy = []
+        with open(name) as input:
+            for line in input:
+                matched = pattern.match(line.strip())
+                steps.append(int(matched.group(1)))
+                losses.append(float(matched.group(2)))
+                accuracy.append(float(matched.group(3)))
+        ax.scatter(steps,losses,label=short_name,s=1)
+
+    ax.legend()
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
     print (f'Elapsed Time {minutes} m {seconds:.2f} s')
+
+    if args.show:
+        show()
