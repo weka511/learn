@@ -338,6 +338,28 @@ def get_seed(seed):
     print (f'Created new seed {new_seed}')
     return new_seed
 
+def generate_mismatches(dataset,n,rng = np.random.default_rng()):
+    '''
+    Used when testing: iterate through images where
+    prediction and label don't match
+
+    Parameters:
+        dataset
+        n
+        rng
+    '''
+    indices = rng.permutation(len(dataset))
+    j = 0
+    for i in range(n):
+        prediction = None
+        label = None
+        while prediction == label:
+            k = indices[j]
+            img, label = dataset[k]
+            prediction = model.predict(img)
+            j += 1
+        yield i+1, img, label, prediction
+
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
@@ -395,9 +417,8 @@ if __name__ == '__main__':
             while n_rows * n_cols < args.n:
                 n_rows += 1
 
-            for i in range(args.n):
-                img, label = dataset[i]
-                ax = fig.add_subplot(n_rows, n_cols, i + 1)
+            for pos, img, label, prediction in generate_mismatches(dataset,args.n,rng=rng):
+                ax = fig.add_subplot(n_rows, n_cols, pos)
                 ax.imshow(img[0], cmap='gray')
                 ax.set_title(f'Label: {label}, Predicted: {model.predict(img)}')
                 ax.get_xaxis().set_visible(False)
