@@ -225,7 +225,7 @@ def parse_args(factory):
     training_group.add_argument('--restart', default=None, help = 'Restart from saved parameters')
 
     test_group = parser.add_argument_group('Parameters for --action test')
-    test_group.add_argument('--file', default=None)
+    test_group.add_argument('--file', default=None, help='Used to lead weights')
     test_group.add_argument('--n', default=12, type=int, help='Number of images for test')
 
     shared_group = parser.add_argument_group('General Parameters')
@@ -237,25 +237,34 @@ def parse_args(factory):
 
     return parser.parse_args()
 
+class NameFactory:
+    def __init__(self,args, seed):
+        self.seed_text = '' if seed == None else f'-{seed}'
+        self.action = args.action
+        self.model = args.model
+        self.N = args.N
+        self.batch_size = args.batch_size
+        self.optimizer = args.optimizer
+        self.lr = args.lr
+        self.weight_decay = args.weight_decay
+        self.file = args.file
 
-def create_short_name(args, seed, checkpoint=False):
-    '''
-    Used as the stem for file names
-    '''
-    seed_text = '' if seed == None else f'-{seed}'
-    action = args.action if checkpoint == False else 'checkpoint'
-    name = f'{args.model}-{action}-{args.N}-{args.batch_size}{seed_text}-{args.optimizer}-{args.lr}-{args.weight_decay}'
-    return name.replace('.', '_')
+    def create_short_name(self, checkpoint=False):
+        '''
+        Used as the stem for file names
+        '''
+        action = self.action if checkpoint == False else 'checkpoint'
+        name = f'{self.model}-{action}-{self.N}-{self.batch_size}-{self.seed_text}-{self.optimizer}-{self.lr}-{self.weight_decay}'
+        return name.replace('.', '_')
 
 
-def create_long_name(args,seed):
-    '''
-    Used for titles
-    '''
-    seed_text = '' if seed == None else f', seed={seed}'
-    title = (f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed_text}, '
-             f'optimizer={args.optimizer}, lr={args.lr}, weight decay={args.weight_decay}')
-    return title if args.file == None else title + name
+    def create_long_name(self):
+        '''
+        Used for titles
+        '''
+        title = (f'Model={self.model}: {self.action}, N={self.N}, batch_size={self.batch_size}, {self.seed_text}, '
+                 f'optimizer={self.optimizer}, lr={self.lr}, weight decay={self.weight_decay}')
+        return title if self.file == None else title + self.file
 
 
 def accuracy(outputs, labels):
@@ -342,9 +351,10 @@ if __name__ == '__main__':
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
     model = ModelFactory.create(args.model)
+    name_factory = NameFactory(args,seed)
     match args.action:
         case 'train':
-            with Logger(join(args.logfiles, create_short_name(args,seed))) as logger:
+            with Logger(join(args.logfiles, name_factory.create_short_name())) as logger:
                 if args.restart:
                     model.load(args.restart)
                     print (f'Reloaded parameters from {args.restart}')
@@ -357,14 +367,14 @@ if __name__ == '__main__':
                 for i in range(args.N):
                     history += fit(i, args.steps, model, train_loader, val_loader,
                                    optimizer=optimizer, logger=logger)
-                    checkpoint_file_name = join(args.params, create_short_name(args, seed,checkpoint=True))
+                    checkpoint_file_name = join(args.params, name_factory.create_short_name(checkpoint=True))
                     ensure_we_can_save(checkpoint_file_name)
                     model.save( checkpoint_file_name)
                     if killed():
                         break
                 accuracies = [result['val_acc'] for result in history]
                 losses = [result['val_loss'] for result in history]
-                model.save(join(args.params, create_short_name(args,seed)))
+                model.save(join(args.params, name_factory.create_short_name()))
 
                 ax = fig.add_subplot(1, 1, 1)
                 ax.plot(accuracies, '-x', label='Accuracy')
@@ -372,9 +382,9 @@ if __name__ == '__main__':
                 ax.legend()
                 ax.set_xlabel('epoch')
                 ax.set_title('Accuracy Vs. No. of epochs')
-                fig.suptitle(create_long_name(args,seed), fontsize=12)
+                fig.suptitle(name_factory.create_long_name(), fontsize=12)
                 fig.tight_layout(pad=3, h_pad=4, w_pad=3)
-                fig.savefig(join(args.figs, create_short_name(args,seed)))
+                fig.savefig(join(args.figs, name_factory.create_short_name()))
 
         case 'test':
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
@@ -393,7 +403,7 @@ if __name__ == '__main__':
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
 
-            fig.suptitle(create_long_name(args), fontsize=12)
+            fig.suptitle(name_factory.create_long_name(), fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
 
