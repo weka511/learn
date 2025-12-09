@@ -25,7 +25,6 @@
 from abc import ABC, abstractmethod
 from argparse import ArgumentParser
 from array import array
-from os import remove
 from os.path import join
 from pathlib import Path
 from struct import unpack
@@ -40,6 +39,7 @@ import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
+
 
 class MnistModel(nn.Module, ABC):
     '''
@@ -162,23 +162,25 @@ class ModelFactory:
             case PerceptronModel.name:
                 return PerceptronModel()
 
+
 class OptimizerFactory:
     '''
     This class instantiates optimizers as specified by the command line parameters
     '''
 
     choices = [
-            'SGD',
-            'Adam'
+        'SGD',
+        'Adam'
     ]
 
     @staticmethod
-    def create(model,args):
+    def create(model, args):
         match args.optimizer:
             case 'SGD':
                 return SGD(model.parameters(), lr=args.lr)
             case 'Adam':
                 return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
 
 class Logger(object):
     '''
@@ -201,7 +203,7 @@ class Logger(object):
         '''
         Output one line of text to console and file, flushing as we go
         '''
-        print(line,flush=True)
+        print(line, flush=True)
         self.file.write(line + '\n')
         self.file.flush()
 
@@ -219,7 +221,7 @@ def parse_args(factory):
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
-    training_group.add_argument('--optimizer', choices=OptimizerFactory.choices,default=OptimizerFactory.choices[0],
+    training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.choices[0],
                                 help='Optimizer to be used for training')
 
     test_group = parser.add_argument_group('Parameters for --action test')
@@ -236,13 +238,14 @@ def parse_args(factory):
     return parser.parse_args()
 
 
-def create_short_name(args):
+def create_short_name(args, checkpoint=False):
     '''
     Used as the stem for file names
     '''
     seed = '' if args.seed == None else f'-{args.seed}'
-    name = f'{args.model}-{args.action}-{args.N}-{args.batch_size}{seed}-{args.optimizer}-{args.lr}-{args.weight_decay}'
-    return name.replace('.','_')
+    action = args.action if checkpoint == False else 'checkpoint'
+    name = f'{args.model}-{action}-{args.N}-{args.batch_size}{seed}-{args.optimizer}-{args.lr}-{args.weight_decay}'
+    return name.replace('.', '_')
 
 
 def create_long_name(args):
@@ -250,8 +253,8 @@ def create_long_name(args):
     Used for titles
     '''
     seed = '' if args.seed == None else f', seed={args.seed}'
-    title= (f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, '
-            f'optimizer={args.optimizer}, lr={args.lr}, weight decay={args.weight_decay}')
+    title = (f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, '
+             f'optimizer={args.optimizer}, lr={args.lr}, weight decay={args.weight_decay}')
     return title if args.file == None else title + name
 
 
@@ -271,7 +274,7 @@ def evaluate(model, loader):
     return model.get_loss_and_accuracy(outputs)
 
 
-def fit(epoch, n_steps, model, train_loader, val_loader, optimizer = None, logger=None):
+def fit(epoch, n_steps, model, train_loader, val_loader, optimizer=None, logger=None):
     '''
     Fit parameters to training data
     '''
@@ -285,7 +288,7 @@ def fit(epoch, n_steps, model, train_loader, val_loader, optimizer = None, logge
             optimizer.zero_grad()
 
         result = evaluate(model, val_loader)
-        model.log_loss_and_accuracy(n_steps*epoch + i, result, logger=logger)
+        model.log_loss_and_accuracy(n_steps * epoch + i, result, logger=logger)
         history.append(result)
     return (history)
 
@@ -298,8 +301,22 @@ def killed(killfile='kill.txt'):
     killed = killfile_path.is_file()
     if killed:
         print(f'{killfile} detected')
-        remove(killfile)
+        killfile_path.unlink()
     return killed
+
+
+def ensure_we_can_save(checkpoint_file_name):
+    '''
+    If there is already a checkpoint file, we need to make it
+    into a backup. But if there is already a backup, delete it first
+    '''
+    checkpoint_path = Path(checkpoint_file_name + '.pth')
+    if not checkpoint_path.is_file():
+        return
+    checkpoint_path_bak = Path(checkpoint_file_name + '.bak')
+    if checkpoint_path_bak.is_file():
+        checkpoint_path_bak.unlink()
+    checkpoint_path.rename(checkpoint_path_bak)
 
 
 if __name__ == '__main__':
@@ -317,15 +334,18 @@ if __name__ == '__main__':
     match args.action:
         case 'train':
             with Logger(join(args.logfiles, create_short_name(args))) as logger:
-                optimizer = OptimizerFactory.create(model,args)
+                optimizer = OptimizerFactory.create(model, args)
                 dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
                 train_data, validation_data = random_split(dataset, [50000, 10000])
                 train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
                 val_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
                 history = [evaluate(model, val_loader)]
                 for i in range(args.N):
-                    history += fit(i, args.steps,  model, train_loader, val_loader,
-                                   optimizer=optimizer,logger=logger)
+                    history += fit(i, args.steps, model, train_loader, val_loader,
+                                   optimizer=optimizer, logger=logger)
+                    checkpoint_file_name = join(args.params, create_short_name(args, checkpoint=True))
+                    ensure_we_can_save(checkpoint_file_name)
+                    model.save( checkpoint_file_name)
                     if killed():
                         break
                 accuracies = [result['val_acc'] for result in history]
