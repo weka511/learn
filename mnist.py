@@ -186,7 +186,6 @@ class Logger(object):
     '''
     This class records text in a logfile
     '''
-
     def __init__(self, name):
         self.name = name + '.log'
         self.file = None
@@ -223,6 +222,7 @@ def parse_args(factory):
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
     training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.choices[0],
                                 help='Optimizer to be used for training')
+    training_group.add_argument('--restart', default=None, help = 'Restart from saved parameters')
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None)
@@ -334,6 +334,9 @@ if __name__ == '__main__':
     match args.action:
         case 'train':
             with Logger(join(args.logfiles, create_short_name(args))) as logger:
+                if args.restart:
+                    model.load(args.restart)
+                    print (f'Reloaded parameters from {args.restart}')
                 optimizer = OptimizerFactory.create(model, args)
                 dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
                 train_data, validation_data = random_split(dataset, [50000, 10000])
