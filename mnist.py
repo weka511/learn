@@ -334,7 +334,7 @@ def get_seed(seed):
     if seed != None: return seed
     rng = np.random.default_rng()
     max_int64_value = np.iinfo(np.int64).max
-    new_seed = int(rng.integers(max_int64_value))
+    new_seed = rng.integers(max_int64_value)
     print (f'Created new seed {new_seed}')
     return new_seed
 
