@@ -60,6 +60,15 @@ def generate_logfile_names(files, logfiles='./logfiles', mustglob=False):
         for name in files:
             yield name, Path(name).stem
 
+def generate_linestyles():
+    '''
+    Ensure that plots use several line styles
+    '''
+    linestyles = ['solid', 'dashed', 'dotted', 'dashdot']
+    i = 0
+    while True:
+        yield linestyles[i % len(linestyles)]
+        i += 1
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -74,6 +83,7 @@ if __name__ == '__main__':
     input_pattern = compile(r'Step: ([0-9]+), val_loss: ([\.0-9]+), val_acc: ([\.0-9]+)')
 
     colour = generate_xkcd_colours()
+    linestyle = generate_linestyles()
     for name, short_name in generate_logfile_names(args.files, logfiles=args.logfiles, mustglob=args.glob):
         steps = []
         losses = []
@@ -82,21 +92,23 @@ if __name__ == '__main__':
             for line in input:
                 matched = input_pattern.match(line.strip())
                 step = int(matched.group(1))
-                if step < args.skip: continue
+                if step < args.skip:
+                    continue
                 steps.append(step)
                 losses.append(float(matched.group(2)))
                 accuracy.append(float(matched.group(3)))
 
         c = next(colour)
-        ax1.scatter(steps, losses, label=short_name, s=5, c=c)
-        ax2.scatter(steps, accuracy, label=short_name, s=5, c=c)
+        ls = next(linestyle)
+        ax1.plot(steps, losses, label=short_name, c=c, linestyle=ls)
+        ax2.plot(steps, accuracy, label=short_name, c=c, linestyle=ls)
 
     ax1.legend()
     ax1.set_title('Losses')
     ax2.legend()
     ax2.set_title('Accuracy')
 
-    skipping = '' if args.skip==0 else f', skipping first {args.skip} entries'
+    skipping = '' if args.skip == 0 else f', skipping first {args.skip} entries'
     fig.suptitle(f'{Path(__file__).stem.title()}{skipping}')
     fig.tight_layout(pad=3, h_pad=4, w_pad=3)
     fig.savefig(join(args.figs, Path(__file__).stem))
