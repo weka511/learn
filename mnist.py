@@ -225,8 +225,9 @@ def parse_args(factory):
     training_group.add_argument('--restart', default=None, help = 'Restart from saved parameters')
 
     test_group = parser.add_argument_group('Parameters for --action test')
-    test_group.add_argument('--file', default=None, help='Used to lead weights')
-    test_group.add_argument('--n', default=12, type=int, help='Number of images for test')
+    test_group.add_argument('--file', default=None, help='Used to load weights')
+    test_group.add_argument('--rows', default=6, type=int, help='Number of rows of images to display')
+    test_group.add_argument('--cols', default=12, type=int, help='Number of columns of images to display')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data', help='Location of data files')
@@ -411,25 +412,19 @@ if __name__ == '__main__':
         case 'test':
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             model.load(args.file)
-            selection = rng.integers(len(dataset), size=args.n)
-            n_cols = 4
-            n_rows = args.n // n_cols
-            while n_rows * n_cols < args.n:
-                n_rows += 1
+            test_loader = DataLoader(dataset, batch_size=256)
+            score = evaluate(model, test_loader)
 
-            for pos, img, label, prediction in generate_mismatches(dataset,args.n,rng=rng):
-                ax = fig.add_subplot(n_rows, n_cols, pos)
+            for pos, img, label, prediction in generate_mismatches(dataset,args.rows*args.cols,rng=rng):
+                ax = fig.add_subplot(args.rows, args.cols, pos)
                 ax.imshow(img[0], cmap='gray')
-                ax.set_title(f'Label: {label}, Predicted: {model.predict(img)}')
+                ax.set_title(f'{label}[{model.predict(img)}]')
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
 
-            fig.suptitle(name_factory.create_long_name(), fontsize=12)
+            fig.suptitle(f'Testing {args.file}:  Loss = {score["val_loss"]:.4}, Accuracy = {score["val_acc"]:.4}', fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
-
-            test_loader = DataLoader(dataset, batch_size=256)
-            print(evaluate(model, test_loader))
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
