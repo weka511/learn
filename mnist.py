@@ -238,22 +238,22 @@ def parse_args(factory):
     return parser.parse_args()
 
 
-def create_short_name(args, checkpoint=False):
+def create_short_name(args, seed, checkpoint=False):
     '''
     Used as the stem for file names
     '''
-    seed = '' if args.seed == None else f'-{args.seed}'
+    seed_text = '' if seed == None else f'-{seed}'
     action = args.action if checkpoint == False else 'checkpoint'
-    name = f'{args.model}-{action}-{args.N}-{args.batch_size}{seed}-{args.optimizer}-{args.lr}-{args.weight_decay}'
+    name = f'{args.model}-{action}-{args.N}-{args.batch_size}{seed_text}-{args.optimizer}-{args.lr}-{args.weight_decay}'
     return name.replace('.', '_')
 
 
-def create_long_name(args):
+def create_long_name(args,seed):
     '''
     Used for titles
     '''
-    seed = '' if args.seed == None else f', seed={args.seed}'
-    title = (f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed}, '
+    seed_text = '' if seed == None else f', seed={seed}'
+    title = (f'Model={args.model}: {args.action}, N={args.N}, batch_size={args.batch_size}{seed_text}, '
              f'optimizer={args.optimizer}, lr={args.lr}, weight decay={args.weight_decay}')
     return title if args.file == None else title + name
 
@@ -318,6 +318,16 @@ def ensure_we_can_save(checkpoint_file_name):
         checkpoint_path_bak.unlink()
     checkpoint_path.rename(checkpoint_path_bak)
 
+def get_seed(seed):
+    '''
+    Used to generate a new seed if none specified
+    '''
+    if seed != None: return seed
+    rng = np.random.default_rng()
+    max_int64_value = np.iinfo(np.int64).max
+    new_seed = int(rng.integers(max_int64_value))
+    print (f'Created new seed {new_seed}')
+    return new_seed
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -329,11 +339,12 @@ if __name__ == '__main__':
 
     start = time()
     args = parse_args(factory)
+    seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
     model = ModelFactory.create(args.model)
     match args.action:
         case 'train':
-            with Logger(join(args.logfiles, create_short_name(args))) as logger:
+            with Logger(join(args.logfiles, create_short_name(args,seed))) as logger:
                 if args.restart:
                     model.load(args.restart)
                     print (f'Reloaded parameters from {args.restart}')
@@ -346,14 +357,14 @@ if __name__ == '__main__':
                 for i in range(args.N):
                     history += fit(i, args.steps, model, train_loader, val_loader,
                                    optimizer=optimizer, logger=logger)
-                    checkpoint_file_name = join(args.params, create_short_name(args, checkpoint=True))
+                    checkpoint_file_name = join(args.params, create_short_name(args, seed,checkpoint=True))
                     ensure_we_can_save(checkpoint_file_name)
                     model.save( checkpoint_file_name)
                     if killed():
                         break
                 accuracies = [result['val_acc'] for result in history]
                 losses = [result['val_loss'] for result in history]
-                model.save(join(args.params, create_short_name(args)))
+                model.save(join(args.params, create_short_name(args,seed)))
 
                 ax = fig.add_subplot(1, 1, 1)
                 ax.plot(accuracies, '-x', label='Accuracy')
@@ -361,9 +372,9 @@ if __name__ == '__main__':
                 ax.legend()
                 ax.set_xlabel('epoch')
                 ax.set_title('Accuracy Vs. No. of epochs')
-                fig.suptitle(create_long_name(args), fontsize=12)
+                fig.suptitle(create_long_name(args,seed), fontsize=12)
                 fig.tight_layout(pad=3, h_pad=4, w_pad=3)
-                fig.savefig(join(args.figs, create_short_name(args)))
+                fig.savefig(join(args.figs, create_short_name(args,seed)))
 
         case 'test':
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
