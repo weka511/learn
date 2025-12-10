@@ -236,7 +236,7 @@ class Logger(object):
         self.file.flush()
 
 
-def parse_args(factory):
+def parse_args():
     parser = ArgumentParser(description=__doc__)
     parser.add_argument('--action', choices=['train', 'test'], default='train', help='Chooses between training or testint')
 
@@ -396,11 +396,9 @@ if __name__ == '__main__':
                   'serif': ['Palatino'],
                   'size': 8})
     rc('text', usetex=True)
-    factory = ModelFactory()
     fig = figure(figsize=(12, 12))
-
     start = time()
-    args = parse_args(factory)
+    args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
     model = ModelFactory.create(args.model)
@@ -452,7 +450,8 @@ if __name__ == '__main__':
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
 
-            fig.suptitle(f'Testing {args.file}:  Loss = {score["val_loss"]:.4}, Accuracy = {100*score["val_acc"]:.2}%', fontsize=12)
+            fig.suptitle(f'Testing {args.file}: Loss = {score["val_loss"]:.4}, Accuracy = {100*score["val_acc"]:.2}%',
+                         fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
 
