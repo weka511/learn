@@ -203,6 +203,10 @@ class OptimizerFactory:
     ]
 
     @staticmethod
+    def get_default():
+        return OptimizerFactory.choices[1]
+
+    @staticmethod
     def create(model, args):
         match args.optimizer:
             case 'SGD':
@@ -249,7 +253,7 @@ def parse_args():
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
-    training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.choices[0],
+    training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                                 help='Optimizer to be used for training')
     training_group.add_argument('--restart', default=None, help = 'Restart from saved parameters')
 
