@@ -155,7 +155,6 @@ class CNN(MnistModel):
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
-        #x = F.dropout(x, p=0.5, training=self.training)
         x = F.relu(F.max_pool2d(self.conv2(x), 2))
         x = F.dropout(x, p=0.5, training=self.training)
         x = F.relu(F.max_pool2d(self.conv3(x),2))
@@ -389,6 +388,7 @@ def generate_mismatches(dataset,n,rng = np.random.default_rng()):
             img, label = dataset[k]
             prediction = model.predict(img)
             j += 1
+
         yield i+1, img, label, prediction
 
 if __name__ == '__main__':
@@ -448,11 +448,11 @@ if __name__ == '__main__':
             for pos, img, label, prediction in generate_mismatches(dataset,args.rows*args.cols,rng=rng):
                 ax = fig.add_subplot(args.rows, args.cols, pos)
                 ax.imshow(img[0], cmap='gray')
-                ax.set_title(f'{label}[{model.predict(img)}]')
+                ax.set_title(f'{label}[{prediction}]')
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
 
-            fig.suptitle(f'Testing {args.file}:  Loss = {score["val_loss"]:.4}, Accuracy = {score["val_acc"]:.4}', fontsize=12)
+            fig.suptitle(f'Testing {args.file}:  Loss = {score["val_loss"]:.4}, Accuracy = {100*score["val_acc"]:.2}%', fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
 
