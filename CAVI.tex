@@ -1,4 +1,4 @@
-%    Copyright (C) 2020-2024 Greenweaves Software Limited
+%    Copyright (C) 2020-2025 Greenweaves Software Limited
 
 %   This program is free software: you can redistribute it and/or modify
 %   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 \documentclass[]{article}
 
 \usepackage{amsmath}
+\allowdisplaybreaks
 \usepackage{amssymb}
 \usepackage{amsfonts}
 \usepackage{amsthm}
@@ -27,10 +28,10 @@
 \usepackage[toc,page]{appendix}
 \usepackage[toc,acronym,nonumberlist]{glossaries}
 
-\newcommand{\ELBO[1]}        {\mathscr{L}}
+\newcommand{\ELBO[1]} {\mathscr{L}}
 \newcommand{\Expectation} {\mathbb{E}}
 \newcommand{\KLD}[2]{D_{\mathrm{KL}} \left( \left. \left. #1 \right|\right| #2 \right) }
-\newcommand\numberthis    {\addtocounter{equation}{1}\tag{\theequation}}
+\newcommand\numberthis {\addtocounter{equation}{1}\tag{\theequation}}
 
 \newtheorem{thm}{Theorem}
 \newtheorem{defn}[thm]{Definition}
@@ -50,13 +51,12 @@
 
 \newglossaryentry{gls:ELBOterm}{
 	name={Evidence Lower Bound},
-	description={Evidence Lower Bound \eqref{eq:ELBO}, a lower bound on the probability of observing some data under a model},
-	symbol={$\ELBO$}
+	description={$\ELBO$--\eqref{eq:ELBO}}-- provides a lower bound on the probability of observing some data under a model
 }
 
 \newglossaryentry{gls:KL}{
 	name={Kullback-Leibler Divergence},
-	description={The Kullback-Leibler Divergence--\eqref{eq:kl}--between two probability distributions $\KLD{q(z)}{p(z)}$ measures the information lost by representing $p(x)$ by $q(x)$}
+	description={$\KLD{q(z)}{p(z)}$--\eqref{eq:kl}--measures the information lost by representing the true probability distribution $p(x)$ by $q(x)$}
 }
 
 \begin{document}
@@ -75,7 +75,7 @@
 
 \section{Kullback-Leibler divergence}\label{sect:kl}
 
-Following \cite{blei2017variational} we define the \gls{gls:KL}, and derive Theorem \ref{thm:kl:ge}, which will be used in the sequel. \glsdesc{gls:KL}.
+Following \cite{blei2017variational} I define the \gls{gls:KL}, and derive Theorem \ref{thm:kl:ge}, which will be used in the sequel. \glsdesc{gls:KL}.
 	
 \begin{defn}[Kullback-Leibler divergence]
 	\begin{align*}
@@ -84,7 +84,7 @@ Following \cite{blei2017variational} we define the \gls{gls:KL}, and derive Theo
 \end{defn}
 
 \begin{defn}[Convex function]
-	Let $f$ be a real valued function defined on [a,b]. $f$ is said to be convex iff $\forall x_1,x_2 \in [a,b]$ and $\forall \lambda \in [0,1]$
+	A real valued function defined on [a,b], $f$, is said to be convex iff $\forall x_1,x_2 \in [a,b]$ and $\forall \lambda \in [0,1]$
 	\begin{align*}
 		f(\lambda x_1 + (1-\lambda) x_2) \le \lambda f(x_1) + (1-\lambda)f(x_2) \numberthis \label{eq:convex}
 	\end{align*}
@@ -95,14 +95,14 @@ Following \cite{blei2017variational} we define the \gls{gls:KL}, and derive Theo
 \end{lemma}
 
 \begin{lemma}[Jensen's inequality]\label{lemma:jensen}
-	\cite{rudin1966real}Let $f$ be a convex function defined on I. If $x_i \in I$ and $\lambda_i \ge 0$ and $\sum_{i=1}^{N} \lambda_i=1$. Then, for any $N>0$
+	Let $f$ be a convex function defined in some interval $I$. If $x_i \in I$ and $\lambda_i \ge 0$ and $\sum_{i=1}^{N} \lambda_i=1$. Then, for any $N>0$
 	\begin{align*}
 		f\big(\sum_{i=1}^{N} \lambda_i x_i\big) \le \sum_{i=1}^{N} \lambda_i f(x_i) \numberthis \label{eq:jensen}
 	\end{align*}
 \end{lemma}
 
 \begin{proof}
-	If $N=1$ the result is trivial, and for $N=2$ \eqref{eq:jensen} follows from \eqref{eq:convex}. We therefore assume that the result is true for some $N\ge2$, and seek to prove that it is true for $N+1$.
+	If $N=1$ the result is trivial, and if $N=2$, \eqref{eq:jensen} follows from \eqref{eq:convex}. We therefore assume that the result is true for some $N\ge2$, and seek to prove that it is true for $N+1$.
 	\begin{align*}
 		\sum_{i=1}^{N+1}\lambda_i f(x_i) =& \sum_{i=1}^{N}\lambda_i f(x_i) + \lambda_{N+1} f(x_{N+1})\\
 		=& \lambda \sum_{i=1}^{N}\lambda^\prime_i f(x_i) + (1-\lambda) f(x_{N+1}) \text{, where}\\
@@ -113,9 +113,9 @@ Following \cite{blei2017variational} we define the \gls{gls:KL}, and derive Theo
 	\begin{align*}
 		\sum_{i=1}^{N+1}\lambda_i f(x_i) =& \lambda \sum_{i=1}^{N}\lambda^\prime_i f(x_i) + (1-\lambda) f(x_{N+1}) \\
 		\ge& \lambda f\big(\sum_{i=1}^{N} \lambda^{\prime}_i x_i\big) + (1-\lambda) f(x_{N+1}) \text{, from \eqref{eq:convex}}\\
-		\ge & f\big(\lambda \sum_{i=1}^{N} \lambda^{\prime}_i x_i + (1-\lambda) x_{N+1}\big) \text{, using \eqref{eq:jensen} as the induction hypothesis} \numberthis \label{eq:jensen:iteration}
+		\ge & f\big(\lambda \sum_{i=1}^{N} \lambda^{\prime}_i x_i + (1-\lambda) x_{N+1}\big) \text{, by the induction hypothesis}. \numberthis \label{eq:jensen:iteration}
 	\end{align*} 
-	But
+	Now
 	\begin{align*}
 		\lambda \sum_{i=1}^{N} \lambda^{\prime}_i x_i + (1-\lambda) x_{N+1} =& \sum_{i=1}^{N} \lambda_i x_i + \lambda_{N+1}x_{N+1} \\
 		=& \sum_{i=1}^{N+1} \lambda_i x_i
@@ -133,8 +133,9 @@ Following \cite{blei2017variational} we define the \gls{gls:KL}, and derive Theo
 	\end{align*}
 \end{thm}
 \begin{proof}
+	From \text{\eqref{eq:kl}}
 	\begin{align*}
-		\text{\eqref{eq:kl}}\implies\KLD{q(z)}{p(z)} = & \Expectation_q(\log{\frac{q(z)}{p(z)}})\\
+		\KLD{q(z)}{p(z)} = & \Expectation_q(\log{\frac{q(z)}{p(z)}})\\
         = & \Expectation_q(-\log{\frac{p(z)}{q(z)}})
 	\end{align*}
 	Using Lemma \ref{lemma:convex} and the fact that $\frac{d^2\big(-\log{x}\big)}{dx^2}=\frac{1}{x^2}>0$, we see that $-\log(x)$ is convex. We can therefore apply Jensen's inequality--Lemma \ref{lemma:jensen}.
@@ -155,14 +156,14 @@ Following \cite{blei2017variational} we define the \gls{gls:KL}, and derive Theo
 
 \begin{table}[H]
 	\begin{center}
-		\caption{Notation used in this document}\label{table:notation}
+		\caption[Notation used in this document]{Notation used in this document. Note that the true probabilities, $p$ and $\mathcal{P}$, are hidden, so we will need to model them using $q$ and $\mathcal{Q}$.}\label{table:notation}
 		\begin{tabular}{|l|p{12cm}|}\hline
 			Symbol & Meaning \\ \hline
 			$C$&Any additive constant arising during the calculation of $\ELBO$. It can always be discarded, since we are interested in the values of parameters that maximize $\ELBO$, not the value of $\ELBO$. In some places I have used $C^\prime$, $C^{\prime\prime}$, etc, to indicate different additive constants.\\ \hline
 			$\sim$ & We write $a\sim b$ iff $a-b$ is independent of the latent variables $\vec{z}$.\\ \hline
 			$\Expectation_q$& Expectation using distribution $q$ \\ \hline
 			\glssymbol{gls:ELBOterm}&\glsdesc{gls:ELBOterm}\\ \hline
-			$p(\vec{z},\vec{x})$ &Joint density of Observations, $\vec{x}$ and latent variables $\vec{z}$\\ \hline
+			$p(\vec{z},\vec{x})$ &Joint density of Observations, $\vec{x}$ and latent variables $\vec{z}$.\\ \hline
 			$\mathcal{P}$&Family of distributions for $p(\vec{z},\vec{x})$\\ \hline
 			$K$&Number of Gaussians in \gls{gls:GMM}--dimension of $\vec{z}$\\ \hline
 			$n$&Number of observations--dimension of $\vec{x}$\\ \hline
@@ -185,28 +186,27 @@ The evidence is:
 \begin{align*}
 		p(z) =& \int p(x\mid z) p(z) dz
 \end{align*}
-Since, as \cite{blei2017variational} notes, this is generally intractable, we will use the \gls{gls:KL} to derive a bound.
+Since this is generally intractable\cite{blei2017variational}, we will use the \gls{gls:KL} to derive a bound.
 \begin{align*}
 \KLD{q(z)}{p(z\mid x)} \triangleq& \Expectation_q(\log{q(z)})-\Expectation_q(\log{p(z\mid x)}) \\
 	=& \Expectation_q(\log{q(z)})- \Expectation_q(\log{p(z, x)}) + \Expectation_q(\log{p(x)}) \text{, rearranging}\\
 	\Expectation_q(\log{p(x)})=&\KLD{q(z)}{p(z\mid x)}+\Expectation_q(\log{p(z, x)})-\Expectation_q(\log{q(z)})\\
 	=& \KLD{q(z)}{p(z\mid x)} + \ELBO{(q(z))} \numberthis \label{eq:ELBO:KL}
 \end{align*}
-Where  we  follow \cite[Equation (13)]{blei2017variational} and define the \gls{gls:ELBO} $\ELBO$ as:
+Where $\ELBO$ is defined to be:
 \begin{align*}
 	\ELBO{(q)} \triangleq& \Expectation_q\big[\log{p(z,x)}\big] - \Expectation_q\big[\log{q(x)}\big]  \numberthis \label{eq:ELBO}
 \end{align*}
+See \cite[Equation (13)]{blei2017variational}.
 From Theorem \ref{thm:kl:ge}, $\KLD{q(z)}{p(z\mid x)}\ge0$, so \eqref{eq:ELBO:KL} gives:
 \begin{align*}
 	\Expectation_q(\log{p(x)})\ge\ELBO[q]
 \end{align*}
+This explains the name \glsdesc{gls:ELBO}.
 \gls{gls:VI} aims to find a $q\in\mathcal{Q}$ that matches $p$ as well as $\mathcal{Q}$ permits, by maximizing $\ELBO$.
 
 \section{Coordinate Ascent Variational Inference}\label{sect:cavi}
-I will derive the \gls{gls:ELBO} for \gls{gls:CAVI}. From \eqref{eq:ELBO}
-\begin{align*}
-	\ELBO{(q)} =& \Expectation_q\big[\log{p(\vec{z},\vec{x})}\big] - \Expectation_q\big[\log{q(\vec{x})}\big]  
-\end{align*}
+I will derive the \gls{gls:ELBO} for \gls{gls:CAVI}.
 
 For a \gls{gls:GMM}--from \cite[Equations (7) \& (16)]{blei2017variational} with $K$ Gaussians and a sample size $n$:
 \begin{align*}
@@ -233,7 +233,26 @@ I shall expand these terms separately in equations  (\ref{eq:ELBO:1}), (\ref{eq:
 	\end{align*}
 \end{lemma}
 \begin{proof}
-	See \cite[Equation (5.7.5)]{fisz1963probability}. Note that \eqref{eq:lemma:2} is immediate, since the integrand is odd, and \eqref{eq:lemma:3} can be deduced by differentiating \eqref{eq:lemma:1}.
+	\begin{align*}
+		\int_{-\infty}^{\infty} \exp{[-x^2]} d x 	\int_{-\infty}^{\infty} \exp{[-y^2]} d y=&\int_{x=-\infty}^{\infty} \int_{y=-\infty}^{\infty} \exp{\bigg[-(x^2+y^2)\bigg]} d x d y\\
+		=&\int_{r=0}^{\infty} \int_{\theta=0}^{2\pi} exp{(-r^2}) r dr d\theta\\
+		=&\int_{r=0}^{\infty}  exp{[-r^2]} r dr \int_{\theta=0}^{2\pi} d\theta\\
+		=&\int_{r=0}^{\infty}  exp{[-r^2]} r dr 2\pi\\
+		=&\frac{\cancel{2}\pi}{\cancel{2}}\int_{R=0}^{\infty}  exp{[-R]} dR \\
+		=&\pi
+	\end{align*}
+	Substituting $x=\frac{\mu}{\sqrt{2}\sigma}$
+	\begin{align*}
+		\frac{1}{\sigma\sqrt{2\pi}} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} d \mu =& \frac{1}{\sqrt{\pi}} \int_{-\infty}^{\infty} \exp{[-x^2]} d x\\
+		=&\frac{\cancel{\pi}}{\cancel{\pi}}
+	\end{align*}	
+	 Which reduces to \eqref{eq:lemma:1}. Note that \eqref{eq:lemma:2} is immediate, since the integrand is odd, and \eqref{eq:lemma:3} can be deduced by rearranging \eqref{eq:lemma:1} and differentiating w.r.t. $\sigma$.
+
+	\begin{align*}
+		\frac{d}{d\sigma} \int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} d \mu =& \frac{d}{d\sigma} \sigma\sqrt{2\pi}\\
+		\int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} \frac{\cancel{(-2)}\mu^2}{\cancel{(-2)}\sigma^3} d \mu =& \sqrt{2\pi}\\
+		\int_{-\infty}^{\infty} \exp{\bigg[-\frac{\mu^2}{2 \sigma^2}\bigg]} d \mu =&\sqrt{2\pi} \sigma^3 \text{, which rearranges to \eqref{eq:lemma:3}.}
+	\end{align*}
 \end{proof}
 From (\ref{eq:gmm_q}) and (\ref{eq:gmm_p})
 \begin{align*}
