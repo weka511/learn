@@ -137,6 +137,7 @@ ENV/
 
 figs
 data
+params
 
 # pytorch stuff
 *.pth
