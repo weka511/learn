@@ -346,16 +346,19 @@ def fit(epoch, n_steps, model, train_loader, val_loader, optimizer=None, logger=
     return (history)
 
 
-def killed(killfile='kill.txt'):
+def user_has_requested_stop(stopfile='stop'):
     '''
-    Used to verify that there is a killfile, so the program can shut down gracefully
+    Used to verify that there is a stopfile, so the program can shut down gracefully
+
+    Parameters:
+        stopfile    Name of file used as token to stop program
     '''
-    killfile_path = Path(killfile)
-    killed = killfile_path.is_file()
-    if killed:
-        print(f'{killfile} detected')
-        killfile_path.unlink()
-    return killed
+    stop_path = Path(stopfile)
+    stopfile_detected = stop_path.is_file()
+    if stopfile_detected:
+        print(f'{stopfile} detected')
+        stop_path.unlink()
+    return stopfile_detected
 
 
 def ensure_we_can_save(checkpoint_file_name):
@@ -435,7 +438,7 @@ if __name__ == '__main__':
                     checkpoint_file_name = join(args.params, name_factory.create_short_name(checkpoint=True))
                     ensure_we_can_save(checkpoint_file_name)
                     model.save( checkpoint_file_name)
-                    if killed():
+                    if user_has_requested_stop():
                         break
                 accuracies = [result['val_acc'] for result in history]
                 losses = [result['val_loss'] for result in history]
