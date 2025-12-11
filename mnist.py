@@ -185,6 +185,12 @@ class ModelFactory:
             case CNN.name:
                 return CNN()
 
+    @staticmethod
+    def create_from_file_name(name):
+        for choice in ModelFactory.choices:
+            if name.find(choice) > -1:
+                return ModelFactory.create(choice)
+
 
 class OptimizerFactory:
     '''
@@ -418,14 +424,16 @@ if __name__ == '__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
-    model = ModelFactory.create(args.model)
     name_factory = NameFactory(args,seed)
     match args.action:
         case 'train':
             with Logger(join(args.logfiles, name_factory.create_short_name())) as logger:
                 if args.restart:
+                    model = ModelFactory.create_from_file_name(args.restart)
                     model.load(args.restart)
                     print (f'Reloaded parameters from {args.restart}')
+                else:
+                    model = ModelFactory.create(args.model)
                 optimizer = OptimizerFactory.create(model, args)
                 dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
                 train_data, validation_data = random_split(dataset, [50000, 10000])
@@ -456,6 +464,7 @@ if __name__ == '__main__':
 
         case 'test':
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+            model = ModelFactory.create_from_file_name(args.file)
             model.load(args.file)
             test_loader = DataLoader(dataset, batch_size=256)
             score = evaluate(model, test_loader)
@@ -467,7 +476,7 @@ if __name__ == '__main__':
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
 
-            fig.suptitle(f'Testing {args.file}: Loss = {score["val_loss"]:.4}, Accuracy = {100*score["val_acc"]:.2}%',
+            fig.suptitle(f'Testing {args.file}: Loss = {score["val_loss"]:.4}, Accuracy = {100*score["val_acc"]:.2f}\%',
                          fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
