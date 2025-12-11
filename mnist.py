@@ -77,12 +77,6 @@ class MnistModel(nn.Module, ABC):
         epoch_acc = torch.stack(batch_accs).mean()
         return ({'val_loss': epoch_loss.item(), 'val_acc': epoch_acc.item()})
 
-    def log_loss_and_accuracy(self, step, result, logger=None):
-        '''
-        Used while training to record loss and accuracy
-        '''
-        logger.log(f'Step: {step}, val_loss: {result['val_loss']:.4f}, val_acc: {result['val_acc']:.4f}')
-
     def save(self, name):
         '''
         Used to save weights
@@ -304,6 +298,10 @@ class NameFactory:
 def accuracy(outputs, labels):
     '''
     Calculate accuracy, i.e. how frequently prediction matches labels
+
+    Parameters:
+        outputs
+        labels
     '''
     _, preds = torch.max(outputs, dim=1)
     return (torch.tensor(torch.sum(preds == labels).item() / len(preds)))
@@ -312,14 +310,26 @@ def accuracy(outputs, labels):
 def evaluate(model, loader):
     '''
     Used to evaluate goodness of fit
+
+    Parameters:
+        model
+        loader
     '''
     outputs = [model.validation_step(batch) for batch in loader]
     return model.get_loss_and_accuracy(outputs)
 
-
 def fit(epoch, n_steps, model, train_loader, val_loader, optimizer=None, logger=None):
     '''
     Fit parameters to training data
+
+    Parameters:
+        epoch
+        n_steps
+        model
+        train_loader
+        val_loader
+        optimizer
+        logger
     '''
     history = []
 
@@ -331,7 +341,7 @@ def fit(epoch, n_steps, model, train_loader, val_loader, optimizer=None, logger=
             optimizer.zero_grad()
 
         result = evaluate(model, val_loader)
-        model.log_loss_and_accuracy(n_steps * epoch + i, result, logger=logger)
+        logger.log(f'Step: {n_steps * epoch + i}, val_loss: {result['val_loss']:.4f}, val_acc: {result['val_acc']:.4f}')
         history.append(result)
     return (history)
 
