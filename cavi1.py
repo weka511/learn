@@ -36,12 +36,18 @@ from em import maximize_likelihood
 def cavi(xs, N=25, atol=1e-6, rng=np.random.default_rng()):
     '''
     Perform Coordinate Ascent Mean-Field Variational Inference
+
+    Parameters:
+        xs
+        N
+        atol
+        rng
     '''
 
     def calcELBO():
         '''Calculate ELBO following Blei et al, equation (21)'''
-        log_p_x = -(0.5 / sigma) * sum([(x - mu)**2 for x in xs])
-        log_p_mu = -(0.5 / sigma) * sum([(x - mu_0)**2 for x in xs])
+        log_p_x = -(0.5 / sigma) * np.sum((xs - mu)**2)
+        log_p_mu = -(0.5 / sigma) * np.sum((xs - mu_0)**2)
         log_p_sigma = (-alpha_0 - 1) * np.log(sigma) - beta_0 / sigma
         log_q_mu = -(0.5 / sigma) * (1 / (len(xs) + 1)) * (mu - mu_n) ** 2
         log_q_sigma = (alpha_n - 1) * np.log(sigma) - beta_n / sigma
@@ -68,7 +74,7 @@ def cavi(xs, N=25, atol=1e-6, rng=np.random.default_rng()):
         mu_n = (ndata * x_bar + mu_0) / (ndata + 1)
         mu = mu_n
         alpha_n = alpha_0 + (ndata + 1) / 2
-        beta_n = (beta_0 + 0.5 * sum(x**2 for x in xs) - x_bar * sum(xs)
+        beta_n = (beta_0 + 0.5 * np.sum(xs**2) - x_bar * np.sum(xs)
                   + ((ndata + 1) / 2) * (sigma / ndata + x_bar**2) - mu_0 * x_bar + 0.5 * mu_0**2)
         sigma = np.sqrt((beta_n - 1) / alpha_n)
         ELBOs.append(calcELBO())
@@ -78,21 +84,25 @@ def cavi(xs, N=25, atol=1e-6, rng=np.random.default_rng()):
 
 
 def plot_data(xs, mu, sigma, mus_em, sigmas_em, ax=None):
-    def normalize(ys):
-        factor = max(n) / max(ys)
-        return [factor * y for y in ys]
+    def normalize(ys,y_scale):
+        '''
+        Used to plot data using the same scale as some other dataset
 
-    n, bins, _ = ax.hist(xs, bins=50,
-                         label=fr'1: Data $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',
-                         color='b')
-    bins_mid = [0.5 * (bins[i - 1] + bins[i]) for i in range(1, len(bins))]
-    ax.plot(bins_mid, normalize([norm.pdf(x, loc=mu, scale=sigma) for x in bins_mid]),
-            color='c',
-            label=fr'2: CAVI $\mu=${mu:.3f}, $\sigma=${sigma:.3f}')
+        Parameters:
+            ys          Data to be normalized
+            y_other     The data that sets the scale
+        '''
+        return (max(y_scale) / ys.max())*ys
+
+    n, bins, _ = ax.hist(xs, bins=50,color='b',label=fr'1: Data $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}')
+
+    midpoints = 0.5 * (bins[:-1] + bins[1:])
+    ax.plot(midpoints, normalize(norm.pdf(midpoints, loc=mu, scale=sigma),n),
+            color='c',label=fr'2: CAVI $\mu=${mu:.3f}, $\sigma=${sigma:.3f}')
+
     if len(mus_em) > 0:
-        ax.plot(bins_mid, normalize([norm.pdf(x, loc=mus_em[0], scale=sigmas_em[0]) for x in bins_mid]),
-                color='m',
-                label=fr'3: EM $\mu$={mus_em[0]:.3f}, $\sigma=${sigmas_em[0]:.3f}')
+        ax.plot(midpoints, normalize(norm.pdf(midpoints, loc=mus_em[0], scale=sigmas_em[0]),n),
+                color='m',label=fr'3: EM $\mu$={mus_em[0]:.3f}, $\sigma=${sigmas_em[0]:.3f}')
     ax.set_title('Data compared to CAVI and EM')
 
     # sort both labels and handles by labels
@@ -126,12 +136,9 @@ if __name__ == '__main__':
     })
 
     args = parse_args()
-
     rng = np.random.default_rng(args.seed)
     start = time()
-    xs = rng.normal(loc=args.mean,
-                    scale=args.sigma,
-                    size=args.N)
+    xs = rng.normal(loc=args.mean, scale=args.sigma, size=args.N)
     mu, sigma, ELBOs = cavi(xs, atol=1e-6, rng=rng)
     time_cavi = time()
     if args.em:
