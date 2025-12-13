@@ -22,12 +22,13 @@
 from re import split
 
 
-def generate_xkcd_colours(file_name='rgb.txt', filter=lambda R, G, B: True):
+def generate_xkcd_colours(file_name='bgr.txt', filter=lambda R, G, B: True):
     '''
-        Create list of XKCD colours
+        Generate XKCD colours.
 
         Keyword Parameters:
-            file_name Where XKCD colours live
+            file_name Where XKCD colours live. The default organizes colours so
+                      most easily distinguished ones come first.
             filter    Allows us to exclude some colours based on RGB values
     '''
     with open(file_name) as colours:

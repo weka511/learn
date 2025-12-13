@@ -148,11 +148,11 @@ if __name__ == '__main__':
     for i in range(args.M):
         try:
             solution = cavi.infer_hidden_parameters(x,
-                                                    max_iterations=args.N,
-                                                    atol=args.tol,
-                                                    min_iterations=args.n,
-                                                    sigma=args.sigma,
-                                                    rng=np.random.default_rng(args.seed))
+                                                max_iterations=args.N,
+                                                atol=args.tol,
+                                                min_iterations=args.n,
+                                                sigma=args.sigma,
+                                                rng=np.random.default_rng(args.seed))
             Solutions.append(solution)
         except ELBO_Error as e:
             print(e)
@@ -171,20 +171,24 @@ if __name__ == '__main__':
     ax1.legend()
 
     colours = generate_xkcd_colours(filter=lambda R, G, B: R < 192 and max(R, G, B) > 32)
+    best_colour = next(colours)
     ax2 = fig.add_subplot(nrows, 1, 2)
     for i in range(len(Solutions)):
         if i == i_best:
-            label=f'Maximum ELBO: {len(Solutions[i].ELBOs)} iterations, atol={args.tol}'
+            # label='Best'
             linestyle = 'solid'
             linewidth = 3
+            colour = best_colour
         else:
-            label = None
+            # label = None
             linestyle = 'dotted'
             linewidth = 1.5
-        ax2.plot(Solutions[i].ELBOs,label=label,linestyle=linestyle,linewidth=linewidth,c=next(colours))
+            colour = next(colours)
+        ax2.plot(Solutions[i].ELBOs,label=str(i),linestyle=linestyle,linewidth=linewidth,c=colour)
 
     ax2.set_ylabel('ELBO')
-    ax2.legend()
+    ax2.legend(title=f'Maximum ELBO {i_best}: {len(Solutions[i_best].ELBOs)} iterations, atol={args.tol}',
+               ncol=int(np.sqrt(len(Solutions))))
 
     if len(Failures) > 0:
         ax3 = fig.add_subplot(nrows, 1, 3)
