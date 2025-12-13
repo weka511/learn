@@ -18,13 +18,15 @@
 # along with this program.  If not, see https://github.com/weka511/learn/blob/master/LICENSE or
 # <http://www.gnu.org/licenses/>.
 
-'''Generate data for Gaussion Mixture Model'''
+'''
+    The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
+'''
 
 from argparse import ArgumentParser
 from os.path import basename, join
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
-from xkcd import create_xkcd_colours
+from xkcd import generate_xkcd_colours
 from gmm import GaussionMixtureModel, get_name
 
 
@@ -36,10 +38,11 @@ class Cavi:
         K               Number of Gaussians to be fitted
         max_iterations  Maximum number of iterations -- if limit exceeded.
                         we deem cavi to have failed to converge
-        atol       For assessing convergence
+        atol            For assessing convergence
         sigma
         min_iterations  Minimum number of iterations -- don't check for convergence
                         until we have at least this many iterations
+
     I have borrowed some ideas from Zhiya Zuo's blog--https://zhiyzuo.github.io/VI/
     '''
 
@@ -78,7 +81,7 @@ class Cavi:
         '''
         quantiles = [np.quantile(x, i / self.K) for i in range(1, self.K + 1)]
         epsilon = min([a - b for (a, b) in zip(quantiles[1:], quantiles[:-1])]) / 6
-        return np.array([q * rng.normal(loc=1.0,scale=epsilon) for q in quantiles])
+        return np.array([q * rng.normal(loc=1.0, scale=epsilon) for q in quantiles])
 
     def getELBO(self, s2, m, sigma, x, phi):
         '''
@@ -95,12 +98,14 @@ class Cavi:
             return t2.sum()
         return get_sum_kK() + get_sum_iN()
 
+
 class Solution:
     def __init__(self, ELBOs, phi, m, s):
         self.ELBOs = ELBOs
         self.phi = phi
         self.m = m
         self.s = s
+
 
 class ELBO_Error(Exception):
     '''
@@ -142,12 +147,13 @@ if __name__ == '__main__':
     Failures = []
     for i in range(args.M):
         try:
-            Solutions.append(cavi.infer_hidden_parameters(x,
-                                                          max_iterations=args.N,
-                                                          atol=args.tol,
-                                                          min_iterations=args.n,
-                                                          sigma=args.sigma,
-                                                          rng=np.random.default_rng(args.seed)))
+            solution = cavi.infer_hidden_parameters(x,
+                                                    max_iterations=args.N,
+                                                    atol=args.tol,
+                                                    min_iterations=args.n,
+                                                    sigma=args.sigma,
+                                                    rng=np.random.default_rng(args.seed))
+            Solutions.append(solution)
         except ELBO_Error as e:
             print(e)
             Failures.append(e.ELBOs)
@@ -158,28 +164,25 @@ if __name__ == '__main__':
     fig = figure(figsize=(10, 10))
 
     ax1 = fig.add_subplot(nrows, 1, 1)
-    n, _, _ = ax1.hist(x,
-                       bins='sturges',
-                       color='xkcd:blue',
-                       label='x')
-    ax1.vlines(model.mu, 0, max(n),
-               colors='xkcd:red',
-               # linestyles = 'dotted',
-               label='Means (generated)')
-    ax1.vlines(Solutions[i_best].m, 0, max(n),
-               colors='xkcd:green',
-               linestyles='dashed',
-               label='Means (fitted)')
+    n, _, _ = ax1.hist(x, bins='sturges', color='xkcd:blue', label='x')
+    ax1.vlines(model.mu, 0, max(n), colors='xkcd:red', label='Means (generated)')
+    ax1.vlines(Solutions[i_best].m, 0, max(n), colors='xkcd:green', linestyles='dashed', label='Means (fitted)')
     ax1.set_title(f'Gaussian Mixture Model')
     ax1.legend()
 
-    colours = create_xkcd_colours(filter=lambda R, G, B: R < 192 and max(R, G, B) > 32)
+    colours = generate_xkcd_colours(filter=lambda R, G, B: R < 192 and max(R, G, B) > 32)
     ax2 = fig.add_subplot(nrows, 1, 2)
     for i in range(len(Solutions)):
-        ax2.plot(Solutions[i].ELBOs,
-                 label=f'Best: {len(Solutions[i].ELBOs)} iterations, atol={args.tol}' if i == i_best else None,
-                 linestyle='solid' if i == i_best else 'dotted',
-                 c=colours[0 if i == i_best else (i + i) if i < i_best else i])
+        if i == i_best:
+            label=f'Maximum ELBO: {len(Solutions[i].ELBOs)} iterations, atol={args.tol}'
+            linestyle = 'solid'
+            linewidth = 3
+        else:
+            label = None
+            linestyle = 'dotted'
+            linewidth = 1.5
+        ax2.plot(Solutions[i].ELBOs,label=label,linestyle=linestyle,linewidth=linewidth,c=next(colours))
+
     ax2.set_ylabel('ELBO')
     ax2.legend()
 

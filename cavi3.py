@@ -26,7 +26,7 @@ from os.path import basename,join
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
 from scipy.stats import norm
-from xkcd import create_xkcd_colours
+from xkcd import generate_xkcd_colours
 
 class ELBO_Error(Exception):
     '''
@@ -109,7 +109,7 @@ def cavi(x, K = 3, N = 25, atol = 1e-12, sigma = 1, min_iterations = 5, rng = np
         if len(ELBOs) > N:
             raise ELBO_Error(f'ELBO has not converged to within {atol} after {N} iterations',ELBOs)
 
-def plot_data(xs, cs, mu = [], sigmas = [], m = 0, s = [1], nbins = 25, colours = ['r', 'g', 'b'], ax = None):
+def plot_data(xs, cs, mu = [], sigmas = [], m = 0, s = [1], nbins = 25, ax = None):
     '''
     Plot raw data and estimates of sufficient statistics
     '''
@@ -121,24 +121,26 @@ def plot_data(xs, cs, mu = [], sigmas = [], m = 0, s = [1], nbins = 25, colours 
     ax.hist(xs, bins = nbins, alpha = 0.5)
 
     m,s = sort_stats(m,s)
-
+    colours=generate_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32)
     for i in range(len(mu)):
+        colour = next(colours)
         x0s = [xs[j] for j in range(len(xs)) if cs[j]==i ]
-        n,bins,_ = ax.hist(x0s, bins = 25, alpha = 0.5, facecolor = colours[i])
+        n,bins,_ = ax.hist(x0s, bins = 25, alpha = 0.5, facecolor = colour)
         x_values = np.arange(min(xs), max(xs), 0.1)
         y_values = norm(mu[i], sigmas[i])
         y_values_cavi = norm(m[i], s[i])
         ys = y_values.pdf(x_values)
         ys_cavi = y_values_cavi.pdf(x_values)
+
         ax.plot(x_values,
                  [y*max(n)/max(ys) for y in ys],
-                 c  = colours[i],
+                 c  = colour,
                  label = fr'$\mu=${mu[i]:.3f}, $\sigma=${sigmas[i]:.1f}')
 
         ax.plot(x_values,
                 [y*max(n)/max(ys_cavi) for y in ys_cavi],
                 label = fr'$\mu=${m[i]:.3f}, $\sigma=${s[i]:.3f} (CAVI)',
-                c = colours[i],
+                c = colour,
                 linestyle = '--')
 
     ax.legend()
@@ -198,8 +200,7 @@ if __name__=='__main__':
     try:
         ELBOs,phi,m,s = cavi(x = np.asarray(xs), K = args.K, N = args.N, atol = args.atol, rng = rng)
 
-        plot_data(xs,cs, mu = mu,sigmas = sigmas, m = m,s = s,ax = fig.add_subplot(2,1,1),
-                  colours = create_xkcd_colours(filter = lambda R,G,B:R<192 and max(R,G,B)>32))
+        plot_data(xs,cs, mu = mu,sigmas = sigmas, m = m,s = s,ax = fig.add_subplot(2,1,1))
 
         plotELBO(ELBOs,
                  ax = fig.add_subplot(2,1,2))
