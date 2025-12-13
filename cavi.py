@@ -170,17 +170,15 @@ if __name__ == '__main__':
     ax1.set_title(f'Gaussian Mixture Model')
     ax1.legend()
 
-    colours = generate_xkcd_colours(filter=lambda R, G, B: R < 192 and max(R, G, B) > 32)
+    colours = generate_xkcd_colours()
     best_colour = next(colours)
     ax2 = fig.add_subplot(nrows, 1, 2)
     for i in range(len(Solutions)):
         if i == i_best:
-            # label='Best'
             linestyle = 'solid'
             linewidth = 3
             colour = best_colour
         else:
-            # label = None
             linestyle = 'dotted'
             linewidth = 1.5
             colour = next(colours)
