@@ -41,10 +41,11 @@ def create_data(mu, n = 1000, sigmas = [], rng = np.random.default_rng()):
     '''
     Create test data following Gaussian Mixture Model
     '''
-    def create_datum():
-        i = rng.choice(len(mu))
-        return (i,rng.normal(mu[i],scale=sigmas[i]))
-    return list(zip(*[create_datum() for _ in range(n)]))
+    cs = rng.choice(len(mu),size=n)
+    xs = np.empty((n))
+    for i in range(n):
+        xs[i] = rng.normal(mu[cs[i]],scale=sigmas[cs[i]])
+    return cs,xs
 
 def getELBO(s2,m,sigma,x,phi):
     '''
