@@ -27,7 +27,7 @@ from argparse import ArgumentParser
 from os.path import join
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
-
+from xkcd import generate_xkcd_colours
 
 class GaussionMixtureModel:
     '''
@@ -41,19 +41,19 @@ class GaussionMixtureModel:
     '''
 
     def __init__(self, mu=np.zeros((1)), sigma=np.ones((1)), name='gmm', n=100):
-        k = mu.shape[0]
+        k,d = mu.shape
         self.mu = mu.copy()
         self.sigma = sigma.copy()
         self.name = name
-        self.size = (n, k)
+        self.size = (n,k,d)
 
     def create_data(self):
         '''
         Sample data from specified number of Gaussians
         '''
-        n, k = self.size
+        n, k,d = self.size
         self.choice = rng.integers(0, high=k, size=n)
-        return self.mu[self.choice] + self.sigma[self.choice] * rng.standard_normal(size=(n))
+        return self.mu[self.choice] + self.sigma[self.choice] * rng.standard_normal(size=(n,d))
 
     def save(self, rng=np.random.default_rng(),path='./data'):
         '''
@@ -80,6 +80,15 @@ def get_name(args):
     else:
         return args.name
 
+def dimensionality(s):
+    '''
+    Used to verify dimensionality is 1, 2, or 3
+    '''
+    d = int(s)
+    if d in [1,2,3]:
+        return d
+    else:
+        raise ValueError()
 
 def parse_args():
     parser = ArgumentParser(__doc__)
@@ -91,6 +100,7 @@ def parse_args():
     parser.add_argument('--sigma', type=float, default=1.0, help='Standard deviation')
     parser.add_argument('--path', default='./data', help='Path to folder where data are to be stored')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
+    parser.add_argument('--d', type=dimensionality, default=1, help='Dimensionality of space')
     return parser.parse_args()
 
 
@@ -101,17 +111,29 @@ if __name__ == '__main__':
 
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-    sigma = args.sigma * np.ones((args.K))
-    mu = np.array(sorted(rng.uniform(low=0, high=25, size=args.K)))
+    shape = args.K if args.d ==1 else (args.K,args.d)
+    sigma = args.sigma * np.ones(shape=shape)
+    mu = rng.uniform(low=0, high=25, size=shape)
 
     model = GaussionMixtureModel(name=get_name(args), mu=mu, sigma=sigma, n=args.n)
     model.save(rng=rng,path=args.path)
     data = model.load(path=args.path)
     fig = figure(figsize=(10, 5))
-    ax = fig.add_subplot(1, 1, 1)
-    n, _, _ = ax.hist(data, bins='sturges')
-    ax.vlines(model.mu, 0, ax.get_ylim()[1], colors='xkcd:red', linestyles='dotted')
-    ax.set_title(f'Gaussian Mixture Model with {args.K} centres')
+    colour_generator = generate_xkcd_colours()
+    colours = np.array([next(colour_generator) for _ in range(args.K)])
+    match args.d:
+        case 1:
+            ax = fig.add_subplot(1, 1, 1)
+            n, _, _ = ax.hist(data, bins='sturges')
+            ax.vlines(model.mu, 0, ax.get_ylim()[1], colors='xkcd:red', linestyles='dotted')
+        case 2:
+            ax = fig.add_subplot(1, 1, 1)
+            ax.scatter(data[:,0],data[:,1],c=colours[model.choice],s=1)
+        case 3:
+            ax = fig.add_subplot(1, 1, 1,projection='3d')
+            ax.scatter(data[:,0],data[:,1],data[:,2],c=colours[model.choice],s=1)
+
+    ax.set_title(f'{args.d}D Gaussian Mixture Model with {args.K} centres')
     fig.savefig(join(args.figs,get_name(args)))
     if args.show:
         show()
