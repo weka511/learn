@@ -129,6 +129,7 @@ def parse_args():
     parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
     parser.add_argument('--n', type=int, default=5, help='Burn in period')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
+    parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
     return parser.parse_args()
 
 
@@ -140,7 +141,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     model = GaussionMixtureModel(name=get_name(args))
-    x = model.load()
+    x = model.load(path=args.path)
     cavi = Cavi(K=args.K)
 
     Solutions = []
@@ -167,7 +168,7 @@ if __name__ == '__main__':
     n, _, _ = ax1.hist(x, bins='sturges', color='xkcd:blue', label='x')
     ax1.vlines(model.mu, 0, max(n), colors='xkcd:red', label='Means (generated)')
     ax1.vlines(Solutions[i_best].m, 0, max(n), colors='xkcd:green', linestyles='dashed', label='Means (fitted)')
-    ax1.set_title(f'Gaussian Mixture Model')
+    ax1.set_title(f'Gaussian Mixture Model with {args.K} centres')
     ax1.legend()
 
     colours = generate_xkcd_colours()

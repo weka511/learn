@@ -19,16 +19,26 @@
 # <http://www.gnu.org/licenses/>.
 
 '''
-Generate data for Gaussion Mixture Model
+    Generate data for the Coordinate Ascent Mean-Field Variational
+    Inference (CAVI) example from Section 3 of Blei et al
 '''
 
 from argparse import ArgumentParser
+from os.path import join
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
 
 
 class GaussionMixtureModel:
-    '''This class generates data using a Gaussian Mixture Model'''
+    '''
+    This class generates data using a Gaussian Mixture Model
+
+    Members:
+        mu
+        sigma
+        name
+        size
+    '''
 
     def __init__(self, mu=np.zeros((1)), sigma=np.ones((1)), name='gmm', n=100):
         k = mu.shape[0]
@@ -37,17 +47,25 @@ class GaussionMixtureModel:
         self.name = name
         self.size = (n, k)
 
-    def save(self, rng=np.random.default_rng()):
+    def create_data(self):
+        '''
+        Sample data from specified number of Gaussians
+        '''
         n, k = self.size
         self.choice = rng.integers(0, high=k, size=n)
-        np.savez(self.name,
-              data=self.mu[self.choice] + self.sigma[self.choice] * rng.standard_normal(size=(n)),
-              mu=self.mu,
-              sigma=self.sigma,
-              choice=self.choice)
+        return self.mu[self.choice] + self.sigma[self.choice] * rng.standard_normal(size=(n))
 
-    def load(self):
-        with open(f'{self.name}.npz', 'rb') as f:
+    def save(self, rng=np.random.default_rng(),path='./data'):
+        '''
+        Save generated data and its sufficient statistics
+        '''
+        np.savez(join(path,self.name),data=self.create_data(),mu=self.mu,sigma=self.sigma,choice=self.choice)
+
+    def load(self,path='./data'):
+        '''
+        Load data and its sufficient statistics
+        '''
+        with open(join(path,f'{self.name}.npz'), 'rb') as f:
             npzfile = np.load(f)
             self.mu = npzfile['mu']
             self.sigma = npzfile['sigma']
@@ -71,6 +89,8 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
     parser.add_argument('--sigma', type=float, default=1.0, help='Standard deviation')
+    parser.add_argument('--path', default='./data', help='Path to folder where data are to be stored')
+    parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     return parser.parse_args()
 
 
@@ -81,17 +101,17 @@ if __name__ == '__main__':
 
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-    sigma = args.sigma*np.ones((args.K))
-    mu = np.array(sorted(rng.uniform(low=0,high=25,size=args.K)))
+    sigma = args.sigma * np.ones((args.K))
+    mu = np.array(sorted(rng.uniform(low=0, high=25, size=args.K)))
 
-    model = GaussionMixtureModel(name=get_name(args),mu=mu,sigma=sigma,n=args.n)
-    model.save(rng=rng)
-    data = model.load()
+    model = GaussionMixtureModel(name=get_name(args), mu=mu, sigma=sigma, n=args.n)
+    model.save(rng=rng,path=args.path)
+    data = model.load(path=args.path)
     fig = figure(figsize=(10, 5))
     ax = fig.add_subplot(1, 1, 1)
     n, _, _ = ax.hist(data, bins='sturges')
     ax.vlines(model.mu, 0, ax.get_ylim()[1], colors='xkcd:red', linestyles='dotted')
     ax.set_title(f'Gaussian Mixture Model with {args.K} centres')
-    fig.savefig(get_name(args))
+    fig.savefig(join(args.figs,get_name(args)))
     if args.show:
         show()
