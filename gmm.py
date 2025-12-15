@@ -41,7 +41,11 @@ class GaussionMixtureModel:
     '''
 
     def __init__(self, mu=np.zeros((1)), sigma=np.ones((1)), name='gmm', n=100):
-        k,d = mu.shape
+        try:
+            k,d = mu.shape
+        except ValueError:
+            k = mu.shape[0]
+            d = 1
         self.mu = mu.copy()
         self.sigma = sigma.copy()
         self.name = name
@@ -53,7 +57,11 @@ class GaussionMixtureModel:
         '''
         n, k,d = self.size
         self.choice = rng.integers(0, high=k, size=n)
-        return self.mu[self.choice] + self.sigma[self.choice] * rng.standard_normal(size=(n,d))
+        samples = rng.standard_normal(size=(n,d))
+        for i in range(n):
+            samples[i] *= self.sigma[self.choice[i]]
+            samples[i] += self.mu[self.choice[i]]
+        return samples
 
     def save(self, rng=np.random.default_rng(),path='./data'):
         '''
@@ -76,7 +84,7 @@ class GaussionMixtureModel:
 def get_name(args):
     '''Used to establish default file name'''
     if args.name == None:
-        return f'gmm{args.K}'
+        return f'gmm{args.d}-{args.K}'
     else:
         return args.name
 
@@ -103,24 +111,29 @@ def parse_args():
     parser.add_argument('--d', type=dimensionality, default=1, help='Dimensionality of space')
     return parser.parse_args()
 
+def create_colours(K):
+    '''
+    Create an array containing a specified number of colour
+
+    Parameters:
+        K       Number of colours
+    '''
+    colour_generator = generate_xkcd_colours()
+    return np.array([next(colour_generator) for _ in range(K)])
 
 if __name__ == '__main__':
-    rcParams.update({
-        "text.usetex": True
-    })
+    rcParams.update({'text.usetex': True})
 
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-    shape = args.K if args.d ==1 else (args.K,args.d)
+    shape = args.K if args.d == 1 else (args.K,args.d)
     sigma = args.sigma * np.ones(shape=shape)
     mu = rng.uniform(low=0, high=25, size=shape)
-
     model = GaussionMixtureModel(name=get_name(args), mu=mu, sigma=sigma, n=args.n)
     model.save(rng=rng,path=args.path)
     data = model.load(path=args.path)
     fig = figure(figsize=(10, 5))
-    colour_generator = generate_xkcd_colours()
-    colours = np.array([next(colour_generator) for _ in range(args.K)])
+    colours = create_colours(args.K)
     match args.d:
         case 1:
             ax = fig.add_subplot(1, 1, 1)
@@ -128,10 +141,10 @@ if __name__ == '__main__':
             ax.vlines(model.mu, 0, ax.get_ylim()[1], colors='xkcd:red', linestyles='dotted')
         case 2:
             ax = fig.add_subplot(1, 1, 1)
-            ax.scatter(data[:,0],data[:,1],c=colours[model.choice],s=1)
+            ax.scatter(data[:,0],data[:,1],c=colours[model.choice],s=5)
         case 3:
             ax = fig.add_subplot(1, 1, 1,projection='3d')
-            ax.scatter(data[:,0],data[:,1],data[:,2],c=colours[model.choice],s=1)
+            ax.scatter(data[:,0],data[:,1],data[:,2],c=colours[model.choice],s=5)
 
     ax.set_title(f'{args.d}D Gaussian Mixture Model with {args.K} centres')
     fig.savefig(join(args.figs,get_name(args)))
