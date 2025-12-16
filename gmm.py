@@ -34,31 +34,33 @@ class GaussionMixtureModel:
     This class generates data using a Gaussian Mixture Model
 
     Members:
-        mu
-        sigma
-        name
-        size
+        mu      Array of means for the clusters. The generated data
+                will have the same the same number of dimensions as mu
+        sigma   Array of standard deviations for the clusters.
+        name    Name, used for saved file
+        n       Number of points
+        k       Number of clustes
+        d       Dimensionalty of space
     '''
 
     def __init__(self, mu=np.zeros((1)), sigma=np.ones((1)), name='gmm', n=100):
         try:
-            k,d = mu.shape
+            self.k,self.d = mu.shape
         except ValueError:
-            k = mu.shape[0]
-            d = 1
+            self.k = mu.shape[0]
+            self.d = 1
         self.mu = mu.copy()
         self.sigma = sigma.copy()
         self.name = name
-        self.size = (n,k,d)
+        self.n = n
 
     def create_data(self):
         '''
         Sample data from specified number of Gaussians
         '''
-        n, k,d = self.size
-        self.choice = rng.integers(0, high=k, size=n)
-        samples = rng.standard_normal(size=(n,d))
-        for i in range(n):
+        self.choice = rng.integers(0, high=self.k, size=self.n)
+        samples = rng.standard_normal(size=(self.n,self.d))
+        for i in range(self.n):
             samples[i] *= self.sigma[self.choice[i]]
             samples[i] += self.mu[self.choice[i]]
         return samples
@@ -66,12 +68,19 @@ class GaussionMixtureModel:
     def save(self, rng=np.random.default_rng(),path='./data'):
         '''
         Save generated data and its sufficient statistics
+
+        Parameters:
+            rng    Random number generator
+            path   Folder for storing data
         '''
         np.savez(join(path,self.name),data=self.create_data(),mu=self.mu,sigma=self.sigma,choice=self.choice)
 
     def load(self,path='./data'):
         '''
         Load data and its sufficient statistics
+
+        Parameters:
+            path   Folder where data is to be found
         '''
         with open(join(path,f'{self.name}.npz'), 'rb') as f:
             npzfile = np.load(f)
@@ -82,7 +91,12 @@ class GaussionMixtureModel:
 
 
 def get_name(args):
-    '''Used to establish default file name'''
+    '''
+    Used to establish default file name
+
+    Parameters:
+        args     Command line arguments
+    '''
     if args.name == None:
         return f'gmm{args.d}-{args.K}'
     else:
@@ -91,6 +105,9 @@ def get_name(args):
 def dimensionality(s):
     '''
     Used to verify dimensionality is 1, 2, or 3
+
+    Parameters:
+        s         String from command line
     '''
     d = int(s)
     if d in [1,2,3]:
@@ -99,6 +116,9 @@ def dimensionality(s):
         raise ValueError()
 
 def parse_args():
+    '''
+    Extract parameters from command line
+    '''
     parser = ArgumentParser(__doc__)
     parser.add_argument('--name', help='Base of name for files')
     parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
