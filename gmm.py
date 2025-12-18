@@ -157,7 +157,7 @@ if __name__ == '__main__':
     match args.d:
         case 1:
             ax = fig.add_subplot(1, 1, 1)
-            n, _, _ = ax.hist(data, bins='sturges')
+            n, _, _ = ax.hist(data, bins='sturges',density=True)
             ax.vlines(model.mu, 0, ax.get_ylim()[1], colors='xkcd:red', linestyles='dotted')
         case 2:
             ax = fig.add_subplot(1, 1, 1)
