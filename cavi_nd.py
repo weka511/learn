@@ -25,6 +25,7 @@
 
 from argparse import ArgumentParser
 from os.path import basename, join
+from time import time
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
 from xkcd import generate_xkcd_colours
@@ -158,7 +159,7 @@ def display(l, x, c, fig, rows=10, cols=10):
     return rows * cols
 
 
-def create_data_colours(x, c):
+def create_data_colours(x, c,cluster_colours):
     '''
     Create a set of colours for use when we display points in their clusters
     '''
@@ -171,6 +172,7 @@ def create_data_colours(x, c):
 
 
 if __name__ == '__main__':
+    start  = time()
     rcParams.update({
         "text.usetex": True
     })
@@ -178,7 +180,6 @@ if __name__ == '__main__':
     args = parse_args()
     rng = np.random.default_rng(args.seed)
 
-    cluster_colours = create_colours(args.K)
     ELBO_colours = generate_xkcd_colours()
     model = GaussionMixtureModel(name=get_name(args))
     x = model.load(path=args.path)
@@ -218,15 +219,20 @@ if __name__ == '__main__':
     ax1.set_ylabel('ELBO')
     ax2 = fig.add_subplot(2, 1, 2)
 
-    ax2.scatter(x[:, 0], x[:, 1], c=create_data_colours(x, Solutions[index_best].c), s=1)
+    ax2.scatter(x[:, 0], x[:, 1], c=create_data_colours(x, Solutions[index_best].c, create_colours(args.K)), s=1)
     for k in range(args.K):
         ax2.scatter(Solutions[index_best].m[k, 0], Solutions[index_best].m[k, 1], c='xkcd:black', marker='+', s=25)
-    ax2.set_title(f'Solution with best ELBO {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
+    ax2.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
     ax2.set_xlabel('X')
     ax2.set_ylabel('Y')
 
     fig.tight_layout(pad=3,h_pad=4)
     fig.savefig(join(args.figs, f'{basename(__file__).split('.')[0]}'))
+
+    elapsed = time() - start
+    minutes = int(elapsed/60)
+    seconds = elapsed - 60*minutes
+    print (f'Elapsed Time {minutes} m {seconds:.2f} s')
 
     if args.show:
         show()
