@@ -50,17 +50,21 @@ def parse_args():
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
     parser.add_argument('--N', type=int, default=100, help='Number of iterations per run')
     parser.add_argument('--M', type=int, default=25, help='Number of runs')
+    parser.add_argument('--BURN_IN',type=int, default=12,help='Minimum number of iterations')
     parser.add_argument('--atol', type=float, default=1e-6, help='Tolerance for improving ELBO')
     parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
-    parser.add_argument('--n', type=int, default=5, help='Burn in period')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
     return parser.parse_args()
 
-def initialize(x,K):
+def initialize(x,K, rng = np.random.default_rng()):
     n,d = x.shape
     s = np.ones((K,d))
-    mu0 = (np.max(x)-np.min(x))*rng.standard_normal((K,d))
+    indices = rng.integers(0,n,size=K)
+    mu0 = np.empty((K,d))
+    for k in range(K):
+        mu0[k,:] = x[indices[k],:]
+    # mu0 = (np.max(x)-np.min(x))*rng.standard_normal((K,d))
 
     c = np.zeros((n,K))
     for i in range(n):
@@ -144,25 +148,28 @@ if __name__ == '__main__':
     index_best = -1
 
     for i in range(args.M):
-        m,s,c = initialize(x,args.K)
+        m,s,c = initialize(x,args.K,rng=rng)
         Solutions.append(Solution())
-        ELBO = get_ELBO(m,s,c,x)
-        Solutions[-1].append_ELBO(ELBO)
+        Solutions[-1].append_ELBO( get_ELBO(m,s,c,x))
 
         for j in range(args.N):
             c = get_updated_assignments(m,s,x)
             m,s = get_updated_statistics(m,s,c,x)
-            ELBO1 = get_ELBO(m,s,c,x)
-            Solutions[-1].append_ELBO(ELBO1)
-            if ELBO1 - ELBO < args.atol: break
-            ELBO = ELBO1
-        if index_best == -1 or ELBO < Solutions[index_best].ELBO[-1]:
+            Solutions[-1].append_ELBO(get_ELBO(m,s,c,x))
+            if len(Solutions) > args.BURN_IN and Solutions[-1].ELBO - Solutions[-2].ELBO < args.atol: break
+
+        Solutions[-1].set_params(m,s,c)
+        if index_best == -1 or Solutions[-1].ELBO[-1] < Solutions[index_best].ELBO[-1]:
             index_best = i
 
-    ax1 = fig.add_subplot(1,1,1)
+    ax1 = fig.add_subplot(2,1,1)
     for i in range(args.M):
         ax1.plot(Solutions[i].ELBO,c=next(ELBO_colours),label =f'best {Solutions[i].ELBO[-1]:.6}' if i==index_best else None)
     ax1.legend()
+
+    ax2 = fig.add_subplot(2,1,2)
+    for k in range(args.K):
+        ax2.scatter(Solutions[index_best].m[k,0],Solutions[index_best].m[k,1],c=cluster_colours[k])
 
     if args.show:
         show()
