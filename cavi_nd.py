@@ -217,14 +217,26 @@ if __name__ == '__main__':
     ax1.set_title(f'ELBO for {args.M} runs')
     ax1.set_xlabel('Iteration')
     ax1.set_ylabel('ELBO')
-    ax2 = fig.add_subplot(2, 1, 2)
 
-    ax2.scatter(x[:, 0], x[:, 1], c=create_data_colours(x, Solutions[index_best].c, create_colours(args.K)), s=1)
-    for k in range(args.K):
-        ax2.scatter(Solutions[index_best].m[k, 0], Solutions[index_best].m[k, 1], c='xkcd:black', marker='+', s=25)
-    ax2.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
-    ax2.set_xlabel('X')
-    ax2.set_ylabel('Y')
+    ax2 = fig.add_subplot(2, 1, 2)
+    _,d = x.shape
+    match d:
+        case 1:
+            n, _, _ = ax2.hist(x, bins='sturges', color='xkcd:blue', label='x',density=True)
+            ax2.vlines(np.ravel(Solutions[index_best].m), 0, max(n), colors='xkcd:red', linestyles='dashed', label='Means (fitted)')
+            ax2.set_xlabel('X')
+            ax2.set_ylabel('p')
+            ax2.legend()
+
+        case 2:
+            ax2.scatter(x[:, 0], x[:, 1], c=create_data_colours(x, Solutions[index_best].c, create_colours(args.K)), s=1)
+            for k in range(args.K):
+                ax2.scatter(Solutions[index_best].m[k, 0], Solutions[index_best].m[k, 1], c='xkcd:black', marker='+', s=25)
+            ax2.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
+            ax2.set_xlabel('X')
+            ax2.set_ylabel('Y')
+        case 3:
+            pass
 
     fig.tight_layout(pad=3,h_pad=4)
     fig.savefig(join(args.figs, f'{basename(__file__).split('.')[0]}'))
