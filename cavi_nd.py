@@ -48,8 +48,8 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
     parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
-    parser.add_argument('--N', type=int, default=25, help='Number of iterations per run')
-    parser.add_argument('--M', type=int, default=6, help='Number of runs')
+    parser.add_argument('--N', type=int, default=100, help='Number of iterations per run')
+    parser.add_argument('--M', type=int, default=25, help='Number of runs')
     parser.add_argument('--atol', type=float, default=1e-6, help='Tolerance for improving ELBO')
     parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
     parser.add_argument('--n', type=int, default=5, help='Burn in period')
@@ -135,18 +135,20 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
 
     fig = figure(figsize=(12, 12))
-    ax1 = fig.add_subplot(1,1,1)
+
     cluster_colours = create_colours(args.K)
     ELBO_colours = generate_xkcd_colours()
     model = GaussionMixtureModel(name=get_name(args))
     x = model.load(path=args.path)
     Solutions = []
+    index_best = -1
 
     for i in range(args.M):
         m,s,c = initialize(x,args.K)
         Solutions.append(Solution())
         ELBO = get_ELBO(m,s,c,x)
         Solutions[-1].append_ELBO(ELBO)
+
         for j in range(args.N):
             c = get_updated_assignments(m,s,x)
             m,s = get_updated_statistics(m,s,c,x)
@@ -154,7 +156,13 @@ if __name__ == '__main__':
             Solutions[-1].append_ELBO(ELBO1)
             if ELBO1 - ELBO < args.atol: break
             ELBO = ELBO1
-        ax1.plot(Solutions[-1].ELBO,c=next(ELBO_colours))
+        if index_best == -1 or ELBO < Solutions[index_best].ELBO[-1]:
+            index_best = i
+
+    ax1 = fig.add_subplot(1,1,1)
+    for i in range(args.M):
+        ax1.plot(Solutions[i].ELBO,c=next(ELBO_colours),label =f'best {Solutions[i].ELBO[-1]:.6}' if i==index_best else None)
+    ax1.legend()
 
     if args.show:
         show()
