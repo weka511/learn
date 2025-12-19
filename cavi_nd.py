@@ -37,10 +37,10 @@ class Solution:
     This class represents the results of one run of CAVI.
 
     Parameters:
-        ELBO
-        m
-        s
-        c
+        ELBO    History of ELBO throughout run
+        m       Means
+        s       Standard deviations
+        c       Assigments of points to clusters
     '''
     def __init__(self):
         '''
@@ -54,6 +54,11 @@ class Solution:
     def set_params(self, m, s, c):
         '''
         Used at the end of a run to store results
+
+        Parameters:
+            m       Means
+            s       Standard deviations
+            c       Assigments of points to clusters
         '''
         self.m = m.copy()
         self.s = s.copy()
@@ -62,6 +67,9 @@ class Solution:
     def append_ELBO(self, ELBO):
         '''
         Used during a run to accumulate ELBO for each iteration
+
+        Parameters:
+            ELBO    Current value, to be appended to history
         '''
         self.ELBO.append(ELBO)
 
@@ -83,25 +91,50 @@ def parse_args():
 
 
 def initialize(x, K, rng=np.random.default_rng()):
+    '''
+    Choose some points at random to be intial values of means.
+
+    Parameters:
+        x          Positions of points
+        K          Number of clusters
+        rng        Randome number generator
+
+    Returns:
+        mu        K points, chosen at random to represent cluster centres
+        s         Matrix of initial values for cluster centres
+        c         Matrix of random assignments of points to cluster centres
+    '''
     n, d = x.shape
     s = np.ones((K, d))
     indices = rng.integers(0, n, size=K)
-    mu0 = np.empty((K, d))
+    mu = np.empty((K, d))
     for k in range(K):
-        mu0[k, :] = x[indices[k], :]
+        mu[k, :] = x[indices[k], :]
 
     c = np.zeros((n, K))
     for i in range(n):
         c[i, rng.integers(0, 2)] = 1
 
-    return mu0, s, c
+    return mu, s, c
 
 
 def get_ELBO(m, s, c, x):
     '''
-    Calculate ELBO using equation (18) of my notes
+    Calculate Evidence Lower Bound [ELBO] using equation (18) of my notes
+
+    Parameters:
+        m       Cluster centres
+        s       Standard deviations
+        c       Assignment of points to clusters
+        x       Coordinates of points
+
+    Returns:
+        Calculated ELBO
     '''
     def create_offsets():
+        '''
+        Calculate 2nd term of equation (18)
+        '''
         n, d = x.shape
         _, K = c.shape
         offsets = np.zeros((n, K))
@@ -114,6 +147,17 @@ def get_ELBO(m, s, c, x):
 
 
 def get_updated_assignments(m, s, x):
+    '''
+    Calculate new assignments of points to clusters from equation (26) of Blei et al
+
+    Parameters:
+        m       Cluster centres
+        s       Standard deviations
+        x       Coordinates of points
+
+    Returns:
+        c       Assignment of points to clusters
+    '''
     n, d = x.shape
     K, _ = m.shape
     log_c = np.zeros((n, K))
@@ -129,12 +173,29 @@ def get_updated_assignments(m, s, x):
 
 
 def get_updated_statistics(m0, s0, c, x, sigma=1):
+    '''
+    Calculate new centres and standard deviations, following equation (34) of Blei et al
+
+    Parameters:
+        m0      Cluster centres
+        s0      Standard deviations
+        c       Assignments of points to clusters
+        x       Coordinates of points
+        sigma   Hyperparameter
+
+    Returns:
+        m      New cluster centres
+        s      New standard deviations
+
+    '''
     n, d = x.shape
     K, _ = m0.shape
+
     denominator = 1 / sigma**2 * np.ones((K))
     for i in range(n):
         for k in range(K):
             denominator[k] += c[i, k]
+
     m = np.zeros_like(m0)
     for i in range(n):
         for k in range(K):
@@ -142,26 +203,24 @@ def get_updated_statistics(m0, s0, c, x, sigma=1):
                 m[k, j] += c[i, k] * x[i, j]
     for j in range(d):
         m[:, j] /= denominator
+
     s = np.empty_like(s0)
     for j in range(d):
         s[:, j] = np.sqrt(1 / denominator)
+
     return m, s
-
-
-def display(l, x, c, fig, rows=10, cols=10):
-    ax = fig.add_subplot(rows, cols, l)
-    n, d = x.shape
-    x_colours = np.empty((n), dtype=np.dtypes.StringDType())
-    for i in range(n):
-        index = np.argmax(c[i, :])
-        x_colours[i] = colours[index]
-    ax.scatter(x[:, 0], x[:, 1], c=x_colours, s=1)
-    return rows * cols
-
 
 def create_data_colours(x, c,cluster_colours):
     '''
     Create a set of colours for use when we display points in their clusters
+
+    Parameters:
+        x                  Data points
+        c                  Assignments of points to clusters
+        cluster_colours    Identifies colours assigned to each cluster
+
+    Returns:
+        An array of colurs, one for each point, identifying cluster
     '''
     n, d = x.shape
     colours = np.empty((n), dtype=np.dtypes.StringDType())
