@@ -133,7 +133,7 @@ def parse_args():
 
 def create_colours(K):
     '''
-    Create an array containing a specified number of colour
+    Create an array containing a specified number of colours
 
     Parameters:
         K       Number of colours
