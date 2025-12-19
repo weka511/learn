@@ -20,8 +20,7 @@
 
 '''
     The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
-
-	N dimensions
+	with data in 1, 2 or 3 dimensions.
 '''
 
 from argparse import ArgumentParser
@@ -29,7 +28,19 @@ from os.path import basename, join
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
 from xkcd import generate_xkcd_colours
-from gmm import GaussionMixtureModel, get_name, create_colours
+from gmm import GaussionMixtureModel, get_name, create_colours,generate_xkcd_colours
+
+class Solution:
+    def __init__(self):
+        self.ELBO = []
+
+    def set_params(self,m,s,c):
+        self.m = m.copy()
+        self.s = s.copy()
+        self.c = c.copy()
+
+    def append_ELBO(self,ELBO):
+        self.ELBO.append(ELBO)
 
 def parse_args():
     parser = ArgumentParser(__doc__)
@@ -37,31 +48,24 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
     parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
-    parser.add_argument('--N', type=int, default=250, help='Number of iterations')
-    parser.add_argument('--M', type=int, default=16, help='Number of attempts')
-    parser.add_argument('--tol', type=float, default=1e-6, help='Tolerance for improving ELBO')
+    parser.add_argument('--N', type=int, default=25, help='Number of iterations per run')
+    parser.add_argument('--M', type=int, default=6, help='Number of runs')
+    parser.add_argument('--atol', type=float, default=1e-6, help='Tolerance for improving ELBO')
     parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
     parser.add_argument('--n', type=int, default=5, help='Burn in period')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
     return parser.parse_args()
 
-def initialize(x,model,K):
+def initialize(x,K):
     n,d = x.shape
-
-    mu = model.mu
-    s = model.sigma
-    epsilon = 0.1
-    mu0 = mu + epsilon*rng.standard_normal(mu.shape)
+    s = np.ones((K,d))
+    mu0 = (np.max(x)-np.min(x))*rng.standard_normal((K,d))
 
     c = np.zeros((n,K))
     for i in range(n):
-        # diff = np.empty((K))
-        # for k in range(K):
-            # diff[k] = np.sum((x[i,:] - mu[k,:])**2)
-        # index_closest = np.argmin(diff)
-        index_closest = rng.integers(0,2)
-        c[i,index_closest] = 1
+        c[i, rng.integers(0,2)] = 1
+
     return mu0,s,c
 
 def get_ELBO(m,s,c,x):
@@ -112,14 +116,15 @@ def get_updated_statistics(m0,s0,c,x,sigma=1):
         s[:,j] = np.sqrt(1/denominator)
     return m,s
 
-def display(l,x,c,fig,m=2,n=2):
-    ax = fig.add_subplot(m,n,l)
+def display(l,x,c,fig,rows=10,cols=10):
+    ax = fig.add_subplot(rows,cols,l)
     n,d = x.shape
     x_colours = np.empty((n),dtype=np.dtypes.StringDType())
     for i in range(n):
         index = np.argmax(c[i,:])
         x_colours[i] = colours[index]
     ax.scatter(x[:,0],x[:,1],c=x_colours,s=1)
+    return rows*cols
 
 if __name__ == '__main__':
     rcParams.update({
@@ -128,22 +133,28 @@ if __name__ == '__main__':
 
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-    fig = figure(figsize=(10, 5))
-    colours = create_colours(args.K)
 
+    fig = figure(figsize=(12, 12))
+    ax1 = fig.add_subplot(1,1,1)
+    cluster_colours = create_colours(args.K)
+    ELBO_colours = generate_xkcd_colours()
     model = GaussionMixtureModel(name=get_name(args))
     x = model.load(path=args.path)
-    m,s,c = initialize(x,model,args.K)
-    display(1,x,c,fig)
+    Solutions = []
 
-    ELBO = get_ELBO(m,s,c,x)
-    print (ELBO)
-    for i in range(3):#args.N):
-        display(i+2,x,c,fig)
-        c = get_updated_assignments(m,s,x)
-        m,s = get_updated_statistics(m,s,c,x)
+    for i in range(args.M):
+        m,s,c = initialize(x,args.K)
+        Solutions.append(Solution())
         ELBO = get_ELBO(m,s,c,x)
-        print (ELBO)
+        Solutions[-1].append_ELBO(ELBO)
+        for j in range(args.N):
+            c = get_updated_assignments(m,s,x)
+            m,s = get_updated_statistics(m,s,c,x)
+            ELBO1 = get_ELBO(m,s,c,x)
+            Solutions[-1].append_ELBO(ELBO1)
+            if ELBO1 - ELBO < args.atol: break
+            ELBO = ELBO1
+        ax1.plot(Solutions[-1].ELBO,c=next(ELBO_colours))
 
     if args.show:
         show()
