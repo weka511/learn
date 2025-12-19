@@ -50,7 +50,7 @@ def parse_args():
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
     parser.add_argument('--N', type=int, default=100, help='Number of iterations per run')
     parser.add_argument('--M', type=int, default=25, help='Number of runs')
-    parser.add_argument('--BURN_IN',type=int, default=12,help='Minimum number of iterations')
+    parser.add_argument('--BURN_IN',type=int, default=3,help='Minimum number of iterations')
     parser.add_argument('--atol', type=float, default=1e-6, help='Tolerance for improving ELBO')
     parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
@@ -64,7 +64,6 @@ def initialize(x,K, rng = np.random.default_rng()):
     mu0 = np.empty((K,d))
     for k in range(K):
         mu0[k,:] = x[indices[k],:]
-    # mu0 = (np.max(x)-np.min(x))*rng.standard_normal((K,d))
 
     c = np.zeros((n,K))
     for i in range(n):
@@ -148,6 +147,7 @@ if __name__ == '__main__':
     index_best = -1
 
     for i in range(args.M):
+        print (i)
         m,s,c = initialize(x,args.K,rng=rng)
         Solutions.append(Solution())
         Solutions[-1].append_ELBO( get_ELBO(m,s,c,x))
@@ -156,7 +156,7 @@ if __name__ == '__main__':
             c = get_updated_assignments(m,s,x)
             m,s = get_updated_statistics(m,s,c,x)
             Solutions[-1].append_ELBO(get_ELBO(m,s,c,x))
-            if len(Solutions) > args.BURN_IN and Solutions[-1].ELBO - Solutions[-2].ELBO < args.atol: break
+            if len(Solutions) > args.BURN_IN and Solutions[-1].ELBO[-1] - Solutions[-1].ELBO[-2] < args.atol: break
 
         Solutions[-1].set_params(m,s,c)
         if index_best == -1 or Solutions[-1].ELBO[-1] < Solutions[index_best].ELBO[-1]:
@@ -168,6 +168,12 @@ if __name__ == '__main__':
     ax1.legend()
 
     ax2 = fig.add_subplot(2,1,2)
+    n,d = x.shape
+    x_colours = np.empty((n),dtype=np.dtypes.StringDType())
+    for i in range(n):
+        index = np.argmax(c[i,:])
+        x_colours[i] = cluster_colours[index]
+    ax2.scatter(x[:,0],x[:,1],c=x_colours,s=1)
     for k in range(args.K):
         ax2.scatter(Solutions[index_best].m[k,0],Solutions[index_best].m[k,1],c=cluster_colours[k])
 
