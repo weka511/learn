@@ -242,8 +242,8 @@ class Logger(object):
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--action', choices=['train', 'test'], default='train', help='Chooses between training or testint')
-
+    parser.add_argument('--action', choices=['train', 'test', 'visualize'],
+                        default='train', help='Chooses between training or testing')
     training_group = parser.add_argument_group('Parameters for --action train')
     training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
@@ -463,9 +463,9 @@ if __name__ == '__main__':
                 fig.savefig(join(args.figs, name_factory.create_short_name()))
 
         case 'test':
-            dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             model = ModelFactory.create_from_file_name(args.file)
             model.load(args.file)
+            dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             test_loader = DataLoader(dataset, batch_size=256)
             score = evaluate(model, test_loader)
 
@@ -476,10 +476,54 @@ if __name__ == '__main__':
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
 
-            fig.suptitle(f'Testing {args.file}: Loss = {score["val_loss"]:.4}, Accuracy = {100*score["val_acc"]:.2f}\%',
+            fig.suptitle(rf'Testing {args.file}: Loss = {score["val_loss"]:.4}, Accuracy = {100*score["val_acc"]:.2f}\%',
                          fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
+
+        case 'visualize':
+            model = ModelFactory.create_from_file_name(args.file)
+            model.load(args.file)
+            dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+            test_loader = DataLoader(dataset, batch_size=256)
+
+            # snarfed from https://www.geeksforgeeks.org/deep-learning/visualizing-feature-maps-using-pytorch/
+            conv_weights = []
+            conv_layers = []
+            for module in model.children():
+                if isinstance(module, nn.Conv2d):
+                    conv_weights.append(module.weight)
+                    conv_layers.append(module)
+
+            print(f'Total convolution layers: {len(conv_weights)}')
+
+            input_image, label = dataset[0]
+            feature_maps = []
+            layer_names = []
+            for layer in conv_layers:
+                input_image = layer(input_image)
+                feature_maps.append(input_image)
+                layer_names.append(str(layer))
+            print("\nFeature maps shape")
+            for feature_map in feature_maps:
+                print(feature_map.shape)
+
+            # Process and visualize feature maps
+            processed_feature_maps = []  # List to store processed feature maps
+            for feature_map in feature_maps:
+                feature_map = feature_map.squeeze(0)  # Remove the batch dimension
+                mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]  # Compute mean across channels
+                processed_feature_maps.append(mean_feature_map.data.cpu().numpy())
+
+            print("\n Processed feature maps shape")
+            for fm in processed_feature_maps:
+                print(fm.shape)
+            for i in range(len(processed_feature_maps)):
+                ax = fig.add_subplot(5, 4, i + 1)
+                ax.imshow(processed_feature_maps[i],cmap='gray')
+                ax.axis("off")
+                ax.set_title(layer_names[i].split('(')[0], fontsize=30)
+
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
