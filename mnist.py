@@ -242,6 +242,44 @@ class Logger(object):
         self.file.write(line + '\n')
         self.file.flush()
 
+class Visualizer:
+    '''
+    snarfed from https://www.geeksforgeeks.org/deep-learning/visualizing-feature-maps-using-pytorch/
+    '''
+    def __init__(self):
+        self.conv_weights = []
+        self.conv_layers = []
+
+    def extract_layers(self,model):
+        for module in model.children():
+            if isinstance(module, nn.Conv2d):
+                self.conv_weights.append(module.weight)
+                self.conv_layers.append(module)
+
+    def get_n(self):
+        return len(self.conv_weights)
+
+    def build_map(self,input_image):
+        feature_maps = []
+        self.layer_names = []
+        for layer in self.conv_layers:
+            input_image = layer(input_image)
+            feature_maps.append(input_image)
+            self.layer_names.append(str(layer))
+        print('\nFeature maps shape')
+        for feature_map in feature_maps:
+            print(feature_map.shape)
+
+        # Process and visualize feature maps
+        self.processed_feature_maps = []  # List to store processed feature maps
+        for feature_map in feature_maps:
+            feature_map = feature_map.squeeze(0)  # Remove the batch dimension
+            mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]  # Compute mean across channels
+            self.processed_feature_maps.append(mean_feature_map.data.cpu().numpy())
+
+        print('\n Processed feature maps shape')
+        for fm in self.processed_feature_maps:
+            print(fm.shape)
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
@@ -492,20 +530,16 @@ if __name__ == '__main__':
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
 
+
+
         case 'visualize':
             model = ModelFactory.create_from_file_name(args.file)
             model.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+            visualizer = Visualizer()
+            visualizer.extract_layers(model)
+            n = visualizer.get_n()
 
-            # snarfed from https://www.geeksforgeeks.org/deep-learning/visualizing-feature-maps-using-pytorch/
-            conv_weights = []
-            conv_layers = []
-            for module in model.children():
-                if isinstance(module, nn.Conv2d):
-                    conv_weights.append(module.weight)
-                    conv_layers.append(module)
-
-            n = len(conv_weights)
             print(f'Total convolution layers: {n}')
             m = 2*16
 
@@ -513,35 +547,18 @@ if __name__ == '__main__':
                 label = None
                 while not label == args.target:
                     input_image, label = dataset[rng.choice(len(dataset),replace=False)]
-                feature_maps = []
-                layer_names = []
-                for layer in conv_layers:
-                    input_image = layer(input_image)
-                    feature_maps.append(input_image)
-                    layer_names.append(str(layer))
-                print('\nFeature maps shape')
-                for feature_map in feature_maps:
-                    print(feature_map.shape)
+                visualizer.build_map(input_image)
 
-                # Process and visualize feature maps
-                processed_feature_maps = []  # List to store processed feature maps
-                for feature_map in feature_maps:
-                    feature_map = feature_map.squeeze(0)  # Remove the batch dimension
-                    mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]  # Compute mean across channels
-                    processed_feature_maps.append(mean_feature_map.data.cpu().numpy())
-
-                print('\n Processed feature maps shape')
-                for fm in processed_feature_maps:
-                    print(fm.shape)
-                for j in range(len(processed_feature_maps)):
+                for j in range(len(visualizer.processed_feature_maps)):
                     ax = fig.add_subplot(m//2, 2*n, n * i + j + 1)
-                    ax.imshow(processed_feature_maps[j], cmap='gray')
+                    ax.imshow(visualizer.processed_feature_maps[j], cmap='gray')
                     ax.axis('off')
                     if i == 0:
-                        ax.set_title(layer_names[j].split('(')[0], fontsize=30)
-                    fig.suptitle(rf'Visualizing {args.file}', fontsize=12)
-                    fig.tight_layout(pad=3, h_pad=9, w_pad=3)
-                    fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')))
+                        ax.set_title(visualizer.layer_names[j].split('(')[0])
+
+            fig.suptitle(rf'Visualizing {args.file}', fontsize=12)
+            fig.tight_layout(pad=3, h_pad=9, w_pad=3)
+            fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')))
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
