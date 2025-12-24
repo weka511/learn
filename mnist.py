@@ -244,15 +244,27 @@ class Logger(object):
 
 class Visualizer:
     '''
-    snarfed from https://www.geeksforgeeks.org/deep-learning/visualizing-feature-maps-using-pytorch/
+    This class extracts layers from the model for display
+
+    Based on https://www.geeksforgeeks.org/deep-learning/visualizing-feature-maps-using-pytorch/
     '''
     def __init__(self):
         self.conv_weights = []
         self.conv_layers = []
+        self.feature_maps = []
+        self.layer_names = []
 
-    def extract_layers(self,model):
+    def is_layer_of_interest(self,module,layer_types=[nn.Conv2d]):
+        for layer_type in layer_types:
+            if isinstance(module,layer_type): return True
+        return False
+
+    def extract_layers(self,model,layer_types=[nn.Conv2d]):
+        '''
+        Extract those layers that we want to visualize
+        '''
         for module in model.children():
-            if isinstance(module, nn.Conv2d):
+            if self.is_layer_of_interest(module, layer_types=layer_types):
                 self.conv_weights.append(module.weight)
                 self.conv_layers.append(module)
 
@@ -260,26 +272,18 @@ class Visualizer:
         return len(self.conv_weights)
 
     def build_map(self,input_image):
-        feature_maps = []
+        self.feature_maps = []
         self.layer_names = []
         for layer in self.conv_layers:
             input_image = layer(input_image)
-            feature_maps.append(input_image)
+            self.feature_maps.append(input_image)
             self.layer_names.append(str(layer))
-        print('\nFeature maps shape')
-        for feature_map in feature_maps:
-            print(feature_map.shape)
 
-        # Process and visualize feature maps
-        self.processed_feature_maps = []  # List to store processed feature maps
-        for feature_map in feature_maps:
-            feature_map = feature_map.squeeze(0)  # Remove the batch dimension
-            mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]  # Compute mean across channels
+        self.processed_feature_maps = []
+        for feature_map in self.feature_maps:
+            feature_map = feature_map.squeeze(0)
+            mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]
             self.processed_feature_maps.append(mean_feature_map.data.cpu().numpy())
-
-        print('\n Processed feature maps shape')
-        for fm in self.processed_feature_maps:
-            print(fm.shape)
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
@@ -304,7 +308,7 @@ def parse_args():
     test_group.add_argument('--cols', default=12, type=int, help='Number of columns of images to display')
 
     visualization_group = parser.add_argument_group('Parameters for --action visualize')
-    visualization_group.add_argument('--target', default=7, type=int, help='Decide which labels will be included')
+    visualization_group.add_argument('--target', default=7, type=int, nargs='+', help='Decide which labels will be included')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data', help='Location of data files')
@@ -541,17 +545,26 @@ if __name__ == '__main__':
             n = visualizer.get_n()
 
             print(f'Total convolution layers: {n}')
-            m = 2*16
-
+            m = 16
+            image_index = 1
             for i in range(m):
                 label = None
-                while not label == args.target:
+                while not label in args.target:
                     input_image, label = dataset[rng.choice(len(dataset),replace=False)]
+                out = model(input_image)
+                call = torch.argmax(out).item()
+                cmap = 'Blues' if call == label else 'Reds'
+                ax = fig.add_subplot(m, n+1, image_index)
+                ax.imshow(input_image[0,:,:], cmap=cmap)
+                ax.axis('off')
+                if i == 0:
+                    ax.set_title('Raw')
                 visualizer.build_map(input_image)
-
+                image_index+= 1
                 for j in range(len(visualizer.processed_feature_maps)):
-                    ax = fig.add_subplot(m//2, 2*n, n * i + j + 1)
-                    ax.imshow(visualizer.processed_feature_maps[j], cmap='gray')
+                    ax = fig.add_subplot(m, n+1, image_index)
+                    ax.imshow(visualizer.processed_feature_maps[j], cmap=cmap)
+                    image_index += 1
                     ax.axis('off')
                     if i == 0:
                         ax.set_title(visualizer.layer_names[j].split('(')[0])
