@@ -132,6 +132,7 @@ class PerceptronModel(MnistModel):
         xb = xb.reshape(-1, self.input_size)
         return self.model(xb)
 
+
 class CNN(MnistModel):
     '''
     Convolution Neural Network
@@ -143,21 +144,22 @@ class CNN(MnistModel):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=5)
         self.conv2 = nn.Conv2d(32, 32, kernel_size=5)
-        self.conv3 = nn.Conv2d(32,64, kernel_size=5)
-        self.fc1 = nn.Linear(3*3*64, 256)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=5)
+        self.fc1 = nn.Linear(3 * 3 * 64, 256)
         self.fc2 = nn.Linear(256, 10)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = F.relu(F.max_pool2d(self.conv2(x), 2))
         x = F.dropout(x, p=0.5, training=self.training)
-        x = F.relu(F.max_pool2d(self.conv3(x),2))
+        x = F.relu(F.max_pool2d(self.conv3(x), 2))
         x = F.dropout(x, p=0.5, training=self.training)
-        x = x.view(-1,3*3*64 )
+        x = x.view(-1, 3 * 3 * 64)
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
+
 
 class ModelFactory:
     '''
@@ -219,6 +221,7 @@ class Logger(object):
     '''
     This class records text in a logfile
     '''
+
     def __init__(self, name):
         self.name = name + '.log'
         self.file = None
@@ -255,12 +258,15 @@ def parse_args():
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
     training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                                 help='Optimizer to be used for training')
-    training_group.add_argument('--restart', default=None, help = 'Restart from saved parameters')
+    training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None, help='Used to load weights')
     test_group.add_argument('--rows', default=6, type=int, help='Number of rows of images to display')
     test_group.add_argument('--cols', default=12, type=int, help='Number of columns of images to display')
+
+    visualization_group = parser.add_argument_group('Parameters for --action visualize')
+    visualization_group.add_argument('--target', default=7, type=int, help='Decide which labels will be included')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data', help='Location of data files')
@@ -271,8 +277,9 @@ def parse_args():
 
     return parser.parse_args()
 
+
 class NameFactory:
-    def __init__(self,args, seed):
+    def __init__(self, args, seed):
         self.seed_text = '' if seed == None else f'-{seed}'
         self.action = args.action
         self.model = args.model
@@ -290,7 +297,6 @@ class NameFactory:
         action = self.action if checkpoint == False else 'checkpoint'
         name = f'{self.model}-{action}-{self.N}-{self.batch_size}-{self.seed_text}-{self.optimizer}-{self.lr}-{self.weight_decay}'
         return name.replace('.', '_')
-
 
     def create_long_name(self):
         '''
@@ -323,6 +329,7 @@ def evaluate(model, loader):
     '''
     outputs = [model.validation_step(batch) for batch in loader]
     return model.get_loss_and_accuracy(outputs)
+
 
 def fit(epoch, n_steps, model, train_loader, val_loader, optimizer=None, logger=None):
     '''
@@ -380,18 +387,21 @@ def ensure_we_can_save(checkpoint_file_name):
         checkpoint_path_bak.unlink()
     checkpoint_path.rename(checkpoint_path_bak)
 
+
 def get_seed(seed):
     '''
     Used to generate a new seed if none specified
     '''
-    if seed != None: return seed
+    if seed != None:
+        return seed
     rng = np.random.default_rng()
     max_int64_value = np.iinfo(np.int64).max
     new_seed = rng.integers(max_int64_value)
-    print (f'Created new seed {new_seed}')
+    print(f'Created new seed {new_seed}')
     return new_seed
 
-def generate_mismatches(dataset,n,rng = np.random.default_rng()):
+
+def generate_mismatches(dataset, n, rng=np.random.default_rng()):
     '''
     Used when testing: iterate through images where
     prediction and label don't match
@@ -412,7 +422,8 @@ def generate_mismatches(dataset,n,rng = np.random.default_rng()):
             prediction = model.predict(img)
             j += 1
 
-        yield i+1, img, label, prediction
+        yield i + 1, img, label, prediction
+
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -424,14 +435,14 @@ if __name__ == '__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
-    name_factory = NameFactory(args,seed)
+    name_factory = NameFactory(args, seed)
     match args.action:
         case 'train':
             with Logger(join(args.logfiles, name_factory.create_short_name())) as logger:
                 if args.restart:
                     model = ModelFactory.create_from_file_name(args.restart)
                     model.load(args.restart)
-                    print (f'Reloaded parameters from {args.restart}')
+                    print(f'Reloaded parameters from {args.restart}')
                 else:
                     model = ModelFactory.create(args.model)
                 optimizer = OptimizerFactory.create(model, args)
@@ -445,7 +456,7 @@ if __name__ == '__main__':
                                    optimizer=optimizer, logger=logger)
                     checkpoint_file_name = join(args.params, name_factory.create_short_name(checkpoint=True))
                     ensure_we_can_save(checkpoint_file_name)
-                    model.save( checkpoint_file_name)
+                    model.save(checkpoint_file_name)
                     if user_has_requested_stop():
                         break
                 accuracies = [result['val_acc'] for result in history]
@@ -469,14 +480,14 @@ if __name__ == '__main__':
             test_loader = DataLoader(dataset, batch_size=256)
             score = evaluate(model, test_loader)
 
-            for pos, img, label, prediction in generate_mismatches(dataset,args.rows*args.cols,rng=rng):
+            for pos, img, label, prediction in generate_mismatches(dataset, args.rows * args.cols, rng=rng):
                 ax = fig.add_subplot(args.rows, args.cols, pos)
                 ax.imshow(img[0], cmap='gray')
                 ax.set_title(f'{label}[{prediction}]')
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
 
-            fig.suptitle(rf'Testing {args.file}: Loss = {score["val_loss"]:.4}, Accuracy = {100*score["val_acc"]:.2f}\%',
+            fig.suptitle(rf'Testing {args.file}: Loss = {score['val_loss']:.4}, Accuracy = {100 * score['val_acc']:.2f}\%',
                          fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
@@ -485,7 +496,6 @@ if __name__ == '__main__':
             model = ModelFactory.create_from_file_name(args.file)
             model.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
-            test_loader = DataLoader(dataset, batch_size=256)
 
             # snarfed from https://www.geeksforgeeks.org/deep-learning/visualizing-feature-maps-using-pytorch/
             conv_weights = []
@@ -495,35 +505,43 @@ if __name__ == '__main__':
                     conv_weights.append(module.weight)
                     conv_layers.append(module)
 
-            print(f'Total convolution layers: {len(conv_weights)}')
+            n = len(conv_weights)
+            print(f'Total convolution layers: {n}')
+            m = 2*16
 
-            input_image, label = dataset[0]
-            feature_maps = []
-            layer_names = []
-            for layer in conv_layers:
-                input_image = layer(input_image)
-                feature_maps.append(input_image)
-                layer_names.append(str(layer))
-            print("\nFeature maps shape")
-            for feature_map in feature_maps:
-                print(feature_map.shape)
+            for i in range(m):
+                label = None
+                while not label == args.target:
+                    input_image, label = dataset[rng.choice(len(dataset),replace=False)]
+                feature_maps = []
+                layer_names = []
+                for layer in conv_layers:
+                    input_image = layer(input_image)
+                    feature_maps.append(input_image)
+                    layer_names.append(str(layer))
+                print('\nFeature maps shape')
+                for feature_map in feature_maps:
+                    print(feature_map.shape)
 
-            # Process and visualize feature maps
-            processed_feature_maps = []  # List to store processed feature maps
-            for feature_map in feature_maps:
-                feature_map = feature_map.squeeze(0)  # Remove the batch dimension
-                mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]  # Compute mean across channels
-                processed_feature_maps.append(mean_feature_map.data.cpu().numpy())
+                # Process and visualize feature maps
+                processed_feature_maps = []  # List to store processed feature maps
+                for feature_map in feature_maps:
+                    feature_map = feature_map.squeeze(0)  # Remove the batch dimension
+                    mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]  # Compute mean across channels
+                    processed_feature_maps.append(mean_feature_map.data.cpu().numpy())
 
-            print("\n Processed feature maps shape")
-            for fm in processed_feature_maps:
-                print(fm.shape)
-            for i in range(len(processed_feature_maps)):
-                ax = fig.add_subplot(5, 4, i + 1)
-                ax.imshow(processed_feature_maps[i],cmap='gray')
-                ax.axis("off")
-                ax.set_title(layer_names[i].split('(')[0], fontsize=30)
-
+                print('\n Processed feature maps shape')
+                for fm in processed_feature_maps:
+                    print(fm.shape)
+                for j in range(len(processed_feature_maps)):
+                    ax = fig.add_subplot(m//2, 2*n, n * i + j + 1)
+                    ax.imshow(processed_feature_maps[j], cmap='gray')
+                    ax.axis('off')
+                    if i == 0:
+                        ax.set_title(layer_names[j].split('(')[0], fontsize=30)
+                    fig.suptitle(rf'Visualizing {args.file}', fontsize=12)
+                    fig.tight_layout(pad=3, h_pad=9, w_pad=3)
+                    fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')))
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
