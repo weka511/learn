@@ -21,14 +21,14 @@
 
 from re import split
 
-
 def generate_xkcd_colours(file_name='bgr.txt', filter=lambda R, G, B: True):
     '''
         Generate XKCD colours.
 
         Keyword Parameters:
             file_name Where XKCD colours live. The default organizes colours so
-                      most easily distinguished ones come first.
+                      most widely recognized ones (as defined in XKCD colour
+                      survey) come first.
             filter    Allows us to exclude some colours based on RGB values
     '''
     with open(file_name) as colours:
@@ -43,4 +43,6 @@ def generate_xkcd_colours(file_name='bgr.txt', filter=lambda R, G, B: True):
                 if filter(R, G, B):
                     yield f'xkcd:{parts[0]}'
 
-
+if __name__== '__main__':
+    for colour in generate_xkcd_colours():
+        print (colour)
