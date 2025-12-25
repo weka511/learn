@@ -285,6 +285,10 @@ class Visualizer:
             self.feature_maps.append(input_image)
             self.layer_names.append(str(layer))
 
+    def generate_feature_maps(self):
+        for feature_map in self.feature_maps:
+            yield feature_map
+
     def prepare_feature_maps_for_display(self):
         '''
         Remove batch dimension and normalize for display
@@ -295,7 +299,7 @@ class Visualizer:
             mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]
             self.normalized_feature_maps.append(mean_feature_map.data.cpu().numpy())
 
-    def generate_maps(self):
+    def generate_normalized_maps(self):
         for feature_map in self.normalized_feature_maps:
             yield feature_map
 
@@ -586,9 +590,9 @@ if __name__ == '__main__':
                 visualizer.build_feature_maps(input_image)
                 visualizer.prepare_feature_maps_for_display()
                 image_index+= 1
-                for j,processed_feature_map in enumerate(visualizer.generate_maps()):
+                for j,feature_map in enumerate(visualizer.generate_normalized_maps()):
                     ax = fig.add_subplot(m, n+1, image_index)
-                    ax.imshow(processed_feature_map, cmap=cmap)
+                    ax.imshow(feature_map, cmap=cmap)
                     image_index += 1
                     ax.axis('off')
                     if i == 0:
