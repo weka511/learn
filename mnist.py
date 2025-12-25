@@ -64,7 +64,7 @@ class MnistModel(nn.Module, ABC):
         images, labels = batch
         out = self(images)
         loss = F.cross_entropy(out, labels)
-        acc = accuracy(out, labels)
+        acc = get_accuracy(out, labels)
         return ({'val_loss': loss, 'val_acc': acc})
 
     def get_loss_and_accuracy(self, outputs):
@@ -271,19 +271,33 @@ class Visualizer:
     def get_n(self):
         return len(self.conv_weights)
 
-    def build_map(self,input_image):
+    def build_feature_maps(self,input_image):
+        '''
+        Pass an image through the layers and construct feature maps
+
+        Parameters:
+            input_image   Image to be used
+        '''
         self.feature_maps = []
         self.layer_names = []
         for layer in self.conv_layers:
-            input_image = layer(input_image)
+            input_image = layer(input_image) # 1st iteration: 3x1 1x28x28 -> 3x1 32x24x24
             self.feature_maps.append(input_image)
             self.layer_names.append(str(layer))
 
-        self.processed_feature_maps = []
+    def prepare_feature_maps_for_display(self):
+        '''
+        Remove batch dimension and normalize for display
+        '''
+        self.normalized_feature_maps = []
         for feature_map in self.feature_maps:
             feature_map = feature_map.squeeze(0)
             mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]
-            self.processed_feature_maps.append(mean_feature_map.data.cpu().numpy())
+            self.normalized_feature_maps.append(mean_feature_map.data.cpu().numpy())
+
+    def generate_maps(self):
+        for feature_map in self.normalized_feature_maps:
+            yield feature_map
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
@@ -349,16 +363,16 @@ class NameFactory:
         return title if self.file == None else title + self.file
 
 
-def accuracy(outputs, labels):
+def get_accuracy(prediction, labels):
     '''
     Calculate accuracy, i.e. how frequently prediction matches labels
 
     Parameters:
-        outputs
-        labels
+        prediction    Output from model
+        labels        Expected output
     '''
-    _, preds = torch.max(outputs, dim=1)
-    return (torch.tensor(torch.sum(preds == labels).item() / len(preds)))
+    _, predicted_labels = torch.max(prediction, dim=1)
+    return (torch.tensor(torch.sum(predicted_labels == labels).item() / len(predicted_labels)))
 
 
 def evaluate(model, loader):
@@ -366,11 +380,11 @@ def evaluate(model, loader):
     Used to evaluate goodness of fit
 
     Parameters:
-        model
-        loader
+        model    The model we are using to predict labels
+        loader    Used to read data
     '''
-    outputs = [model.validation_step(batch) for batch in loader]
-    return model.get_loss_and_accuracy(outputs)
+    prediction = [model.validation_step(batch) for batch in loader]
+    return model.get_loss_and_accuracy(prediction)
 
 
 def fit(epoch, n_steps, model, train_loader, val_loader, optimizer=None, logger=None):
@@ -466,6 +480,21 @@ def generate_mismatches(dataset, n, rng=np.random.default_rng()):
 
         yield i + 1, img, label, prediction
 
+def create_model(restart,model_name):
+    '''
+    Allows model to in initialzed from scratch or loaded from saved weights
+
+    Parameters:
+        restart
+        model_name
+    '''
+    if restart:
+        model = ModelFactory.create_from_file_name(restart)
+        model.load(restart)
+        print(f'Reloaded parameters from {restart}')
+        return model
+    else:
+        return ModelFactory.create(model_name)
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -481,12 +510,7 @@ if __name__ == '__main__':
     match args.action:
         case 'train':
             with Logger(join(args.logfiles, name_factory.create_short_name())) as logger:
-                if args.restart:
-                    model = ModelFactory.create_from_file_name(args.restart)
-                    model.load(args.restart)
-                    print(f'Reloaded parameters from {args.restart}')
-                else:
-                    model = ModelFactory.create(args.model)
+                model = create_model(args.restart,args.model)
                 optimizer = OptimizerFactory.create(model, args)
                 dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
                 train_data, validation_data = random_split(dataset, [50000, 10000])
@@ -559,11 +583,12 @@ if __name__ == '__main__':
                 ax.axis('off')
                 if i == 0:
                     ax.set_title('Raw')
-                visualizer.build_map(input_image)
+                visualizer.build_feature_maps(input_image)
+                visualizer.prepare_feature_maps_for_display()
                 image_index+= 1
-                for j in range(len(visualizer.processed_feature_maps)):
+                for j,processed_feature_map in enumerate(visualizer.generate_maps()):
                     ax = fig.add_subplot(m, n+1, image_index)
-                    ax.imshow(visualizer.processed_feature_maps[j], cmap=cmap)
+                    ax.imshow(processed_feature_map, cmap=cmap)
                     image_index += 1
                     ax.axis('off')
                     if i == 0:
