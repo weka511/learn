@@ -219,83 +219,6 @@ class OptimizerFactory:
 
 
 
-class Visualizer:
-    '''
-    This class extracts layers from the model for display
-
-    Based on https://www.geeksforgeeks.org/deep-learning/visualizing-feature-maps-using-pytorch/
-    '''
-
-    def __init__(self):
-        self.conv_weights = []
-        self.conv_layers = []
-        self.feature_maps = []
-        self.layer_names = []
-
-    def is_layer_of_interest(self, module, layer_types=[nn.Conv2d]):
-        for layer_type in layer_types:
-            if isinstance(module, layer_type):
-                return True
-        return False
-
-    def extract_layers(self, model, layer_types=[nn.Conv2d]):
-        '''
-        Extract those layers that we want to visualize
-
-        Parameters:
-            model
-            layer_types
-
-        '''
-        for module in model.children():
-            if self.is_layer_of_interest(module, layer_types=layer_types):
-                self.conv_weights.append(module.weight)
-                self.conv_layers.append(module)
-                m,_,_,_ = module.weight.shape
-                weights = module.weight.squeeze()
-                for i in range(m):
-                    print (weights[i,:,:])
-
-    def get_n(self):
-        return len(self.conv_weights)
-
-    def build_feature_maps(self, input_image):
-        '''
-        Pass an image through the layers and construct feature maps
-
-        Parameters:
-            input_image   Image to be used
-        '''
-        self.feature_maps = []
-        self.layer_names = []
-        for layer in self.conv_layers:
-            input_image = layer(input_image) # 1st iteration: 3x1 1x28x28 -> 3x1 32x24x24
-            self.feature_maps.append(input_image)
-            self.layer_names.append(str(layer))
-
-    def generate_feature_maps(self):
-        for feature_map in self.feature_maps:
-            yield feature_map
-
-    def get_n_maps(self,layer=None):
-        if layer == None:
-            return max(fm.shape[0] for fm in self.generate_feature_maps())
-        else:
-            return self.feature_maps[layer].shape[0]
-
-    def prepare_feature_maps_for_display(self):
-        '''
-        Remove batch dimension and normalize for display
-        '''
-        self.normalized_feature_maps = []
-        for feature_map in self.feature_maps:
-            feature_map = feature_map.squeeze(0)
-            mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]
-            self.normalized_feature_maps.append(mean_feature_map.data.cpu().numpy())
-
-    def generate_normalized_maps(self):
-        for feature_map in self.normalized_feature_maps:
-            yield feature_map
 
 
 def parse_args():
@@ -602,8 +525,6 @@ if __name__ == '__main__':
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')))
 
         case 'layer':
-            with Logger('foo') as logger:
-                logger.log('foo')
             model = ModelFactory.create_from_file_name(args.file)
             model.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())

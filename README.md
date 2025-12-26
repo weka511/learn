@@ -28,6 +28,7 @@ cavi_nd.py|A version of cavi.py that works in multiple dimensions
 em.py|Expectation Maximization
 gmm.py|Generate data in accordance with Gaussian Mixture Model for cavi_nd.py
 UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
+visualize.py|Visualize neural network
 
 ## supporting code
 
