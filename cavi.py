@@ -26,7 +26,7 @@ from argparse import ArgumentParser
 from os.path import basename, join
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
-from xkcd import generate_xkcd_colours
+from utils import generate_xkcd_colours
 from gmm import GaussionMixtureModel, get_name
 
 

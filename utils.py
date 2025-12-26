@@ -19,6 +19,7 @@
 	Shared utilities classes
 '''
 
+from re import split
 import numpy as np
 
 class Logger(object):
@@ -74,3 +75,29 @@ def user_has_requested_stop(stopfile='stop'):
 		print(f'{stopfile} detected')
 		stop_path.unlink()
 	return stopfile_detected
+
+def generate_xkcd_colours(file_name='bgr.txt', filter=lambda R, G, B: True):
+	'''
+	    Generate XKCD colours.
+
+	    Keyword Parameters:
+	        file_name Where XKCD colours live. The default organizes colours so
+	                  most widely recognized ones (as defined in XKCD colour
+	                  survey) come first.
+	        filter    Allows us to exclude some colours based on RGB values
+	'''
+	with open(file_name) as colours:
+		for row in colours:
+			parts = split(r'\s+#', row.strip())
+			if len(parts) > 1:
+				rgb = int(parts[1], 16)
+				B = rgb % 256
+				rest = (rgb - B) // 256
+				G = rest % 256
+				R = (rest - G) // 256
+				if filter(R, G, B):
+					yield f'xkcd:{parts[0]}'
+
+if __name__== '__main__':
+	for colour in generate_xkcd_colours():
+		print (colour)

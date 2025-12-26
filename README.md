@@ -42,5 +42,4 @@ mhast.py|[Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/che
 bgr.txt|List of [XKCD colours](https://xkcd.com/color/rgb/), in reverse order, so they are organized by most widely recognized first
 learn.bib|Bibliography
 learn.wpr | Project file for Wing IDE
-utils.py|Utilities: logfiles, random number seed, stopfile
-xkcd.py|Used to supply [XKCD colours](https://xkcd.com/color/rgb/)
+utils.py|Utilities: logfiles, random number seed, stopfile, [XKCD colours](https://xkcd.com/color/rgb/)

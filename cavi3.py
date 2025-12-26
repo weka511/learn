@@ -26,7 +26,7 @@ from os.path import basename,join
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
 from scipy.stats import norm
-from xkcd import generate_xkcd_colours
+from utils import generate_xkcd_colours
 
 class ELBO_Error(Exception):
     '''

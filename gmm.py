@@ -27,7 +27,7 @@ from argparse import ArgumentParser
 from os.path import join
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
-from xkcd import generate_xkcd_colours
+from utils import generate_xkcd_colours
 
 class GaussionMixtureModel:
     '''
