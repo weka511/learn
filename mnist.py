@@ -242,26 +242,34 @@ class Logger(object):
         self.file.write(line + '\n')
         self.file.flush()
 
+
 class Visualizer:
     '''
     This class extracts layers from the model for display
 
     Based on https://www.geeksforgeeks.org/deep-learning/visualizing-feature-maps-using-pytorch/
     '''
+
     def __init__(self):
         self.conv_weights = []
         self.conv_layers = []
         self.feature_maps = []
         self.layer_names = []
 
-    def is_layer_of_interest(self,module,layer_types=[nn.Conv2d]):
+    def is_layer_of_interest(self, module, layer_types=[nn.Conv2d]):
         for layer_type in layer_types:
-            if isinstance(module,layer_type): return True
+            if isinstance(module, layer_type):
+                return True
         return False
 
-    def extract_layers(self,model,layer_types=[nn.Conv2d]):
+    def extract_layers(self, model, layer_types=[nn.Conv2d]):
         '''
         Extract those layers that we want to visualize
+
+        Parameters:
+            model
+            layer_types
+
         '''
         for module in model.children():
             if self.is_layer_of_interest(module, layer_types=layer_types):
@@ -271,7 +279,7 @@ class Visualizer:
     def get_n(self):
         return len(self.conv_weights)
 
-    def build_feature_maps(self,input_image):
+    def build_feature_maps(self, input_image):
         '''
         Pass an image through the layers and construct feature maps
 
@@ -289,6 +297,12 @@ class Visualizer:
         for feature_map in self.feature_maps:
             yield feature_map
 
+    def get_n_maps(self,layer=None):
+        if layer == None:
+            return max(fm.shape[0] for fm in self.generate_feature_maps())
+        else:
+            return self.feature_maps[layer].shape[0]
+
     def prepare_feature_maps_for_display(self):
         '''
         Remove batch dimension and normalize for display
@@ -303,9 +317,10 @@ class Visualizer:
         for feature_map in self.normalized_feature_maps:
             yield feature_map
 
+
 def parse_args():
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--action', choices=['train', 'test', 'visualize'],
+    parser.add_argument('--action', choices=['train', 'test', 'visualize', 'layer'],
                         default='train', help='Chooses between training or testing')
     training_group = parser.add_argument_group('Parameters for --action train')
     training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
@@ -327,6 +342,10 @@ def parse_args():
 
     visualization_group = parser.add_argument_group('Parameters for --action visualize')
     visualization_group.add_argument('--target', default=7, type=int, nargs='+', help='Decide which labels will be included')
+
+    visualization1_group = parser.add_argument_group('Parameters for --action visualize1')
+    visualization1_group.add_argument('--image_number', default=0, type=int, help='')
+    visualization1_group.add_argument('--layer', default=None, type=int,  help='')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data', help='Location of data files')
@@ -484,7 +503,8 @@ def generate_mismatches(dataset, n, rng=np.random.default_rng()):
 
         yield i + 1, img, label, prediction
 
-def create_model(restart,model_name):
+
+def create_model(restart, model_name):
     '''
     Allows model to in initialzed from scratch or loaded from saved weights
 
@@ -500,12 +520,13 @@ def create_model(restart,model_name):
     else:
         return ModelFactory.create(model_name)
 
+
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
                   'size': 8})
     rc('text', usetex=True)
-    fig = figure(figsize=(12, 12))
+    fig = figure(figsize=(24, 12))
     start = time()
     args = parse_args()
     seed = get_seed(args.seed)
@@ -514,7 +535,7 @@ if __name__ == '__main__':
     match args.action:
         case 'train':
             with Logger(join(args.logfiles, name_factory.create_short_name())) as logger:
-                model = create_model(args.restart,args.model)
+                model = create_model(args.restart, args.model)
                 optimizer = OptimizerFactory.create(model, args)
                 dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
                 train_data, validation_data = random_split(dataset, [50000, 10000])
@@ -562,8 +583,6 @@ if __name__ == '__main__':
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'test')))
 
-
-
         case 'visualize':
             model = ModelFactory.create_from_file_name(args.file)
             model.load(args.file)
@@ -578,20 +597,20 @@ if __name__ == '__main__':
             for i in range(m):
                 label = None
                 while not label in args.target:
-                    input_image, label = dataset[rng.choice(len(dataset),replace=False)]
+                    input_image, label = dataset[rng.choice(len(dataset), replace=False)]
                 out = model(input_image)
                 call = torch.argmax(out).item()
                 cmap = 'Blues' if call == label else 'Reds'
-                ax = fig.add_subplot(m, n+1, image_index)
-                ax.imshow(input_image[0,:,:], cmap=cmap)
+                ax = fig.add_subplot(m, n + 1, image_index)
+                ax.imshow(input_image[0, :, :], cmap=cmap)
                 ax.axis('off')
                 if i == 0:
                     ax.set_title('Raw')
                 visualizer.build_feature_maps(input_image)
                 visualizer.prepare_feature_maps_for_display()
-                image_index+= 1
-                for j,feature_map in enumerate(visualizer.generate_normalized_maps()):
-                    ax = fig.add_subplot(m, n+1, image_index)
+                image_index += 1
+                for j, feature_map in enumerate(visualizer.generate_normalized_maps()):
+                    ax = fig.add_subplot(m, n + 1, image_index)
                     ax.imshow(feature_map, cmap=cmap)
                     image_index += 1
                     ax.axis('off')
@@ -601,6 +620,46 @@ if __name__ == '__main__':
             fig.suptitle(rf'Visualizing {args.file}', fontsize=12)
             fig.tight_layout(pad=3, h_pad=9, w_pad=3)
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')))
+
+        case 'layer':
+            model = ModelFactory.create_from_file_name(args.file)
+            model.load(args.file)
+            dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+            visualizer = Visualizer()
+            visualizer.extract_layers(model)
+            n = visualizer.get_n()
+
+            input_image, label = dataset[args.image_number]
+            visualizer.build_feature_maps(input_image)
+
+            if args.layer == None:
+                m = visualizer.get_n_maps()
+                image_index = 1
+                ax = fig.add_subplot(n+1, m, image_index)
+                ax.imshow(input_image[0, :, :], cmap='gray')
+                ax.axis('off')
+
+                for i, feature_map in enumerate(visualizer.generate_feature_maps()):
+                    image_index = i * m + m + 1
+                    for j in range(feature_map.shape[0]):
+                        ax = fig.add_subplot(n + 1, m, image_index)
+                        ax.imshow(feature_map[j, :, :].detach().numpy(), cmap='gray')
+                        ax.axis('off')
+                        image_index += 1
+            else:
+                m = visualizer.get_n_maps(args.layer)
+                ax = fig.add_subplot(2, m, 1)
+                ax.imshow(input_image[0, :, :], cmap='gray')
+                ax.axis('off')
+                feature_map = visualizer.feature_maps[args.layer]
+                for j in range(m):
+                    ax = fig.add_subplot(2, m, m+ j+1)
+                    ax.imshow(feature_map[j, :, :].detach().numpy(), cmap='gray')
+                    ax.axis('off')
+
+            fig.suptitle(f'{args.image_number} {args.layer}')
+            fig.tight_layout(pad=0, h_pad=0, w_pad=0)
+            fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')),dpi=1024)
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
