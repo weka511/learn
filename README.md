@@ -5,10 +5,8 @@ Experiments in machine learning
 
  File  | Remarks
 ---------------|--------------------------------------------
-chainsaw.py|Cut logs up and process them
-gibbs.py |  [Bayesian Inference: Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 hopfield.py | Hopfield network
-mhast.py | [Bayesian Inference: Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
+chainsaw.py|Cut logs up and process them
 mnist.py|Testbed for deep neural networks, using ideas from Goodfellow et al. Learn to recognize images from the NIST dataset
 torch-nn.py|[train](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)
 visualize.py|Visualize neural network
@@ -29,6 +27,13 @@ cavi_nd.py|A version of cavi.py that works in multiple dimensions
 em.py|Expectation Maximization
 gmm.py|Generate data in accordance with Gaussian Mixture Model for cavi_nd.py
 UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
+
+## Bayesian Inference: Markov Chain Monte Carlo
+
+ File  | Remarks
+---------------|--------------------------------------------
+gibbs.py|[Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
+mhast.py|[Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 
 ## supporting code
 
