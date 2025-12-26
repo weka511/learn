@@ -6,10 +6,10 @@ Experiments in machine learning
  File  | Remarks
 ---------------|--------------------------------------------
 hopfield.py | Hopfield network
-chainsaw.py|Cut logs up and process them
-mnist.py|Testbed for deep neural networks, using ideas from Goodfellow et al. Learn to recognize images from the NIST dataset
+chainsaw.py|Cut up logs from mnisp.py, and process them
+mnist.py|Testbed for deep neural networks, using ideas from [Deep Learning](https://www.deeplearningbook.org/) by Ian Goodfellow and Yoshua Bengio and Aaron Courville. This program learns to recognize images from the NIST dataset
 torch-nn.py|[train](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)
-visualize.py|Visualize neural network
+visualize.py|Visualize neural network used by mnisp.py
 
 ## Variational Inference
 
