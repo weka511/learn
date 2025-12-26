@@ -39,7 +39,7 @@ import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
-
+from utils import Logger
 
 class MnistModel(nn.Module, ABC):
     '''
@@ -217,30 +217,6 @@ class OptimizerFactory:
                 return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 
-class Logger(object):
-    '''
-    This class records text in a logfile
-    '''
-
-    def __init__(self, name):
-        self.name = name + '.log'
-        self.file = None
-
-    def __enter__(self):
-        self.file = open(self.name, 'w')
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.file != None:
-            self.file.close()
-
-    def log(self, line):
-        '''
-        Output one line of text to console and file, flushing as we go
-        '''
-        print(line, flush=True)
-        self.file.write(line + '\n')
-        self.file.flush()
 
 
 class Visualizer:
@@ -275,6 +251,10 @@ class Visualizer:
             if self.is_layer_of_interest(module, layer_types=layer_types):
                 self.conv_weights.append(module.weight)
                 self.conv_layers.append(module)
+                m,_,_,_ = module.weight.shape
+                weights = module.weight.squeeze()
+                for i in range(m):
+                    print (weights[i,:,:])
 
     def get_n(self):
         return len(self.conv_weights)
@@ -622,6 +602,8 @@ if __name__ == '__main__':
             fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')))
 
         case 'layer':
+            with Logger('foo') as logger:
+                logger.log('foo')
             model = ModelFactory.create_from_file_name(args.file)
             model.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())

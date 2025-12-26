@@ -36,4 +36,5 @@ UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
 bgr.txt|List of [XKCD colours](https://xkcd.com/color/rgb/), in reverse order, so they are organized by most widely recognized first
 learn.bib|Bibliography
 learn.wpr | Project file for Wing IDE
+utils.py|Various utilities
 xkcd.py|Used to supply [XKCD colours](https://xkcd.com/color/rgb/)
