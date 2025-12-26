@@ -19,6 +19,8 @@
 	Shared utilities classes
 '''
 
+import numpy as np
+
 class Logger(object):
 	'''
 	This class records text in a logfile
@@ -43,3 +45,32 @@ class Logger(object):
 		print(line, flush=True)
 		self.file.write(line + '\n')
 		self.file.flush()
+
+def get_seed(seed,notify=lambda s:print(f'Created new seed {s}')):
+	'''
+	Used to generate a new seed for random number generation if none specified
+
+	Parameters:
+	    seed
+	'''
+	if seed != None:
+		return seed
+	rng = np.random.default_rng()
+	max_int64_value = np.iinfo(np.int64).max
+	new_seed = rng.integers(max_int64_value)
+	notify(new_seed)
+	return new_seed
+
+def user_has_requested_stop(stopfile='stop'):
+	'''
+	Used to verify that there is a stopfile, so the program can shut down gracefully
+
+	Parameters:
+	    stopfile    Name of file used as token to stop program
+	'''
+	stop_path = Path(stopfile)
+	stopfile_detected = stop_path.is_file()
+	if stopfile_detected:
+		print(f'{stopfile} detected')
+		stop_path.unlink()
+	return stopfile_detected
