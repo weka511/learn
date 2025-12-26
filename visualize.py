@@ -31,12 +31,11 @@ import torch.nn as nn
 from torchvision.datasets import MNIST
 import torchvision.transforms as tr
 from mnist import ModelFactory
+from utils import Logger
 
 class Visualizer:
 	'''
 	This class extracts layers from the model for display
-
-	Based on https://www.geeksforgeeks.org/deep-learning/visualizing-feature-maps-using-pytorch/
 	'''
 
 	def __init__(self):
@@ -64,10 +63,10 @@ class Visualizer:
 			if self.is_layer_of_interest(module, layer_types=layer_types):
 				self.conv_weights.append(module.weight)
 				self.conv_layers.append(module)
-				m,_,_,_ = module.weight.shape
-				weights = module.weight.squeeze()
-				for i in range(m):
-					print (weights[i,:,:])
+
+	def generate_weights(self):
+		for weights in self.conv_weights:
+			yield weights
 
 	def get_n(self):
 		return len(self.conv_weights)
@@ -82,7 +81,7 @@ class Visualizer:
 		self.feature_maps = []
 		self.layer_names = []
 		for layer in self.conv_layers:
-			input_image = layer(input_image) # 1st iteration: 3x1 1x28x28 -> 3x1 32x24x24
+			input_image = layer(input_image)
 			self.feature_maps.append(input_image)
 			self.layer_names.append(str(layer))
 
@@ -112,13 +111,13 @@ class Visualizer:
 
 def parse_args():
 	parser = ArgumentParser(description=__doc__)
-	parser.add_argument('--file', default=None, help='Used to load weights')
+	parser.add_argument('file', default=None, help='Used to load weights')
 	parser.add_argument('--data', default='./data', help='Location of data files')
 	parser.add_argument('--logfiles', default='./logfiles', help='Location of log files')
 	parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
 	parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
 	parser.add_argument('--image_number', default=0, type=int, help='')
-	parser.add_argument('--layer', default=None, type=int,  help='')
+	parser.add_argument('--layer', default=0, type=int,  help='')
 	return parser.parse_args()
 
 if __name__ == '__main__':
@@ -126,47 +125,42 @@ if __name__ == '__main__':
 	              'serif': ['Palatino'],
 	              'size': 8})
 	rc('text', usetex=True)
-	fig = figure(figsize=(24, 12))
+	fig = figure(figsize=(8, 8))
 	start = time()
 	args = parse_args()
-	model = ModelFactory.create_from_file_name(args.file)
-	model.load(args.file)
-	dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
-	visualizer = Visualizer()
-	visualizer.extract_layers(model)
-	n = visualizer.get_n()
+	with Logger(join(args.logfiles, Path(args.file).stem)) as logger:
+		model = ModelFactory.create_from_file_name(args.file)
+		model.load(args.file)
+		dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+		visualizer = Visualizer()
+		visualizer.extract_layers(model)
+		for weights in visualizer.generate_weights():
+			m,_,_,_ = weights.shape
+			weights0 = weights.squeeze().detach().numpy()
+			for i in range(m):
+				logger.log(f'{i}: {weights0[i,:,:]}')
 
-	input_image, label = dataset[args.image_number]
-	visualizer.build_feature_maps(input_image)
+		input_image, label = dataset[args.image_number]
+		visualizer.build_feature_maps(input_image)
 
-	if args.layer == None:
-		m = visualizer.get_n_maps()
-		image_index = 1
-		ax = fig.add_subplot(n+1, m, image_index)
-		ax.imshow(input_image[0, :, :], cmap='gray')
-		ax.axis('off')
-
-		for i, feature_map in enumerate(visualizer.generate_feature_maps()):
-			image_index = i * m + m + 1
-			for j in range(feature_map.shape[0]):
-				ax = fig.add_subplot(n + 1, m, image_index)
-				ax.imshow(feature_map[j, :, :].detach().numpy(), cmap='gray')
-				ax.axis('off')
-				image_index += 1
-	else:
 		m = visualizer.get_n_maps(args.layer)
-		ax = fig.add_subplot(2, m, 1)
+		nrows = int(np.sqrt(m))
+		ncols = nrows
+		while nrows * ncols < m:
+			ncols += 1
+		nrows += 1
+		ax = fig.add_subplot(nrows, ncols, ncols//2)
 		ax.imshow(input_image[0, :, :], cmap='gray')
 		ax.axis('off')
 		feature_map = visualizer.feature_maps[args.layer]
 		for j in range(m):
-			ax = fig.add_subplot(2, m, m+ j+1)
+			ax = fig.add_subplot(nrows, ncols, ncols+ j+1)
 			ax.imshow(feature_map[j, :, :].detach().numpy(), cmap='gray')
 			ax.axis('off')
 
-	fig.suptitle(f'{args.image_number} {args.layer}')
-	fig.tight_layout(pad=0, h_pad=0, w_pad=0)
-	fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')),dpi=1024)
+		fig.suptitle(f'{args.image_number} {args.layer}')
+		fig.tight_layout(pad=0, h_pad=0, w_pad=0)
+		fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')))
 
 	elapsed = time() - start
 	minutes = int(elapsed / 60)
