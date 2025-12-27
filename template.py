@@ -17,60 +17,83 @@
 
 '''Template for python script using pytorch'''
 
-# https://machinelearningmastery.com/develop-your-first-neural-network-with-pytorch-step-by-step/
-
 from argparse import ArgumentParser
-from os.path import join
+from os.path import splitext,join
+from pathlib import Path
 from time import time
+from matplotlib.pyplot import figure, show
+from matplotlib import rc
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.optim import Adam
+from torchvision.datasets import MNIST
+import torchvision.transforms as tr
+from torch.utils.data import DataLoader, random_split
+import torch.nn.functional as F
+from torch.optim import SGD, Adam
+from utils import Logger, get_seed, user_has_requested_stop
+
+class OptimizerFactory:
+    '''
+    This class instantiates optimizers as specified by the command line parameters
+    '''
+
+    choices = [
+        'SGD',
+        'Adam'
+    ]
+
+    @staticmethod
+    def get_default():
+        return OptimizerFactory.choices[1]
+
+    @staticmethod
+    def create(model, args):
+        match args.optimizer:
+            case 'SGD':
+                return SGD(model.parameters(), lr=args.lr)
+            case 'Adam':
+                return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--data', default='./data')
+    parser.add_argument('--action', choices=['train', 'test'],
+                        default='train', help='Chooses between training or testing')
+
+    training_group = parser.add_argument_group('Parameters for --action train')
+    training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
+    training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
+    training_group.add_argument('--steps', default=5, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--params', default='./params', help='Location for storing plot files')
+    training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
+    training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
+    training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
+                                help='Optimizer to be used for training')
+    training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
+
+    test_group = parser.add_argument_group('Parameters for --action test')
+    test_group.add_argument('--file', default=None, help='Used to load weights')
+
+    shared_group = parser.add_argument_group('General Parameters')
+    shared_group.add_argument('--data', default='./data', help='Location of data files')
+    shared_group.add_argument('--logfiles', default='./logfiles', help='Location of log files')
+    shared_group.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
+    shared_group.add_argument('--figs', default='./figs', help='Location for storing plot files')
+    shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
     return parser.parse_args()
 
 if __name__=='__main__':
-    start  = time()
+    rc('font', **{'family': 'serif',
+                  'serif': ['Palatino'],
+                  'size': 8})
+    rc('text', usetex=True)
+    fig = figure(figsize=(24, 12))
+    start = time()
     args = parse_args()
-    dataset = np.loadtxt(join(args.data,'pima-indians-diabetes.csv'), delimiter=',')
-    X = dataset[:,:-1]
-    y = dataset[:,-1]
-    X = torch.tensor(X, dtype=torch.float32)
-    y = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
-    model = nn.Sequential(
-        nn.Linear(8, 12),
-        nn.ReLU(),
-        nn.Linear(12, 8),
-        nn.ReLU(),
-        nn.Linear(8, 1),
-        nn.Sigmoid())
-    print (model)
+    seed = get_seed(args.seed)
+    rng = np.random.default_rng(args.seed)
 
-    loss_fn = nn.BCELoss()
-    optimizer = Adam(model.parameters(), lr=0.001)
-
-    batch_size = 10
-    n_epochs   = 100
-    for epoch in range(n_epochs):
-        for i in range(0, len(X), batch_size):
-            Xbatch = X[i:i+batch_size]
-            y_pred = model(Xbatch)
-            ybatch = y[i:i+batch_size]
-            loss = loss_fn(y_pred, ybatch)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        if epoch%5==0:
-            print(f'Finished epoch {epoch}, latest loss {loss}')
-
-
-    with torch.no_grad():
-        y_pred = model(X)
-    accuracy = (y_pred.round() == y).float().mean()
-    print(f'Accuracy {accuracy}')
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
