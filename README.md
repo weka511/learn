@@ -19,7 +19,6 @@ Programs written to understand Variational Inference, based on the following ref
 
  File  | Remarks |
 ---------------|-------------------------------------------------------------------------------------------
-CAVI.tex|Doco for VI programs
 cavi1.py|CAVI for Univariate Gaussian from [Univariate Gaussian Example](https://suzyahyah.github.io/bayesian%20inference/machine%20learning/2019/03/20/CAVI.html)
 cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
 cavi.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
@@ -40,6 +39,12 @@ mhast.py|[Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/che
  File  | Remarks
 ---------------|--------------------------------------------
 bgr.txt|List of [XKCD colours](https://xkcd.com/color/rgb/), in reverse order, so they are organized by most widely recognized first
-learn.bib|Bibliography
 learn.wpr | Project file for Wing IDE
 utils.py|Utilities: logfiles, random number seed, stopfile, [XKCD colours](https://xkcd.com/color/rgb/)
+
+## Documentation, stored in docs folder
+
+ File  | Remarks
+---------------|--------------------------------------------
+CAVI.tex|Documentation for CAVI
+learn.bib|Bibliography
