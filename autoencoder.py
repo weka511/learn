@@ -15,7 +15,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-'''Template for python script using pytorch'''
+'''Train an autoencoder agains MNIST data'''
 
 from argparse import ArgumentParser
 from os.path import splitext,join
@@ -32,6 +32,27 @@ from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
 from utils import Logger, get_seed, user_has_requested_stop
+
+class AutoEncoder(nn.Module):
+
+    def __init__(self, width=28, height=28,reduced = 28,nsteps=2):
+        super().__init__()
+        self.input_size = width*height
+        factor = (reduced/self.input_size)**(1/nsteps)
+        sizes = [self.input_size]
+        for i in range(nsteps):
+            sizes.append(int(sizes[-1]*factor))
+        sizes[-1] = reduced
+        sizes += sizes[::-1][1:]
+        layers = []
+        for a,b in zip(sizes[:-1],sizes[1:]):
+            layers.append(nn.Linear(a,b))
+            layers.append(nn.ReLU())
+        self.model = nn.Sequential(*layers)
+
+
+    def forward(self, xb):
+        return self.model(xb.reshape(-1, self.input_size))
 
 class OptimizerFactory:
     '''
@@ -93,6 +114,12 @@ if __name__=='__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
+    auto_encoder = AutoEncoder()
+    optimizer = OptimizerFactory.create(auto_encoder, args)
+    dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
+    train_data, validation_data = random_split(dataset, [50000, 10000])
+    train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
+
 
     elapsed = time() - start
     minutes = int(elapsed/60)
