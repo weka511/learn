@@ -193,7 +193,6 @@ class ModelFactory:
             if name.find(choice) > -1:
                 return ModelFactory.create(choice)
 
-
 class OptimizerFactory:
     '''
     This class instantiates optimizers as specified by the command line parameters
@@ -215,11 +214,6 @@ class OptimizerFactory:
                 return SGD(model.parameters(), lr=args.lr)
             case 'Adam':
                 return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-
-
-
-
-
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
