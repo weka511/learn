@@ -16,7 +16,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 '''
-	Visualize layers within nueral network
+	Visualize layers within neural network
 '''
 
 from argparse import ArgumentParser
@@ -26,7 +26,6 @@ from time import time
 import numpy as np
 from matplotlib.pyplot import figure, show, cm
 from matplotlib import rc
-import torch
 import torch.nn as nn
 from torchvision.datasets import MNIST
 import torchvision.transforms as tr
@@ -90,10 +89,7 @@ class Visualizer:
 			yield feature_map
 
 	def get_n_maps(self,layer=None):
-		if layer == None:
-			return max(fm.shape[0] for fm in self.generate_feature_maps())
-		else:
-			return self.feature_maps[layer].shape[0]
+		return self.feature_maps[layer].shape[0]
 
 	def prepare_feature_maps_for_display(self):
 		'''
@@ -116,8 +112,8 @@ def parse_args():
 	parser.add_argument('--logfiles', default='./logfiles', help='Location of log files')
 	parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
 	parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
-	parser.add_argument('--image_number', default=0, type=int, help='')
-	parser.add_argument('--layer', default=0, type=int,  help='')
+	parser.add_argument('--image_number', default=[0], type=int, nargs='+',help='List of images to process')
+	parser.add_argument('--layer', default=0, type=int,  help='Layer to display')
 	return parser.parse_args()
 
 if __name__ == '__main__':
@@ -125,7 +121,6 @@ if __name__ == '__main__':
 	              'serif': ['Palatino'],
 	              'size': 8})
 	rc('text', usetex=True)
-	fig = figure(figsize=(8, 8))
 	start = time()
 	args = parse_args()
 	with Logger(join(args.logfiles, Path(args.file).stem)) as logger:
@@ -139,28 +134,30 @@ if __name__ == '__main__':
 			weights0 = weights.squeeze().detach().numpy()
 			for i in range(m):
 				logger.log(f'{i}: {weights0[i,:,:]}')
+		for image_number in args.image_number:
+			fig = figure(figsize=(6, 6))
+			input_image, label = dataset[image_number]
+			visualizer.build_feature_maps(input_image)
 
-		input_image, label = dataset[args.image_number]
-		visualizer.build_feature_maps(input_image)
+			m = visualizer.get_n_maps(args.layer)
+			nrows = int(np.sqrt(m))
+			ncols = nrows
+			while nrows * ncols < m:
+				ncols += 1
+			nrows += 1
 
-		m = visualizer.get_n_maps(args.layer)
-		nrows = int(np.sqrt(m))
-		ncols = nrows
-		while nrows * ncols < m:
-			ncols += 1
-		nrows += 1
-		ax = fig.add_subplot(nrows, ncols, ncols//2)
-		ax.imshow(input_image[0, :, :], cmap='gray')
-		ax.axis('off')
-		feature_map = visualizer.feature_maps[args.layer]
-		for j in range(m):
-			ax = fig.add_subplot(nrows, ncols, ncols+ j+1)
-			ax.imshow(feature_map[j, :, :].detach().numpy(), cmap='gray')
+			ax = fig.add_subplot(nrows, ncols, ncols//2)
+			ax.imshow(input_image[0, :, :], cmap='gray')
 			ax.axis('off')
+			feature_map = visualizer.feature_maps[args.layer]
+			for j in range(m):
+				ax = fig.add_subplot(nrows, ncols, ncols+ j+1)
+				ax.imshow(feature_map[j, :, :].detach().numpy(), cmap='gray')
+				ax.axis('off')
 
-		fig.suptitle(f'{args.image_number} {args.layer}')
-		fig.tight_layout(pad=0, h_pad=0, w_pad=0)
-		fig.savefig(join(args.figs, Path(args.file).stem.replace('train', 'visualize')))
+			fig.suptitle(f'Image {image_number}, Layer {args.layer}')
+			fig.tight_layout(pad=3, h_pad=3, w_pad=3)
+			fig.savefig(join(args.figs, f'{Path(__file__).stem}-{image_number}'))
 
 	elapsed = time() - start
 	minutes = int(elapsed / 60)
