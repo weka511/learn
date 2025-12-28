@@ -98,3 +98,6 @@ if __name__=='__main__':
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
     print (f'Elapsed Time {minutes} m {seconds:.2f} s')
+
+    if args.show:
+        show()
