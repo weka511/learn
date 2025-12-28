@@ -15,7 +15,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-'''Train an autoencoder agains MNIST data'''
+'''Train an autoencoder against MNIST data'''
 
 from argparse import ArgumentParser
 from os.path import splitext,join
@@ -31,7 +31,7 @@ import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
-from utils import Logger, get_seed, user_has_requested_stop
+from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save
 
 class AutoEncoder(nn.Module):
 
@@ -75,12 +75,22 @@ class AutoEncoder(nn.Module):
     def forward(self, xb):
         return self.model(xb.reshape(-1, self.input_size))
 
-    def training_step(self, batch):
+    def get_batch_loss(self, batch):
         images, _ = batch
         out = self(images)
         return F.cross_entropy(out, torch.reshape(images,out.shape))
 
+    def save(self, name):
+        '''
+        Used to save weights
+        '''
+        torch.save(self.state_dict(), f'{name}.pth')
 
+    def load(self, file):
+        '''
+        Used to recall a previous set of weights
+        '''
+        self.load_state_dict(torch.load(file))
 
 class OptimizerFactory:
     '''
@@ -122,6 +132,7 @@ def parse_args():
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
     training_group.add_argument('--nsteps', default=2, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--reduced', default=28, type=int, help='Number of steps to an epoch')
+
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None, help='Used to load weights')
 
@@ -132,6 +143,19 @@ def parse_args():
     shared_group.add_argument('--figs', default='./figs', help='Location for storing plot files')
     shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
     return parser.parse_args()
+
+def training_step(batch,optimizer):
+    loss = auto_encoder.get_batch_loss(batch)
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()
+
+def get_file_name(args):
+    return f'{Path(__file__).stem}-{args.reduced}-{args.nsteps}'
+
+def get_moving_average(history,window_size = 11):
+    kernel = np.ones(window_size) / window_size
+    return np.convolve(history, kernel, mode='valid')
 
 if __name__=='__main__':
     rc('font', **{'family': 'serif',
@@ -153,20 +177,30 @@ if __name__=='__main__':
     for epoch in range(args.N):
         print (f'Epoch {epoch} of {args.N}')
         for batch in train_loader:
-            loss = auto_encoder.training_step(batch)
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+            training_step(batch,optimizer)
         for batch in validation_loader:
-            history.append(float(auto_encoder.training_step(batch).detach()))
+            history.append(float(auto_encoder.get_batch_loss(batch).detach()))
+        checkpoint_file_name = join(args.params,get_file_name(args))
+        ensure_we_can_save(checkpoint_file_name)
+        auto_encoder.save(checkpoint_file_name)
+
+    moving_average= get_moving_average(history,window_size = 11)
+    xs = np.arange(0,len(history))
+    skip = (len(history) - len(moving_average))//2
+    x1s = xs[skip:]
+    tail_count = len(x1s) - len(moving_average)
+    x1s = x1s[:-tail_count]
 
     ax = fig.add_subplot(1,1,1)
-    ax.plot(history)
+    ax.plot(xs,history,c='xkcd:blue',label='Loss')
+    ax.plot(x1s,moving_average,c='xkcd:blue',linestyle = 'dotted',label='Average Loss')
+    ax.legend()
+
     ax.set_title(f'reduced = {args.reduced}, nsteps={args.nsteps}')
     ax.set_ylabel('Loss')
     ax.set_xlabel('Step')
 
-    fig.savefig(join(args.figs, Path(__file__).stem))
+    fig.savefig(join(args.figs, get_file_name(args)))
 
     elapsed = time() - start
     minutes = int(elapsed/60)
