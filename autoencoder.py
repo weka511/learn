@@ -77,9 +77,13 @@ class AutoEncoder(nn.Module):
         return self.model(xb.reshape(-1, self.input_size))
 
     def get_batch_loss(self, batch):
+        '''
+        I'm following https://www.geeksforgeeks.org/machine-learning/auto-encoders/
+        and using MSE Loss
+        '''
         images, _ = batch
         out = self(images)
-        return F.cross_entropy(out, torch.reshape(images, out.shape))
+        return F.mse_loss(out, torch.reshape(images, out.shape))
 
     def save(self, name):
         '''
@@ -125,7 +129,7 @@ def parse_args():
     training_group = parser.add_argument_group('Parameters for --action train')
     training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
-    training_group.add_argument('--steps', default=5, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--n', default=5, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
@@ -202,7 +206,7 @@ if __name__ == '__main__':
     start = time()
     args = parse_args()
     seed = get_seed(args.seed)
-    rng = np.random.default_rng(args.seed)
+    rng = np.random.default_rng(seed)
     auto_encoder = create_autoencoder(args.restart)
     optimizer = OptimizerFactory.create(auto_encoder, args)
     dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
@@ -212,13 +216,16 @@ if __name__ == '__main__':
     history = []
     for epoch in range(args.N):
         print(f'Epoch {epoch} of {args.N}')
-        for batch in train_loader:
-            training_step(batch, optimizer)
+        for _ in range(args.n):
+            for batch in train_loader:
+                training_step(batch, optimizer)
         for batch in validation_loader:
             history.append(float(auto_encoder.get_batch_loss(batch).detach()))
         checkpoint_file_name = join(args.params, get_file_name(args))
         ensure_we_can_save(checkpoint_file_name)
         auto_encoder.save(checkpoint_file_name)
+        if user_has_requested_stop():
+            break
 
     xs = np.arange(0, len(history))
     x1s, moving_average = get_moving_average(xs, history)
