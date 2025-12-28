@@ -39,7 +39,7 @@ import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
-from utils import Logger, get_seed, user_has_requested_stop
+from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save
 
 class MnistModel(nn.Module, ABC):
     '''
@@ -327,18 +327,6 @@ def fit(epoch, n_steps, model, train_loader, val_loader, optimizer=None, logger=
         history.append(result)
     return (history)
 
-def ensure_we_can_save(checkpoint_file_name):
-    '''
-    If there is already a checkpoint file, we need to make it
-    into a backup. But if there is already a backup, delete it first
-    '''
-    checkpoint_path = Path(checkpoint_file_name + '.pth')
-    if not checkpoint_path.is_file():
-        return
-    checkpoint_path_bak = Path(checkpoint_file_name + '.bak')
-    if checkpoint_path_bak.is_file():
-        checkpoint_path_bak.unlink()
-    checkpoint_path.rename(checkpoint_path_bak)
 
 
 def generate_mismatches(dataset, n, rng=np.random.default_rng()):

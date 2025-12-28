@@ -19,8 +19,10 @@
 	Shared utilities classes
 '''
 
+from pathlib import Path
 from re import split
 import numpy as np
+
 
 class Logger(object):
 	'''
@@ -47,7 +49,8 @@ class Logger(object):
 		self.file.write(line + '\n')
 		self.file.flush()
 
-def get_seed(seed,notify=lambda s:print(f'Created new seed {s}')):
+
+def get_seed(seed, notify=lambda s: print(f'Created new seed {s}')):
 	'''
 	Used to generate a new seed for random number generation if none specified
 
@@ -62,6 +65,7 @@ def get_seed(seed,notify=lambda s:print(f'Created new seed {s}')):
 	notify(new_seed)
 	return new_seed
 
+
 def user_has_requested_stop(stopfile='stop'):
 	'''
 	Used to verify that there is a stopfile, so the program can shut down gracefully
@@ -75,6 +79,7 @@ def user_has_requested_stop(stopfile='stop'):
 		print(f'{stopfile} detected')
 		stop_path.unlink()
 	return stopfile_detected
+
 
 def generate_xkcd_colours(file_name='bgr.txt', filter=lambda R, G, B: True):
 	'''
@@ -98,6 +103,20 @@ def generate_xkcd_colours(file_name='bgr.txt', filter=lambda R, G, B: True):
 				if filter(R, G, B):
 					yield f'xkcd:{parts[0]}'
 
-if __name__== '__main__':
+
+def ensure_we_can_save(checkpoint_file_name):
+	'''
+	If there is already a checkpoint file, we need to make it
+	into a backup. But if there is already a backup, delete it first
+	'''
+	checkpoint_path = Path(checkpoint_file_name).with_suffix('.pth')
+	if checkpoint_path.is_file():
+		checkpoint_path_bak = Path(checkpoint_file_name).with_suffix('.bak')
+		if checkpoint_path_bak.is_file():
+			checkpoint_path_bak.unlink()
+		checkpoint_path.rename(checkpoint_path_bak)
+
+
+if __name__ == '__main__':
 	for colour in generate_xkcd_colours():
-		print (colour)
+		print(colour)
