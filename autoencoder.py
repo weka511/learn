@@ -146,6 +146,19 @@ def parse_args():
     shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
     return parser.parse_args()
 
+def create_autoencoder(restart=None):
+    '''
+    Instantiate an autoencoder, and, optionally, reload weights from a file
+
+    Parameters:
+        restart   Optional name for a file from which to load weights
+    '''
+    product = AutoEncoder()
+    if restart:
+        restart_path = Path(restart).with_suffix('.pth')
+        product.load(restart_path)
+        print(f'Reloaded parameters from {restart_path}')
+    return product
 
 def training_step(batch, optimizer):
     loss = auto_encoder.get_batch_loss(batch)
@@ -190,7 +203,7 @@ if __name__ == '__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
-    auto_encoder = AutoEncoder()
+    auto_encoder = create_autoencoder(args.restart)
     optimizer = OptimizerFactory.create(auto_encoder, args)
     dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
     train_data, validation_data = random_split(dataset, [50000, 10000])
