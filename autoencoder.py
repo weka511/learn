@@ -18,7 +18,7 @@
 '''Train an autoencoder against MNIST data'''
 
 from argparse import ArgumentParser
-from os.path import splitext,join
+from os.path import splitext, join
 from pathlib import Path
 from time import time
 from matplotlib.pyplot import figure, show
@@ -33,6 +33,7 @@ import torch.nn.functional as F
 from torch.optim import SGD, Adam
 from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save
 
+
 class AutoEncoder(nn.Module):
 
     '''
@@ -44,11 +45,11 @@ class AutoEncoder(nn.Module):
         nsteps
     '''
     @staticmethod
-    def create_sizes(input_size,reduced,nsteps):
-        factor = (reduced/input_size)**(1/nsteps)
+    def create_sizes(input_size, reduced, nsteps):
+        factor = (reduced / input_size)**(1 / nsteps)
         product = [input_size]
         for i in range(nsteps):
-            product.append(int(product[-1]*factor))
+            product.append(int(product[-1] * factor))
         product[-1] = reduced
         product += product[::-1][1:]
         return product
@@ -62,15 +63,15 @@ class AutoEncoder(nn.Module):
     @staticmethod
     def create_layers(sizes):
         product = []
-        for a,b in zip(sizes[:-1],sizes[1:]):
-            product.append(nn.Linear(a,b))
+        for a, b in zip(sizes[:-1], sizes[1:]):
+            product.append(nn.Linear(a, b))
             product.append(nn.ReLU())
         return product
 
-    def __init__(self, width=28, height=28,reduced = 28,nsteps=2):
+    def __init__(self, width=28, height=28, reduced=28, nsteps=2):
         super().__init__()
-        self.input_size = width*height
-        self.model = nn.Sequential(*AutoEncoder.create_layers(AutoEncoder.create_sizes(self.input_size,reduced,nsteps)))
+        self.input_size = width * height
+        self.model = nn.Sequential(*AutoEncoder.create_layers(AutoEncoder.create_sizes(self.input_size, reduced, nsteps)))
 
     def forward(self, xb):
         return self.model(xb.reshape(-1, self.input_size))
@@ -78,7 +79,7 @@ class AutoEncoder(nn.Module):
     def get_batch_loss(self, batch):
         images, _ = batch
         out = self(images)
-        return F.cross_entropy(out, torch.reshape(images,out.shape))
+        return F.cross_entropy(out, torch.reshape(images, out.shape))
 
     def save(self, name):
         '''
@@ -91,6 +92,7 @@ class AutoEncoder(nn.Module):
         Used to recall a previous set of weights
         '''
         self.load_state_dict(torch.load(file))
+
 
 class OptimizerFactory:
     '''
@@ -144,20 +146,41 @@ def parse_args():
     shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
     return parser.parse_args()
 
-def training_step(batch,optimizer):
+
+def training_step(batch, optimizer):
     loss = auto_encoder.get_batch_loss(batch)
     loss.backward()
     optimizer.step()
     optimizer.zero_grad()
 
+
 def get_file_name(args):
     return f'{Path(__file__).stem}-{args.reduced}-{args.nsteps}'
 
-def get_moving_average(history,window_size = 11):
-    kernel = np.ones(window_size) / window_size
-    return np.convolve(history, kernel, mode='valid')
 
-if __name__=='__main__':
+def get_moving_average(xs, ys, window_size=11):
+    '''
+    Calculate a moving average
+
+    Parameters:
+         xs            Indices of data for plotting
+         ys            Data to be plotted
+         window_size   Number of points to be included
+
+    Returns:
+         x1s    A subset of xs, chosen so average can be plotted on the same scale as xs,ys
+         y1s    The moving average
+    '''
+    kernel = np.ones(window_size) / window_size
+    y1s = np.convolve(ys, kernel, mode='valid')
+    skip = (len(ys) - len(y1s)) // 2
+    x1s = xs[skip:]
+    tail_count = len(x1s) - len(y1s)
+    x1s = x1s[:-tail_count]
+    return x1s, y1s
+
+
+if __name__ == '__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
                   'size': 8})
@@ -175,37 +198,33 @@ if __name__=='__main__':
     validation_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
     history = []
     for epoch in range(args.N):
-        print (f'Epoch {epoch} of {args.N}')
+        print(f'Epoch {epoch} of {args.N}')
         for batch in train_loader:
-            training_step(batch,optimizer)
+            training_step(batch, optimizer)
         for batch in validation_loader:
             history.append(float(auto_encoder.get_batch_loss(batch).detach()))
-        checkpoint_file_name = join(args.params,get_file_name(args))
+        checkpoint_file_name = join(args.params, get_file_name(args))
         ensure_we_can_save(checkpoint_file_name)
         auto_encoder.save(checkpoint_file_name)
 
-    moving_average= get_moving_average(history,window_size = 11)
-    xs = np.arange(0,len(history))
-    skip = (len(history) - len(moving_average))//2
-    x1s = xs[skip:]
-    tail_count = len(x1s) - len(moving_average)
-    x1s = x1s[:-tail_count]
+    xs = np.arange(0, len(history))
+    x1s, moving_average = get_moving_average(xs, history)
 
-    ax = fig.add_subplot(1,1,1)
-    ax.plot(xs,history,c='xkcd:blue',label='Loss')
-    ax.plot(x1s,moving_average,c='xkcd:blue',linestyle = 'dotted',label='Average Loss')
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(xs, history, c='xkcd:blue', label='Loss')
+    ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
     ax.legend()
 
-    ax.set_title(f'reduced = {args.reduced}, nsteps={args.nsteps}')
+    ax.set_title(f'{Path(__file__).stem.title()}: reduced = {args.reduced}, nsteps={args.nsteps}')
     ax.set_ylabel('Loss')
     ax.set_xlabel('Step')
 
     fig.savefig(join(args.figs, get_file_name(args)))
 
     elapsed = time() - start
-    minutes = int(elapsed/60)
-    seconds = elapsed - 60*minutes
-    print (f'Elapsed Time {minutes} m {seconds:.2f} s')
+    minutes = int(elapsed / 60)
+    seconds = elapsed - 60 * minutes
+    print(f'Elapsed Time {minutes} m {seconds:.2f} s')
 
     if args.show:
         show()
