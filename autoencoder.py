@@ -120,7 +120,8 @@ def parse_args():
     training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                                 help='Optimizer to be used for training')
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
-
+    training_group.add_argument('--nsteps', default=2, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--reduced', default=28, type=int, help='Number of steps to an epoch')
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None, help='Used to load weights')
 
@@ -157,11 +158,15 @@ if __name__=='__main__':
             optimizer.step()
             optimizer.zero_grad()
         for batch in validation_loader:
-            history.append(float(auto_encoder.training_step(batch)))
+            history.append(float(auto_encoder.training_step(batch).detach()))
 
-
-    ax =fig.add_subplot(1,1,1)
+    ax = fig.add_subplot(1,1,1)
     ax.plot(history)
+    ax.set_title(f'reduced = {args.reduced}, nsteps={args.nsteps}')
+    ax.set_ylabel('Loss')
+    ax.set_xlabel('Step')
+
+    fig.savefig(join(args.figs, Path(__file__).stem))
 
     elapsed = time() - start
     minutes = int(elapsed/60)
