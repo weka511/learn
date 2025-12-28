@@ -35,24 +35,52 @@ from utils import Logger, get_seed, user_has_requested_stop
 
 class AutoEncoder(nn.Module):
 
+    '''
+    Determine number of nodes in each layer
+
+    Parameters:
+        input_size
+        reduced
+        nsteps
+    '''
+    @staticmethod
+    def create_sizes(input_size,reduced,nsteps):
+        factor = (reduced/input_size)**(1/nsteps)
+        product = [input_size]
+        for i in range(nsteps):
+            product.append(int(product[-1]*factor))
+        product[-1] = reduced
+        product += product[::-1][1:]
+        return product
+
+    '''
+    Create list of layers for Autoencoder
+
+    Parameters:
+        sizes
+    '''
+    @staticmethod
+    def create_layers(sizes):
+        product = []
+        for a,b in zip(sizes[:-1],sizes[1:]):
+            product.append(nn.Linear(a,b))
+            product.append(nn.ReLU())
+        return product
+
     def __init__(self, width=28, height=28,reduced = 28,nsteps=2):
         super().__init__()
         self.input_size = width*height
-        factor = (reduced/self.input_size)**(1/nsteps)
-        sizes = [self.input_size]
-        for i in range(nsteps):
-            sizes.append(int(sizes[-1]*factor))
-        sizes[-1] = reduced
-        sizes += sizes[::-1][1:]
-        layers = []
-        for a,b in zip(sizes[:-1],sizes[1:]):
-            layers.append(nn.Linear(a,b))
-            layers.append(nn.ReLU())
-        self.model = nn.Sequential(*layers)
-
+        self.model = nn.Sequential(*AutoEncoder.create_layers(AutoEncoder.create_sizes(self.input_size,reduced,nsteps)))
 
     def forward(self, xb):
         return self.model(xb.reshape(-1, self.input_size))
+
+    def training_step(self, batch):
+        images, _ = batch
+        out = self(images)
+        return F.cross_entropy(out, torch.reshape(images,out.shape))
+
+
 
 class OptimizerFactory:
     '''
@@ -119,9 +147,26 @@ if __name__=='__main__':
     dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
     train_data, validation_data = random_split(dataset, [50000, 10000])
     train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
+    validation_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
+    history = []
+    for epoch in range(args.N):
+        print (f'Epoch {epoch} of {args.N}')
+        for batch in train_loader:
+            loss = auto_encoder.training_step(batch)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+        for batch in validation_loader:
+            history.append(float(auto_encoder.training_step(batch)))
 
+
+    ax =fig.add_subplot(1,1,1)
+    ax.plot(history)
 
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
     print (f'Elapsed Time {minutes} m {seconds:.2f} s')
+
+    if args.show:
+        show()
