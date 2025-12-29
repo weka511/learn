@@ -39,47 +39,13 @@ class AutoEncoder(nn.Module,ABC):
     '''
     This class represets a network that acts as an autoencoder
     '''
-    @staticmethod
-    def create_sizes(input_size, bottleneck, nlayers):
-        '''
-        Determine number of nodes in each layer
-
-        Parameters:
-            input_size
-            bottleneck
-            nlayers
-        '''
-        factor = (bottleneck / input_size)**(1 / nlayers)
-        product = [input_size]
-        for i in range(nlayers):
-            product.append(int(product[-1] * factor))
-        product[-1] = bottleneck
-        product += product[::-1][1:]
-        return product
-
-    @staticmethod
-    def create_layers(sizes):
-        '''
-        Create list of layers for Autoencoder
-
-        Parameters:
-            sizes
-        '''
-        product = []
-        for a, b in zip(sizes[:-1], sizes[1:]):
-            product.append(nn.Linear(a, b))
-            product.append(nn.ReLU())
-        return product
-
-
-
-    def __init__(self, width=28, height=28, bottleneck=28, nlayers=2):
+    def __init__(self):
         super().__init__()
-        self.input_size = width * height
-        self.model = nn.Sequential(*AutoEncoder.create_layers(AutoEncoder.create_sizes(self.input_size, bottleneck, nlayers)))
 
-    def forward(self, xb):
-        return self.model(xb.reshape(-1, self.input_size))
+    def forward(self, x):
+        x = x.reshape(-1, self.input_size)
+        x = self.encoder(x)
+        return self.decoder(x)
 
     def get_batch_loss(self, batch):
         '''
@@ -103,23 +69,72 @@ class AutoEncoder(nn.Module,ABC):
         self.load_state_dict(torch.load(file))
 
 class SimpleAutoEncoder(AutoEncoder):
-    def __init__(self, width=28, height=28, bottleneck=28, nlayers=2):
-        super().__init__(width=width, height=height, bottleneck=bottleneck, nlayers=nlayers)
+    '''
+    This class represets an autoencoder based on a perceptron
+    '''
+    def __init__(self,width=28, height=28):
+        super().__init__()
+        self.input_size = width * height
+        self.encoder = nn.Sequential(nn.Linear(784, 148),
+                                     nn.ReLU(),
+                                     nn.Linear(148, 28),
+                                     nn.ReLU()   )
+        self.decoder = nn.Sequential(nn.Linear(28, 148),
+                                     nn.ReLU(),
+                                     nn.Linear(148, 784),
+                                     nn.Sigmoid() )
+
+class CNNAutoEncoder(AutoEncoder):
+    def __init__(self):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=5),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2),
+            nn.Conv2d(32, 8, 3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2)
+        )
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(8, 16, 3, stride=2,
+                               padding=1, output_padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 3, 3, stride=2,
+                               padding=1, output_padding=1),
+            nn.Sigmoid()
+        )
+
+
+
 
 class AutoEncoderFactory:
-    @staticmethod
-    def create(width=28, height=28, bottleneck=28, nlayers=2,restart=None):
+    def get_choices(self):
+        return ['perceptron', 'cnn']
+
+    def get_default(self):
+        return 'perceptron'
+
+    def instantiate(self,args):
+        match args.implementation:
+            case 'perceptron':
+                return SimpleAutoEncoder(width=args.width, height=args.height)
+            case 'cnn':
+                return CNNAutoEncoder()
+
+    def create(self,args):
         '''
         Instantiate an autoencoder, and, optionally, reload weights from a file
 
         Parameters:
             restart   Optional name for a file from which to load weights
         '''
-        product = SimpleAutoEncoder(width=width, height=height, bottleneck=bottleneck, nlayers=nlayers)
-        if restart:
-            restart_path = Path(restart).with_suffix('.pth')
+        product = self.instantiate(args)
+
+        if args.restart:
+            restart_path = Path(args.restart).with_suffix('.pth')
             product.load(restart_path)
             print(f'Reloaded parameters from {restart_path}')
+
         return product
 
 class OptimizerFactory:
@@ -145,11 +160,11 @@ class OptimizerFactory:
                 return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 
-def parse_args():
+def parse_args(factory):
     parser = ArgumentParser(description=__doc__)
     parser.add_argument('--action', choices=['train', 'test'],
                         default='train', help='Chooses between training or testing')
-
+    parser.add_argument('--implementation',choices=factory.get_choices(),default=factory.get_default())
     training_group = parser.add_argument_group('Parameters for --action train')
     training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
@@ -160,8 +175,6 @@ def parse_args():
     training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                                 help='Optimizer to be used for training')
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
-    training_group.add_argument('--nlayers', default=2, type=int, help='Number of layers in encoder (or decoder)')
-    training_group.add_argument('--bottleneck', default=28, type=int, help='Number of cells in bottleneck')
     training_group.add_argument('--width', default=28, type=int, help='Width of each image in pixels')
     training_group.add_argument('--height', default=28, type=int, help='Height of each image in pixels')
 
@@ -186,7 +199,7 @@ def training_step(batch, optimizer):
 
 
 def get_file_name(args):
-    return f'{Path(__file__).stem}-{args.bottleneck}-{args.nlayers}'
+    return f'{Path(__file__).stem}'
 
 
 def get_moving_average(xs, ys, window_size=11):
@@ -218,10 +231,12 @@ if __name__ == '__main__':
     rc('text', usetex=True)
     fig = figure(figsize=(24, 12))
     start = time()
-    args = parse_args()
+    auto_encoder_factory = AutoEncoderFactory()
+    args = parse_args(auto_encoder_factory)
     seed = get_seed(args.seed)
     rng = np.random.default_rng(seed)
-    auto_encoder = AutoEncoderFactory.create(width=args.width, height=args.height, bottleneck=args.bottleneck, nlayers=args.nlayers,restart=args.restart)
+
+    auto_encoder = auto_encoder_factory.create(args)
     optimizer = OptimizerFactory.create(auto_encoder, args)
     dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
     train_data, validation_data = random_split(dataset, [50000, 10000])
@@ -251,7 +266,7 @@ if __name__ == '__main__':
     ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
     ax.legend()
 
-    ax.set_title(f'{Path(__file__).stem.title()}: bottleneck = {args.bottleneck}, nlayers={args.nlayers}')
+    ax.set_title(f'{Path(__file__).stem.title()}')
     ax.set_ylabel('Loss')
     ax.set_xlabel('Step')
 
