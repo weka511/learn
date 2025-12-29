@@ -35,43 +35,60 @@ from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save
 
 
 class AutoEncoder(nn.Module):
-
     '''
-    Determine number of nodes in each layer
-
-    Parameters:
-        input_size
-        reduced
-        nsteps
+    This class represets a network that acts as an autoencoder
     '''
     @staticmethod
-    def create_sizes(input_size, reduced, nsteps):
-        factor = (reduced / input_size)**(1 / nsteps)
+    def create_sizes(input_size, reduced, nlayers):
+        '''
+        Determine number of nodes in each layer
+
+        Parameters:
+            input_size
+            reduced
+            nlayers
+        '''
+        factor = (reduced / input_size)**(1 / nlayers)
         product = [input_size]
-        for i in range(nsteps):
+        for i in range(nlayers):
             product.append(int(product[-1] * factor))
         product[-1] = reduced
         product += product[::-1][1:]
         return product
 
-    '''
-    Create list of layers for Autoencoder
-
-    Parameters:
-        sizes
-    '''
     @staticmethod
     def create_layers(sizes):
+        '''
+        Create list of layers for Autoencoder
+
+        Parameters:
+            sizes
+        '''
         product = []
         for a, b in zip(sizes[:-1], sizes[1:]):
             product.append(nn.Linear(a, b))
             product.append(nn.ReLU())
         return product
 
-    def __init__(self, width=28, height=28, reduced=28, nsteps=2):
+    @staticmethod
+    def create(width=28, height=28, reduced=28, nlayers=2,restart=None):
+        '''
+        Instantiate an autoencoder, and, optionally, reload weights from a file
+
+        Parameters:
+            restart   Optional name for a file from which to load weights
+        '''
+        product = AutoEncoder(width=width, height=height, reduced=reduced, nlayers=nlayers)
+        if restart:
+            restart_path = Path(restart).with_suffix('.pth')
+            product.load(restart_path)
+            print(f'Reloaded parameters from {restart_path}')
+        return product
+
+    def __init__(self, width=28, height=28, reduced=28, nlayers=2):
         super().__init__()
         self.input_size = width * height
-        self.model = nn.Sequential(*AutoEncoder.create_layers(AutoEncoder.create_sizes(self.input_size, reduced, nsteps)))
+        self.model = nn.Sequential(*AutoEncoder.create_layers(AutoEncoder.create_sizes(self.input_size, reduced, nlayers)))
 
     def forward(self, xb):
         return self.model(xb.reshape(-1, self.input_size))
@@ -136,8 +153,10 @@ def parse_args():
     training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                                 help='Optimizer to be used for training')
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
-    training_group.add_argument('--nsteps', default=2, type=int, help='Number of steps to an epoch')
-    training_group.add_argument('--reduced', default=28, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--nlayers', default=2, type=int, help='Number of layers in encoder (or decoder)')
+    training_group.add_argument('--reduced', default=28, type=int, help='Number of cells in bottleneck')
+    training_group.add_argument('--width', default=28, type=int, help='Width of each image in pixels')
+    training_group.add_argument('--height', default=28, type=int, help='Height of each image in pixels')
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None, help='Used to load weights')
@@ -150,19 +169,7 @@ def parse_args():
     shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
     return parser.parse_args()
 
-def create_autoencoder(restart=None):
-    '''
-    Instantiate an autoencoder, and, optionally, reload weights from a file
 
-    Parameters:
-        restart   Optional name for a file from which to load weights
-    '''
-    product = AutoEncoder()
-    if restart:
-        restart_path = Path(restart).with_suffix('.pth')
-        product.load(restart_path)
-        print(f'Reloaded parameters from {restart_path}')
-    return product
 
 def training_step(batch, optimizer):
     loss = auto_encoder.get_batch_loss(batch)
@@ -172,7 +179,7 @@ def training_step(batch, optimizer):
 
 
 def get_file_name(args):
-    return f'{Path(__file__).stem}-{args.reduced}-{args.nsteps}'
+    return f'{Path(__file__).stem}-{args.reduced}-{args.nlayers}'
 
 
 def get_moving_average(xs, ys, window_size=11):
@@ -207,7 +214,7 @@ if __name__ == '__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(seed)
-    auto_encoder = create_autoencoder(args.restart)
+    auto_encoder = AutoEncoder.create(width=args.width, height=args.height, reduced=args.reduced, nlayers=args.nlayers,restart=args.restart)
     optimizer = OptimizerFactory.create(auto_encoder, args)
     dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
     train_data, validation_data = random_split(dataset, [50000, 10000])
@@ -215,12 +222,14 @@ if __name__ == '__main__':
     validation_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
     history = []
     for epoch in range(args.N):
-        print(f'Epoch {epoch} of {args.N}')
         for _ in range(args.n):
             for batch in train_loader:
                 training_step(batch, optimizer)
-        for batch in validation_loader:
-            history.append(float(auto_encoder.get_batch_loss(batch).detach()))
+
+            validation_losses = [float(auto_encoder.get_batch_loss(batch).detach()) for batch in validation_loader]
+            history += validation_losses
+        print(f'Epoch {epoch} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
+
         checkpoint_file_name = join(args.params, get_file_name(args))
         ensure_we_can_save(checkpoint_file_name)
         auto_encoder.save(checkpoint_file_name)
@@ -235,7 +244,7 @@ if __name__ == '__main__':
     ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
     ax.legend()
 
-    ax.set_title(f'{Path(__file__).stem.title()}: reduced = {args.reduced}, nsteps={args.nsteps}')
+    ax.set_title(f'{Path(__file__).stem.title()}: reduced = {args.reduced}, nlayers={args.nlayers}')
     ax.set_ylabel('Loss')
     ax.set_xlabel('Step')
 
