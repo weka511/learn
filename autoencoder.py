@@ -103,13 +103,13 @@ class CNNAutoEncoder(AutoEncoder):
                          encoder=nn.Sequential(
                              nn.Conv2d(1, 16, kernel_size=3, padding=1),
                              nn.Conv2d(16, 4, kernel_size=3, padding=1),
-                             nn.MaxPool2d(2,2),
+                             nn.MaxPool2d(2, 2),
                              nn.ReLU(),
                              nn.Sigmoid()
                          ),
                          decoder=nn.Sequential(
-                             nn.ConvTranspose2d(16,4,2,stride=2),
-                             nn.ConvTranspose2d(16,1,2,stride=2)
+                             nn.ConvTranspose2d(16, 4, 2, stride=2),
+                             nn.ConvTranspose2d(16, 1, 2, stride=2)
                          ))
 
 
@@ -142,6 +142,22 @@ class AutoEncoderFactory:
             print(f'Reloaded parameters from {restart_path}')
 
         return product
+
+
+class TestAutoEncoder(TestCase):
+    class Args:
+        def __init__(self):
+            self.implementation = 'cnn'
+            self.width = 28
+            self.height = 28
+
+    def setUp(self):
+        self.factory = AutoEncoderFactory()
+        self.args = self.Args()
+
+    def test_instantiation(self):
+        ae = self.factory.instantiate(self.args)
+        print (ae)
 
 
 if __name__ == '__main__':
