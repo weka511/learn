@@ -15,37 +15,42 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-'''Train an autoencoder against MNIST data'''
+'''
+    This module defines an Autoencoder class
+'''
 
 from abc import ABC, abstractmethod
-from argparse import ArgumentParser
-from os.path import splitext, join
+from unittest import TestCase, main
 from pathlib import Path
-from time import time
-from matplotlib.pyplot import figure, show
-from matplotlib import rc
 import numpy as np
 import torch
 import torch.nn as nn
-from torchvision.datasets import MNIST
-import torchvision.transforms as tr
-from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
-from torch.optim import SGD, Adam
-from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save
 
 
-class AutoEncoder(nn.Module,ABC):
+class AutoEncoder(nn.Module, ABC):
     '''
     This class represets a network that acts as an autoencoder
+
+    Data members:
+        encoder
+        decoder
     '''
-    def __init__(self):
+
+    def __init__(self, width=28, height=28, encoder=nn.Sequential(), decoder=nn.Sequential()):
         super().__init__()
+        self.input_size = width * height
+        self.encoder = encoder
+        self.decoder = decoder
 
     def forward(self, x):
         x = x.reshape(-1, self.input_size)
+        x1 = x.shape
         x = self.encoder(x)
-        return self.decoder(x)
+        x2 = x.shape
+        x = self.decoder(x)
+        x3 = x.shape
+        return x
 
     def get_batch_loss(self, batch):
         '''
@@ -68,43 +73,44 @@ class AutoEncoder(nn.Module,ABC):
         '''
         self.load_state_dict(torch.load(file))
 
+
 class SimpleAutoEncoder(AutoEncoder):
     '''
     This class represets an autoencoder based on a perceptron
     '''
-    def __init__(self,width=28, height=28):
-        super().__init__()
-        self.input_size = width * height
-        self.encoder = nn.Sequential(nn.Linear(784, 148),
-                                     nn.ReLU(),
-                                     nn.Linear(148, 28),
-                                     nn.ReLU()   )
-        self.decoder = nn.Sequential(nn.Linear(28, 148),
-                                     nn.ReLU(),
-                                     nn.Linear(148, 784),
-                                     nn.Sigmoid() )
+
+    def __init__(self, width=28, height=28):
+        super().__init__(width=width,
+                         height=height,
+                         encoder=nn.Sequential(
+                             nn.Linear(784, 148),
+                             nn.ReLU(),
+                             nn.Linear(148, 28),
+                             nn.ReLU()
+                         ),
+                         decoder=nn.Sequential(
+                             nn.Linear(28, 148),
+                             nn.ReLU(),
+                             nn.Linear(148, 784),
+                             nn.Sigmoid()
+                         ))
+
 
 class CNNAutoEncoder(AutoEncoder):
-    def __init__(self):
-        super().__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=5),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride=2),
-            nn.Conv2d(32, 8, 3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride=2)
-        )
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(8, 16, 3, stride=2,
-                               padding=1, output_padding=1),
-            nn.ReLU(),
-            nn.ConvTranspose2d(16, 3, 3, stride=2,
-                               padding=1, output_padding=1),
-            nn.Sigmoid()
-        )
-
-
+    def __init__(self, width=28, height=28):
+        super().__init__(width=width,
+                         height=height,
+                         encoder=nn.Sequential(
+                             nn.Conv2d(1, 16, kernel_size=3, padding=1),
+                             nn.Conv2d(16, 4, kernel_size=3, padding=1),
+                             nn.MaxPool2d(2,2),
+                             nn.ReLU(),
+                             nn.Sigmoid()
+                         ),
+                         decoder=nn.Sequential(
+                             nn.ConvTranspose2d(16,4,2,stride=2),
+                             nn.ConvTranspose2d(16,1,2,stride=2)
+                         ))
 
 
 class AutoEncoderFactory:
@@ -114,14 +120,14 @@ class AutoEncoderFactory:
     def get_default(self):
         return 'perceptron'
 
-    def instantiate(self,args):
+    def instantiate(self, args):
         match args.implementation:
             case 'perceptron':
                 return SimpleAutoEncoder(width=args.width, height=args.height)
             case 'cnn':
-                return CNNAutoEncoder()
+                return CNNAutoEncoder(width=args.width, height=args.height)
 
-    def create(self,args):
+    def create(self, args):
         '''
         Instantiate an autoencoder, and, optionally, reload weights from a file
 
@@ -137,145 +143,6 @@ class AutoEncoderFactory:
 
         return product
 
-class OptimizerFactory:
-    '''
-    This class instantiates optimizers as specified by the command line parameters
-    '''
-
-    choices = [
-        'SGD',
-        'Adam'
-    ]
-
-    @staticmethod
-    def get_default():
-        return OptimizerFactory.choices[1]
-
-    @staticmethod
-    def create(model, args):
-        match args.optimizer:
-            case 'SGD':
-                return SGD(model.parameters(), lr=args.lr)
-            case 'Adam':
-                return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-
-
-def parse_args(factory):
-    parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--action', choices=['train', 'test'],
-                        default='train', help='Chooses between training or testing')
-    parser.add_argument('--implementation',choices=factory.get_choices(),default=factory.get_default())
-    training_group = parser.add_argument_group('Parameters for --action train')
-    training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
-    training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
-    training_group.add_argument('--n', default=5, type=int, help='Number of steps to an epoch')
-    training_group.add_argument('--params', default='./params', help='Location for storing plot files')
-    training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
-    training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
-    training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
-                                help='Optimizer to be used for training')
-    training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
-    training_group.add_argument('--width', default=28, type=int, help='Width of each image in pixels')
-    training_group.add_argument('--height', default=28, type=int, help='Height of each image in pixels')
-
-    test_group = parser.add_argument_group('Parameters for --action test')
-    test_group.add_argument('--file', default=None, help='Used to load weights')
-
-    shared_group = parser.add_argument_group('General Parameters')
-    shared_group.add_argument('--data', default='./data', help='Location of data files')
-    shared_group.add_argument('--logfiles', default='./logfiles', help='Location of log files')
-    shared_group.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
-    shared_group.add_argument('--figs', default='./figs', help='Location for storing plot files')
-    shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
-    return parser.parse_args()
-
-
-
-def training_step(batch, optimizer):
-    loss = auto_encoder.get_batch_loss(batch)
-    loss.backward()
-    optimizer.step()
-    optimizer.zero_grad()
-
-
-def get_file_name(args):
-    return f'{Path(__file__).stem}'
-
-
-def get_moving_average(xs, ys, window_size=11):
-    '''
-    Calculate a moving average
-
-    Parameters:
-         xs            Indices of data for plotting
-         ys            Data to be plotted
-         window_size   Number of points to be included
-
-    Returns:
-         x1s    A subset of xs, chosen so average can be plotted on the same scale as xs,ys
-         y1s    The moving average
-    '''
-    kernel = np.ones(window_size) / window_size
-    y1s = np.convolve(ys, kernel, mode='valid')
-    skip = (len(ys) - len(y1s)) // 2
-    x1s = xs[skip:]
-    tail_count = len(x1s) - len(y1s)
-    x1s = x1s[:-tail_count]
-    return x1s, y1s
-
 
 if __name__ == '__main__':
-    rc('font', **{'family': 'serif',
-                  'serif': ['Palatino'],
-                  'size': 8})
-    rc('text', usetex=True)
-    fig = figure(figsize=(24, 12))
-    start = time()
-    auto_encoder_factory = AutoEncoderFactory()
-    args = parse_args(auto_encoder_factory)
-    seed = get_seed(args.seed)
-    rng = np.random.default_rng(seed)
-
-    auto_encoder = auto_encoder_factory.create(args)
-    optimizer = OptimizerFactory.create(auto_encoder, args)
-    dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
-    train_data, validation_data = random_split(dataset, [50000, 10000])
-    train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
-    validation_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
-    history = []
-    for epoch in range(args.N):
-        for _ in range(args.n):
-            for batch in train_loader:
-                training_step(batch, optimizer)
-
-            validation_losses = [float(auto_encoder.get_batch_loss(batch).detach()) for batch in validation_loader]
-            history += validation_losses
-        print(f'Epoch {epoch} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
-
-        checkpoint_file_name = join(args.params, get_file_name(args))
-        ensure_we_can_save(checkpoint_file_name)
-        auto_encoder.save(checkpoint_file_name)
-        if user_has_requested_stop():
-            break
-
-    xs = np.arange(0, len(history))
-    x1s, moving_average = get_moving_average(xs, history)
-
-    ax = fig.add_subplot(1, 1, 1)
-    ax.plot(xs, history, c='xkcd:blue', label='Loss')
-    ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
-    ax.legend()
-
-    ax.set_title(f'{Path(__file__).stem.title()}')
-    ax.set_ylabel('Loss')
-    ax.set_xlabel('Step')
-
-    fig.savefig(join(args.figs, get_file_name(args)))
-
-    elapsed = time() - start
-    minutes = int(elapsed / 60)
-    seconds = elapsed - 60 * minutes
-    print(f'Elapsed Time {minutes} m {seconds:.2f} s')
-
-    if args.show:
-        show()
+    main()

@@ -5,6 +5,8 @@ Experiments in machine learning
 
  File  | Remarks
 ---------------|--------------------------------------------
+aetrain.py|Train autoencoder
+autoencoder.py|Autoenclude class
 hopfield.py | Hopfield network
 chainsaw.py|Cut up logs from mnisp.py, and process them
 mnist.py|Testbed for deep neural networks, using ideas from [Deep Learning](https://www.deeplearningbook.org/) by Ian Goodfellow and Yoshua Bengio and Aaron Courville. This program learns to recognize images from the NIST dataset
