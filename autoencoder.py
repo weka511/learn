@@ -157,19 +157,19 @@ class TestAutoEncoder(TestCase):
         self.factory = AutoEncoderFactory()
         self.args = self.Args()
 
-    def test_instantiation(self):
+    def test_encode_decode(self):
+        '''
+        Verify that encoder/decoder preserves shape
+        '''
         dataset = MNIST(root='./data', download=True, transform=tr.ToTensor())
         train_loader = DataLoader(dataset, 128)
         ae = self.factory.instantiate(self.args)
 
         for batch in train_loader:
             images, _ = batch
-            print (images.shape)
             encoded = ae.encoder(images)
-            print (encoded.shape)
             decoded = ae.decoder(encoded)
-            print (decoded.shape)
-
+            self.assertEqual(images.shape,decoded.shape)
             return
 
 
