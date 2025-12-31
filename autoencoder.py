@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#   Copyright (C) 2025 Simon Crase
+#   Copyright (C) 2025-2026 Simon Crase
 
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -45,11 +45,12 @@ class AutoEncoder(nn.Module, ABC):
         self.encoder = encoder
         self.decoder = decoder
 
+    @abstractmethod
     def forward(self, x):
-        # x = x.reshape(-1, self.input_size)
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
+        ...
+
+    def encode(self,x):
+        return self.encoder(x)
 
     def get_batch_loss(self, batch):
         '''
@@ -94,8 +95,16 @@ class SimpleAutoEncoder(AutoEncoder):
                              nn.Sigmoid()
                          ))
 
+    def forward(self, x):
+        x = x.reshape(-1, self.input_size)
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
 
 class CNNAutoEncoder(AutoEncoder):
+    '''
+    This class represets an autoencoder using Convolutional layers
+    '''
     def __init__(self, width=28, height=28):
         super().__init__(width=width,
                          height=height,
@@ -104,15 +113,21 @@ class CNNAutoEncoder(AutoEncoder):
                              nn.Conv2d(16, 4, kernel_size=3, padding=1),
                              nn.MaxPool2d(2, 2),
                              nn.ReLU(),
-                             nn.Sigmoid()
+                             nn.Sigmoid() #Convergence is poor if this is left out
                          ),
                          decoder=nn.Sequential(
                              nn.ConvTranspose2d(4, 4, 2, stride=2),
                              nn.ConvTranspose2d(4, 1, 2, stride=2),
                              nn.MaxPool2d(2,2),
-                             nn.ReLU(),
-                             # nn.Sigmoid()
+                             nn.ReLU()
                          ))
+
+
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
 
 
 class AutoEncoderFactory:
@@ -120,7 +135,7 @@ class AutoEncoderFactory:
         return ['perceptron', 'cnn']
 
     def get_default(self):
-        return 'perceptron'
+        return 'cnn'
 
     def instantiate(self, args):
         match args.implementation:
