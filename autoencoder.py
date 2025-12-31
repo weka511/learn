@@ -26,7 +26,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torchvision.datasets import MNIST
+import torchvision.transforms as tr
+from torch.utils.data import DataLoader
 
 class AutoEncoder(nn.Module, ABC):
     '''
@@ -44,12 +46,9 @@ class AutoEncoder(nn.Module, ABC):
         self.decoder = decoder
 
     def forward(self, x):
-        x = x.reshape(-1, self.input_size)
-        x1 = x.shape
+        # x = x.reshape(-1, self.input_size)
         x = self.encoder(x)
-        x2 = x.shape
         x = self.decoder(x)
-        x3 = x.shape
         return x
 
     def get_batch_loss(self, batch):
@@ -105,11 +104,12 @@ class CNNAutoEncoder(AutoEncoder):
                              nn.Conv2d(16, 4, kernel_size=3, padding=1),
                              nn.MaxPool2d(2, 2),
                              nn.ReLU(),
-                             nn.Sigmoid()
+                             # nn.Sigmoid()
                          ),
                          decoder=nn.Sequential(
-                             nn.ConvTranspose2d(16, 4, 2, stride=2),
-                             nn.ConvTranspose2d(16, 1, 2, stride=2)
+                             nn.ConvTranspose2d(4, 4, 2, stride=2),
+                             nn.ConvTranspose2d(4, 1, 2, stride=2),
+                             nn.MaxPool2d(2,2)
                          ))
 
 
@@ -156,8 +156,20 @@ class TestAutoEncoder(TestCase):
         self.args = self.Args()
 
     def test_instantiation(self):
+        dataset = MNIST(root='./data', download=True, transform=tr.ToTensor())
+        train_loader = DataLoader(dataset, 128)
         ae = self.factory.instantiate(self.args)
-        print (ae)
+
+        for batch in train_loader:
+            images, _ = batch
+            print (images.shape)
+            encoded = ae.encoder(images)
+            print (encoded.shape)
+            decoded = ae.decoder(encoded)
+            print (decoded.shape)
+
+            return
+
 
 
 if __name__ == '__main__':
