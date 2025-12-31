@@ -130,41 +130,61 @@ if __name__ == '__main__':
     seed = get_seed(args.seed)
     rng = np.random.default_rng(seed)
 
-    auto_encoder = auto_encoder_factory.create(args)
-    optimizer = OptimizerFactory.create(auto_encoder, args)
-    dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
-    train_data, validation_data = random_split(dataset, [50000, 10000])
-    train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
-    validation_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
-    history = []
-    for epoch in range(args.N):
-        for _ in range(args.n):
-            for batch in train_loader:
-                training_step(batch, optimizer)
+    match args.action:
+        case 'train':
+            auto_encoder = auto_encoder_factory.create(args)
+            optimizer = OptimizerFactory.create(auto_encoder, args)
+            dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
+            train_data, validation_data = random_split(dataset, [50000, 10000])
+            train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
+            validation_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
+            history = []
+            for epoch in range(args.N):
+                for _ in range(args.n):
+                    for batch in train_loader:
+                        training_step(batch, optimizer)
 
-            validation_losses = [float(auto_encoder.get_batch_loss(batch).detach()) for batch in validation_loader]
-            history += validation_losses
-        print(f'Epoch {epoch} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
+                    validation_losses = [float(auto_encoder.get_batch_loss(batch).detach()) for batch in validation_loader]
+                    history += validation_losses
+                print(f'Epoch {epoch} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
 
-        checkpoint_file_name = join(args.params, get_file_name(args))
-        ensure_we_can_save(checkpoint_file_name)
-        auto_encoder.save(checkpoint_file_name)
-        if user_has_requested_stop():
-            break
+                checkpoint_file_name = join(args.params, get_file_name(args))
+                ensure_we_can_save(checkpoint_file_name)
+                auto_encoder.save(checkpoint_file_name)
+                if user_has_requested_stop():
+                    break
 
-    xs = np.arange(0, len(history))
-    x1s, moving_average = get_moving_average(xs, history)
+            xs = np.arange(0, len(history))
+            x1s, moving_average = get_moving_average(xs, history)
 
-    ax = fig.add_subplot(1, 1, 1)
-    ax.plot(xs, history, c='xkcd:blue', label='Loss')
-    ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
-    ax.legend()
+            ax = fig.add_subplot(1, 1, 1)
+            ax.plot(xs, history, c='xkcd:blue', label='Loss')
+            ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
+            ax.legend()
 
-    ax.set_title(f'{Path(__file__).stem.title()}')
-    ax.set_ylabel('Loss')
-    ax.set_xlabel('Step')
+            ax.set_title(f'{Path(__file__).stem.title()}')
+            ax.set_ylabel('Loss')
+            ax.set_xlabel('Step')
 
-    fig.savefig(join(args.figs, get_file_name(args)))
+            fig.savefig(join(args.figs, get_file_name(args)))
+
+        case test:
+            auto_encoder = auto_encoder_factory.create(args)
+            auto_encoder.load('./params/aetrain.pth')
+            dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+            loader = DataLoader(dataset, 128)
+            for batch in loader:
+                images, _ = batch
+                processed = auto_encoder(images)
+                ax1 = fig.add_subplot(1,2,1)
+                ax1.imshow(images[0].squeeze(), cmap='gray')
+                ax1.get_xaxis().set_visible(False)
+                ax1.get_yaxis().set_visible(False)
+                ax2 = fig.add_subplot(1,2,2)
+                ax2.imshow(processed[0].detach().numpy().squeeze(), cmap='gray')
+                ax2.get_xaxis().set_visible(False)
+                ax2.get_yaxis().set_visible(False)
+                break
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
