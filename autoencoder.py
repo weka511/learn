@@ -104,12 +104,14 @@ class CNNAutoEncoder(AutoEncoder):
                              nn.Conv2d(16, 4, kernel_size=3, padding=1),
                              nn.MaxPool2d(2, 2),
                              nn.ReLU(),
-                             # nn.Sigmoid()
+                             nn.Sigmoid()
                          ),
                          decoder=nn.Sequential(
                              nn.ConvTranspose2d(4, 4, 2, stride=2),
                              nn.ConvTranspose2d(4, 1, 2, stride=2),
-                             nn.MaxPool2d(2,2)
+                             nn.MaxPool2d(2,2),
+                             nn.ReLU(),
+                             # nn.Sigmoid()
                          ))
 
 
