@@ -76,8 +76,8 @@ def parse_args(factory):
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None, help='Used to load weights')
-    test_group.add_argument('--nrows',default=6,type=int, help = 'Number of rows to display')
-    test_group.add_argument('--ncols',default=5,type=int, help = 'Number of images to display in each row')
+    test_group.add_argument('--nrows',default=7,type=int, help = 'Number of rows to display')
+    test_group.add_argument('--ncols',default=7,type=int, help = 'Number of images to display in each row')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data', help='Location of data files')
