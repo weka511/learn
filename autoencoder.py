@@ -52,6 +52,9 @@ class AutoEncoder(nn.Module, ABC):
     def encode(self,x):
         return self.encoder(x)
 
+    def decode(self,x):
+        return self.decoder(x)
+
     def get_batch_loss(self, batch):
         '''
         I'm following https://www.geeksforgeeks.org/machine-learning/auto-encoders/
@@ -109,15 +112,17 @@ class CNNAutoEncoder(AutoEncoder):
         super().__init__(width=width,
                          height=height,
                          encoder=nn.Sequential(
-                             nn.Conv2d(1, 16, kernel_size=3, padding=1),
-                             nn.Conv2d(16, 4, kernel_size=3, padding=1),
+                             nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1),
+                             nn.MaxPool2d(2, 2),
+                             nn.ReLU(),
+                             nn.Conv2d(in_channels=16, out_channels=4, kernel_size=3, padding=1),
                              nn.MaxPool2d(2, 2),
                              nn.ReLU(),
                              nn.Sigmoid() #Convergence is poor if this is left out
                          ),
                          decoder=nn.Sequential(
-                             nn.ConvTranspose2d(4, 4, 2, stride=2),
-                             nn.ConvTranspose2d(4, 1, 2, stride=2),
+                             nn.ConvTranspose2d(4, 4, kernel_size=11, stride=2),
+                             nn.ConvTranspose2d(4, 1, kernel_size=12, stride=2),
                              nn.MaxPool2d(2,2),
                              nn.ReLU()
                          ))
@@ -182,8 +187,9 @@ class TestAutoEncoder(TestCase):
 
         for batch in train_loader:
             images, _ = batch
-            encoded = ae.encoder(images)
-            decoded = ae.decoder(encoded)
+            encoded = ae.encode(images)
+            print (encoded.shape)
+            decoded = ae.decode(encoded)
             self.assertEqual(images.shape,decoded.shape)
             return
 
