@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#   Copyright (C) 2025 Simon Crase
+#   Copyright (C) 2025-2026 Simon Crase
 
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ from time import time
 from matplotlib.pyplot import figure, show
 from matplotlib import rc
 import numpy as np
+import torch
 from torchvision.datasets import MNIST
 import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
@@ -75,6 +76,8 @@ def parse_args(factory):
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None, help='Used to load weights')
+    test_group.add_argument('--nrows',default=6,type=int, help = 'Number of rows to display')
+    test_group.add_argument('--ncols',default=5,type=int, help = 'Number of images to display in each row')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data', help='Location of data files')
@@ -117,6 +120,16 @@ def get_moving_average(xs, ys, window_size=11):
     x1s = x1s[:-tail_count]
     return x1s, y1s
 
+def generate_samples(images,nrows=4,ncols=3):
+    '''
+    Used to draw samples from a collection of images
+    '''
+    m,_,_,_ = images.shape
+    samples = rng.choice(m,nrows*ncols,replace=False)
+    image_index = 0
+    for i in range(len(samples)):
+        yield samples[image_index]
+        image_index += 1
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -129,6 +142,7 @@ if __name__ == '__main__':
     args = parse_args(auto_encoder_factory)
     seed = get_seed(args.seed)
     rng = np.random.default_rng(seed)
+    torch.manual_seed(seed)
 
     match args.action:
         case 'train':
@@ -173,18 +187,30 @@ if __name__ == '__main__':
             auto_encoder.load('./params/aetrain.pth')
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             loader = DataLoader(dataset, 128)
+            m = rng.choice(len(loader)-1)
+            k = 0
             for batch in loader:
-                images, _ = batch
-                processed = auto_encoder(images)
-                ax1 = fig.add_subplot(1,2,1)
-                ax1.imshow(images[0].squeeze(), cmap='gray')
-                ax1.get_xaxis().set_visible(False)
-                ax1.get_yaxis().set_visible(False)
-                ax2 = fig.add_subplot(1,2,2)
-                ax2.imshow(processed[0].detach().numpy().squeeze(), cmap='gray')
-                ax2.get_xaxis().set_visible(False)
-                ax2.get_yaxis().set_visible(False)
-                break
+                if k == m:
+                    images, _ = batch
+                    processed = auto_encoder(images)
+                    samples = generate_samples(images,nrows=args.nrows,ncols=args.ncols)
+                    for i in range(args.nrows):
+                        for j in range(args.ncols):
+                            sample = next(samples)
+                            subplot_index = 2*args.ncols*i + 2*j
+                            ax1 = fig.add_subplot(args.nrows,2*args.ncols,subplot_index+1)
+                            ax1.imshow(images[sample].squeeze(), cmap='gray')
+                            ax1.get_xaxis().set_visible(False)
+                            ax1.get_yaxis().set_visible(False)
+                            ax2 = fig.add_subplot(args.nrows,2*args.ncols,subplot_index+2)
+                            ax2.imshow(processed[sample].detach().numpy().squeeze(), cmap='gray')
+                            ax2.get_xaxis().set_visible(False)
+                            ax2.get_yaxis().set_visible(False)
+
+                    fig.suptitle(f'Batch {m}')
+                    break
+                else:
+                    k += 1
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
