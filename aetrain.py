@@ -76,8 +76,8 @@ def parse_args(factory):
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None, help='Used to load weights')
-    test_group.add_argument('--nrows',default=7,type=int, help = 'Number of rows to display')
-    test_group.add_argument('--ncols',default=7,type=int, help = 'Number of images to display in each row')
+    test_group.add_argument('--nrows', default=7, type=int, help='Number of rows to display')
+    test_group.add_argument('--ncols', default=7, type=int, help='Number of images to display in each row')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data', help='Location of data files')
@@ -89,6 +89,13 @@ def parse_args(factory):
 
 
 def training_step(batch, optimizer):
+    '''
+    Perform training step. Calculate loss, and its gradient, then use optimzer to update weights
+
+    Parameters:
+         batch
+         optimizer
+    '''
     loss = auto_encoder.get_batch_loss(batch)
     loss.backward()
     optimizer.step()
@@ -96,6 +103,9 @@ def training_step(batch, optimizer):
 
 
 def get_file_name(args):
+    '''
+    Used to save plots and weights.
+    '''
     return f'{Path(__file__).stem}'
 
 
@@ -120,16 +130,58 @@ def get_moving_average(xs, ys, window_size=11):
     x1s = x1s[:-tail_count]
     return x1s, y1s
 
-def generate_samples(images,nrows=4,ncols=3):
+
+def generate_samples(images, n=12):
     '''
     Used to draw samples from a collection of images
+
+    Parameters:
+        images
+        n
     '''
-    m,_,_,_ = images.shape
-    samples = rng.choice(m,nrows*ncols,replace=False)
+    m, _, _, _ = images.shape
+    samples = rng.choice(m, n, replace=False)
     image_index = 0
     for i in range(len(samples)):
         yield samples[image_index]
         image_index += 1
+
+
+def display_images(auto_encoder, loader, nrows=4, ncols=2, fig=None):
+    '''
+    Display a grid filled with images
+
+    Parameters:
+        auto_encoder
+        loader
+        nrows
+        ncols
+        fig
+    '''
+    def display_one_image(image, ax=None):
+        '''
+        Display one image without axes
+        '''
+        ax.imshow(image.squeeze(), cmap='gray')
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+
+    m = rng.choice(len(loader) - 1)
+    for k, batch in enumerate(loader):
+        if k != m:
+            continue
+        images, _ = batch
+        processed = auto_encoder(images)
+        samples = generate_samples(images, n=nrows * ncols)
+        for i in range(nrows):
+            for j in range(ncols):
+                sample = next(samples)
+                subplot_index = 2 * ncols * i + 2 * j + 1
+                display_one_image(images[sample], ax=fig.add_subplot(nrows, 2 * ncols, subplot_index))
+                display_one_image(processed[sample].detach().numpy(), ax=fig.add_subplot(nrows, 2 * ncols, subplot_index + 1))
+        fig.suptitle(f'Batch {m}')
+        return
+
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -160,7 +212,7 @@ if __name__ == '__main__':
 
                     validation_losses = [float(auto_encoder.get_batch_loss(batch).detach()) for batch in validation_loader]
                     history += validation_losses
-                print(f'Epoch {epoch} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
+                print(f'Epoch {epoch + 1} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
 
                 checkpoint_file_name = join(args.params, get_file_name(args))
                 ensure_we_can_save(checkpoint_file_name)
@@ -171,7 +223,8 @@ if __name__ == '__main__':
             xs = np.arange(0, len(history))
             x1s, moving_average = get_moving_average(xs, history)
 
-            ax = fig.add_subplot(1, 1, 1)
+            subfigs = fig.subfigures(2, 1, wspace=0.07)
+            ax = subfigs[0].add_subplot(1, 1, 1)
             ax.plot(xs, history, c='xkcd:blue', label='Loss')
             ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
             ax.legend()
@@ -180,6 +233,7 @@ if __name__ == '__main__':
             ax.set_ylabel('Loss')
             ax.set_xlabel('Step')
 
+            display_images(auto_encoder, validation_loader, nrows=args.nrows, ncols=args.ncols, fig=subfigs[1])
             fig.savefig(join(args.figs, get_file_name(args)))
 
         case test:
@@ -187,30 +241,7 @@ if __name__ == '__main__':
             auto_encoder.load('./params/aetrain.pth')
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             loader = DataLoader(dataset, 128)
-            m = rng.choice(len(loader)-1)
-            k = 0
-            for batch in loader:
-                if k == m:
-                    images, _ = batch
-                    processed = auto_encoder(images)
-                    samples = generate_samples(images,nrows=args.nrows,ncols=args.ncols)
-                    for i in range(args.nrows):
-                        for j in range(args.ncols):
-                            sample = next(samples)
-                            subplot_index = 2*args.ncols*i + 2*j
-                            ax1 = fig.add_subplot(args.nrows,2*args.ncols,subplot_index+1)
-                            ax1.imshow(images[sample].squeeze(), cmap='gray')
-                            ax1.get_xaxis().set_visible(False)
-                            ax1.get_yaxis().set_visible(False)
-                            ax2 = fig.add_subplot(args.nrows,2*args.ncols,subplot_index+2)
-                            ax2.imshow(processed[sample].detach().numpy().squeeze(), cmap='gray')
-                            ax2.get_xaxis().set_visible(False)
-                            ax2.get_yaxis().set_visible(False)
-
-                    fig.suptitle(f'Batch {m}')
-                    break
-                else:
-                    k += 1
+            display_images(auto_encoder, loader, nrows=args.nrows, ncols=args.ncols, fig=fig)
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
