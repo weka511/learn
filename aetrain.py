@@ -15,7 +15,9 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-'''Train an autoencoder against MNIST data'''
+'''
+    Train an autoencoder against MNIST data
+'''
 
 from argparse import ArgumentParser
 from os.path import splitext, join
@@ -52,6 +54,22 @@ class Perceptron(nn.Module):
     def forward(self, xb):
         xb = xb.reshape(-1, self.input_size)
         return self.model(xb)
+
+    def training_step(self,batch,encoder,optimizer):
+        images, labels = batch
+        encoded = encoder.encode(images)
+        out = self(encoded)
+        loss= F.cross_entropy(out, labels)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+
+    def get_validation_loss(self,batch,encoder):
+        images, labels = batch
+        encoded = encoder.encode(images)
+        out = self(encoded)
+        loss= F.cross_entropy(out, labels)
+        return float(loss)
 
 class OptimizerFactory:
     '''
@@ -110,7 +128,7 @@ def parse_args(factory):
     return parser.parse_args()
 
 
-def training_step(model, batch, optimizer):
+def encoder_training_step(model, batch, optimizer):
     '''
     Perform training step. Calculate loss, and its gradient, then use optimzer to update weights
 
@@ -204,6 +222,22 @@ def display_images(auto_encoder, loader, nrows=4, ncols=2, fig=None):
         fig.suptitle(f'Batch {m}')
         return
 
+def plot_losses(history,ax=None):
+    '''
+    Plot history plus moving average
+
+    Parameters:
+        history
+        ax
+    '''
+    xs = np.arange(0, len(history))
+    x1s, moving_average = get_moving_average(xs, history)
+    ax.plot(xs, history, c='xkcd:blue', label='Loss')
+    ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
+    ax.legend()
+    ax.set_title(f'{Path(__file__).stem.title()}')
+    ax.set_ylabel('Loss')
+    ax.set_xlabel('Step')
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -230,10 +264,10 @@ if __name__ == '__main__':
             for epoch in range(args.N):
                 for _ in range(args.n):
                     for batch in train_loader:
-                        training_step(auto_encoder,batch, optimizer)
+                        encoder_training_step(auto_encoder,batch, optimizer)
 
-                    validation_losses = [float(auto_encoder.get_batch_loss(batch).detach()) for batch in validation_loader]
-                    history += validation_losses
+                validation_losses = [float(auto_encoder.get_batch_loss(batch).detach()) for batch in validation_loader]
+                history += validation_losses
                 print(f'Epoch {epoch + 1} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
 
                 checkpoint_file_name = join(args.params, get_file_name(args))
@@ -242,19 +276,8 @@ if __name__ == '__main__':
                 if user_has_requested_stop():
                     break
 
-            xs = np.arange(0, len(history))
-            x1s, moving_average = get_moving_average(xs, history)
-
             subfigs = fig.subfigures(2, 1, wspace=0.07)
-            ax = subfigs[0].add_subplot(1, 1, 1)
-            ax.plot(xs, history, c='xkcd:blue', label='Loss')
-            ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
-            ax.legend()
-
-            ax.set_title(f'{Path(__file__).stem.title()}')
-            ax.set_ylabel('Loss')
-            ax.set_xlabel('Step')
-
+            plot_losses(history,ax = subfigs[0].add_subplot(1, 1, 1))
             display_images(auto_encoder, validation_loader, nrows=args.nrows, ncols=args.ncols, fig=subfigs[1])
             fig.savefig(join(args.figs, get_file_name(args)))
 
@@ -271,28 +294,12 @@ if __name__ == '__main__':
             for epoch in range(args.N):
                 for _ in range(args.n):
                     for batch in train_loader:
-                        images, labels = batch
-                        encoded = auto_encoder.encode(images)
-                        out = perceptron(encoded)
-                        loss= F.cross_entropy(out, labels)
-                        loss.backward()
-                        optimizer.step()
-                        optimizer.zero_grad()
+                        perceptron.training_step(batch,auto_encoder,optimizer)
 
-                for batch in validation_loader:
-                    images, labels = batch
-                    encoded = auto_encoder.encode(images)
-                    out = perceptron(encoded)
-                    loss= F.cross_entropy(out, labels)
-                    history.append(float(loss))
-
-                xs = np.arange(0, len(history))
-                x1s, moving_average = get_moving_average(xs, history)
-                ax = fig.add_subplot(1, 1, 1)
-                ax.plot(xs, history, c='xkcd:blue', label='Loss')
-                ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
-                ax.legend()
-
+                    validation_losses =[perceptron.get_validation_loss(batch,auto_encoder)for batch in validation_loader]
+                    print(f'Epoch {epoch + 1} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
+                    history +=  validation_losses
+            plot_losses(history, ax = fig.add_subplot(1, 1, 1))
 
         case test:
             auto_encoder = auto_encoder_factory.create(args)
