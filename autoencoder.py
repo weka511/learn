@@ -115,13 +115,13 @@ class CNNAutoEncoder(AutoEncoder):
                              nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1),
                              nn.MaxPool2d(kernel_size=2, stride=2),
                              nn.ReLU(),
-                             nn.Conv2d(in_channels=16, out_channels=4, kernel_size=3, padding=1),
+                             nn.Conv2d(in_channels=16, out_channels=1, kernel_size=3, padding=1),
                              nn.MaxPool2d(kernel_size=2, stride=2),
                              nn.ReLU(),
                              nn.Sigmoid() #Convergence is poor if this is left out
                          ),
                          decoder=nn.Sequential(
-                             nn.ConvTranspose2d(in_channels=4, out_channels=4, kernel_size=11, stride=2),
+                             nn.ConvTranspose2d(in_channels=1, out_channels=4, kernel_size=11, stride=2),
                              nn.ConvTranspose2d(in_channels=4, out_channels=1, kernel_size=12, stride=2),
                              nn.MaxPool2d(kernel_size=2,stride=2),
                              nn.ReLU()
@@ -190,7 +190,7 @@ class TestAutoEncoder(TestCase):
             encoded = ae.encode(images)
             batch_size,channels,h,w = encoded.shape
             self.assertEqual(128,batch_size)
-            self.assertEqual(4,channels)
+            self.assertEqual(1,channels)
             self.assertEqual(7,h)
             self.assertEqual(7,w)
             decoded = ae.decode(encoded)
