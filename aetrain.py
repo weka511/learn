@@ -25,13 +25,33 @@ from matplotlib.pyplot import figure, show
 from matplotlib import rc
 import numpy as np
 import torch
+import torch.nn as nn
 from torchvision.datasets import MNIST
 import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD, Adam
+import torch.nn.functional as F
 from autoencoder import AutoEncoderFactory
 from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save
 
+class Perceptron(nn.Module):
+    '''
+    A simple multi layer perceptron
+    '''
+    name = 'perceptron'
+
+    def __init__(self, width=7, height=7, n_classes=10):
+        super().__init__()
+        self.input_size = width*height
+        self.model = nn.Sequential(
+            nn.Linear(self.input_size, 25),
+            nn.ReLU(),
+            nn.Linear(25, 10),
+            nn.ReLU())
+
+    def forward(self, xb):
+        xb = xb.reshape(-1, self.input_size)
+        return self.model(xb)
 
 class OptimizerFactory:
     '''
@@ -58,9 +78,11 @@ class OptimizerFactory:
 
 def parse_args(factory):
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--action', choices=['train', 'test'],
-                        default='train', help='Chooses between training or testing')
+    parser.add_argument('--action', choices=['train1', 'train2','test'],
+                        default='train2',
+                        help='Chooses between training auto encoder (train1), training main entwork (train2), or testing')
     parser.add_argument('--implementation', choices=factory.get_choices(), default=factory.get_default())
+
     training_group = parser.add_argument_group('Parameters for --action train')
     training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
@@ -88,7 +110,7 @@ def parse_args(factory):
     return parser.parse_args()
 
 
-def training_step(batch, optimizer):
+def training_step(model, batch, optimizer):
     '''
     Perform training step. Calculate loss, and its gradient, then use optimzer to update weights
 
@@ -96,7 +118,7 @@ def training_step(batch, optimizer):
          batch
          optimizer
     '''
-    loss = auto_encoder.get_batch_loss(batch)
+    loss = model.get_batch_loss(batch)
     loss.backward()
     optimizer.step()
     optimizer.zero_grad()
@@ -197,7 +219,7 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
 
     match args.action:
-        case 'train':
+        case 'train1':
             auto_encoder = auto_encoder_factory.create(args)
             optimizer = OptimizerFactory.create(auto_encoder, args)
             dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
@@ -208,7 +230,7 @@ if __name__ == '__main__':
             for epoch in range(args.N):
                 for _ in range(args.n):
                     for batch in train_loader:
-                        training_step(batch, optimizer)
+                        training_step(auto_encoder,batch, optimizer)
 
                     validation_losses = [float(auto_encoder.get_batch_loss(batch).detach()) for batch in validation_loader]
                     history += validation_losses
@@ -235,6 +257,33 @@ if __name__ == '__main__':
 
             display_images(auto_encoder, validation_loader, nrows=args.nrows, ncols=args.ncols, fig=subfigs[1])
             fig.savefig(join(args.figs, get_file_name(args)))
+
+        case 'train2':
+            auto_encoder = auto_encoder_factory.create(args)
+            auto_encoder.load('./params/aetrain.pth')
+            perceptron = Perceptron()
+            optimizer = OptimizerFactory.create(auto_encoder, args)
+            dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
+            train_data, validation_data = random_split(dataset, [50000, 10000])
+            train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
+            validation_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
+            history = []
+            for epoch in range(args.N):
+                for _ in range(args.n):
+                    for batch in train_loader:
+                        print (len(batch))
+                        images, labels = batch
+                        print (images.shape)
+                        print (labels.shape)
+                        encoded = auto_encoder.encode(images)
+                        print (encoded.shape)
+                        out = perceptron(encoded)
+                        print (out.shape)
+                        loss= F.cross_entropy(out, labels)
+                        loss.backward()
+                        optimizer.step()
+                        optimizer.zero_grad()
+                        print (loss)
 
         case test:
             auto_encoder = auto_encoder_factory.create(args)
