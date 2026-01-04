@@ -271,19 +271,28 @@ if __name__ == '__main__':
             for epoch in range(args.N):
                 for _ in range(args.n):
                     for batch in train_loader:
-                        print (len(batch))
                         images, labels = batch
-                        print (images.shape)
-                        print (labels.shape)
                         encoded = auto_encoder.encode(images)
-                        print (encoded.shape)
                         out = perceptron(encoded)
-                        print (out.shape)
                         loss= F.cross_entropy(out, labels)
                         loss.backward()
                         optimizer.step()
                         optimizer.zero_grad()
-                        print (loss)
+
+                for batch in validation_loader:
+                    images, labels = batch
+                    encoded = auto_encoder.encode(images)
+                    out = perceptron(encoded)
+                    loss= F.cross_entropy(out, labels)
+                    history.append(float(loss))
+
+                xs = np.arange(0, len(history))
+                x1s, moving_average = get_moving_average(xs, history)
+                ax = fig.add_subplot(1, 1, 1)
+                ax.plot(xs, history, c='xkcd:blue', label='Loss')
+                ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
+                ax.legend()
+
 
         case test:
             auto_encoder = auto_encoder_factory.create(args)
