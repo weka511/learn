@@ -4,11 +4,12 @@ Experiments in machine learning
 ## Neural Networks
 
  File  | Remarks
----------------|--------------------------------------------
+------------------|--------------------------------------------
 aetrain.py|Train autoencoder
 autoencoder.py|Autoenclude class
 hopfield.py | Hopfield network
 chainsaw.py|Cut up logs from mnisp.py, and process them
+classify_names.py|[NLP From Scratch: Classifying Names with a Character-Level RNN](https://docs.pytorch.org/tutorials/intermediate/char_rnn_classification_tutorial.html)
 mnist.py|Testbed for deep neural networks, using ideas from [Deep Learning](https://www.deeplearningbook.org/) by Ian Goodfellow and Yoshua Bengio and Aaron Courville. This program learns to recognize images from the NIST dataset
 torch-nn.py|[train](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)
 visualize.py|Visualize neural network used by mnisp.py
