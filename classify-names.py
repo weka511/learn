@@ -23,7 +23,7 @@ https://docs.pytorch.org/tutorials/intermediate/char_rnn_classification_tutorial
 
 from argparse import ArgumentParser
 from glob import glob
-from os.path import splitext,join,basename
+from os.path import splitext, join, basename
 from pathlib import Path
 from string import ascii_letters
 from time import time, localtime
@@ -33,10 +33,11 @@ import matplotlib.ticker as ticker
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset,DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
 from utils import Logger, get_seed, user_has_requested_stop
+
 
 class NamesDataset(Dataset):
 
@@ -77,6 +78,7 @@ class NamesDataset(Dataset):
 
         return label_tensor, data_tensor, data_label, data_item
 
+
 class CharRNN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
@@ -90,6 +92,7 @@ class CharRNN(nn.Module):
         output = self.softmax(output)
 
         return output
+
 
 class OptimizerFactory:
     '''
@@ -131,7 +134,7 @@ def parse_args():
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
 
     test_group = parser.add_argument_group('Parameters for --action test')
-    test_group.add_argument('--file', default=None, help='Used to load weights')
+    test_group.add_argument('--file', default=__file__, help='Used to load weights')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data/rnn-1/names', help='Location of data files')
@@ -141,8 +144,10 @@ def parse_args():
     shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
     return parser.parse_args()
 
+
 allowed_characters = ascii_letters + ' .,;\'' + '_'
 n_letters = len(allowed_characters)
+
 
 def unicodeToAscii(s):
     '''
@@ -175,13 +180,15 @@ def lineToTensor(line):
         tensor[li][0][letterToIndex(letter)] = 1
     return tensor
 
+
 def label_from_output(output, output_labels):
     top_n, top_i = output.topk(1)
     label_i = top_i[0].item()
     return output_labels[label_i], label_i
 
-def train(rnn, training_data, n_epoch = 10, n_batch_size = 64, report_every = 1,
-          learning_rate = 0.2, criterion = nn.NLLLoss()):
+
+def train(rnn, training_data, n_epoch=10, n_batch_size=64, report_every=1,
+          learning_rate=0.2, criterion=nn.NLLLoss()):
     '''
     Learn on a batch of training_data for a specified number of iterations and reporting thresholds
     '''
@@ -201,7 +208,7 @@ def train(rnn, training_data, n_epoch = 10, n_batch_size = 64, report_every = 1,
         # we cannot use dataloaders because each of our names is a different length
         batches = list(range(len(training_data)))
         # random.shuffle(batches)    FIXME
-        batches = np.array_split(batches, len(batches) //n_batch_size )
+        batches = np.array_split(batches, len(batches) // n_batch_size)
 
         for idx, batch in enumerate(batches):
             batch_loss = 0
@@ -219,12 +226,13 @@ def train(rnn, training_data, n_epoch = 10, n_batch_size = 64, report_every = 1,
 
             current_loss += batch_loss.item() / len(batch)
 
-        all_losses.append(current_loss / len(batches) )
+        all_losses.append(current_loss / len(batches))
         if epoch % report_every == 0:
             print(f'{epoch} ({epoch / n_epoch:.0%}): \t average batch loss = {all_losses[-1]}')
         current_loss = 0
 
     return all_losses
+
 
 def evaluate(rnn, testing_data, classes):
     confusion = torch.zeros(len(classes), len(classes))
@@ -244,9 +252,10 @@ def evaluate(rnn, testing_data, classes):
         if denom > 0:
             confusion[i] = confusion[i] / denom
 
-    return confusion,classes
+    return confusion, classes
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
                   'size': 8})
@@ -271,14 +280,14 @@ if __name__=='__main__':
     print(rnn)
     all_losses = train(rnn, train_set, n_epoch=args.N, learning_rate=0.15, report_every=5)
 
-    confusion,classes =evaluate(rnn, test_set, classes=alldata.labels_uniq)
+    confusion, classes = evaluate(rnn, test_set, classes=alldata.labels_uniq)
 
-    ax = fig.add_subplot(2,1,1)
+    ax = fig.add_subplot(2, 1, 1)
     ax.plot(all_losses)
 
     # Set up plot
 
-    ax1 = fig.add_subplot(2,1,2)
+    ax1 = fig.add_subplot(2, 1, 2)
     cax = ax1.matshow(confusion.cpu().numpy()) #numpy uses cpu here so we need to use a cpu version
     fig.colorbar(cax)
 
@@ -292,9 +301,9 @@ if __name__=='__main__':
 
     fig.savefig(join(args.figs, Path(args.file).stem))
     elapsed = time() - start
-    minutes = int(elapsed/60)
-    seconds = elapsed - 60*minutes
-    print (f'Elapsed Time {minutes} m {seconds:.2f} s')
+    minutes = int(elapsed / 60)
+    seconds = elapsed - 60 * minutes
+    print(f'Elapsed Time {minutes} m {seconds:.2f} s')
 
     if args.show:
         show()
