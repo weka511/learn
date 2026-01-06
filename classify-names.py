@@ -19,6 +19,9 @@
 NLP From Scratch: Classifying Names with a Character-Level RNN
 Sean Robertson
 https://docs.pytorch.org/tutorials/intermediate/char_rnn_classification_tutorial.html
+
+We will train on a few thousand surnames from 18 languages of origin,
+and predict which language a name is from based on the spelling.
 '''
 
 from argparse import ArgumentParser
@@ -27,6 +30,7 @@ from os.path import splitext, join, basename
 from pathlib import Path
 from string import ascii_letters
 from time import time, localtime
+import unicodedata
 from matplotlib.pyplot import figure, show
 from matplotlib import rc
 import matplotlib.ticker as ticker
@@ -39,9 +43,37 @@ from torch.optim import SGD, Adam
 from utils import Logger, get_seed, user_has_requested_stop
 
 
-class NamesDataset(Dataset):
+class CharacterSet:
+    def __init__(self):
+        self.allowed_characters = ascii_letters + ' .,;\'' + '_'
 
-    def __init__(self, data_dir):
+    def __len__(self):
+        return len(self.allowed_characters)
+
+    def unicodeToAscii(self, s):
+        '''
+        Turn a Unicode string to plain ASCII, thanks to https://stackoverflow.com/a/518232/2809427
+        '''
+        return ''.join(
+            c for c in unicodedata.normalize('NFD', s)
+            if unicodedata.category(c) != 'Mn' and c in self.allowed_characters
+        )
+
+    def letterToIndex(self, letter):
+        '''
+        Find letter index from all_letters, e.g. 'a' = 0
+        return our out-of-vocabulary character if we encounter a letter unknown to our model
+        '''
+        index = self.allowed_characters.find(letter)
+        return index if index > -1 else self.allowed_characters.find('_')
+
+
+class NamesDataset(Dataset):
+    '''
+    This class contains names from the dataset
+    '''
+
+    def __init__(self, data_dir, character_set=CharacterSet()):
         self.data_dir = data_dir
         self.load_time = localtime
         labels_set = set()
@@ -50,13 +82,14 @@ class NamesDataset(Dataset):
         self.labels = []
         self.labels_tensors = []
         text_files = glob(join(data_dir, '*.txt'))
+
         for filename in text_files:
             label = splitext(basename(filename))[0]
             labels_set.add(label)
             lines = open(filename, encoding='utf-8').read().strip().split('\n')
             for name in lines:
                 self.data.append(name)
-                self.data_tensors.append(lineToTensor(name))
+                self.data_tensors.append(lineToTensor(name, character_set=character_set))
                 self.labels.append(label)
 
         #Cache the tensor representation of the labels
@@ -77,6 +110,9 @@ class NamesDataset(Dataset):
 
 
 class CharRNN(nn.Module):
+    '''
+    Recurrent Neural Network
+    '''
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
         self.rnn = nn.RNN(input_size, hidden_size)
@@ -119,9 +155,9 @@ def parse_args():
                         default='train', help='Chooses between training or testing')
 
     training_group = parser.add_argument_group('Parameters for --action train')
-    training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
+    training_group.add_argument('--batch_size', default=64, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
-    training_group.add_argument('--steps', default=5, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--n_hidden', default=128, type=int, help='Number of hidden nodes')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
@@ -141,39 +177,14 @@ def parse_args():
     return parser.parse_args()
 
 
-allowed_characters = ascii_letters + ' .,;\'' + '_'
-n_letters = len(allowed_characters)
-
-
-def unicodeToAscii(s):
-    '''
-    Turn a Unicode string to plain ASCII, thanks to https://stackoverflow.com/a/518232/2809427
-    '''
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', s)
-        if unicodedata.category(c) != 'Mn' and c in allowed_characters
-    )
-
-
-def letterToIndex(letter):
-    '''
-    Find letter index from all_letters, e.g. 'a' = 0
-    return our out-of-vocabulary character if we encounter a letter unknown to our model
-    '''
-    if letter not in allowed_characters:
-        return allowed_characters.find('_')
-    else:
-        return allowed_characters.find(letter)
-
-
-def lineToTensor(line):
+def lineToTensor(line, character_set=CharacterSet()):
     '''
     Turn a line into a <line_length x 1 x n_letters>,
     or an array of one-hot letter vectors
     '''
-    tensor = torch.zeros(len(line), 1, n_letters)
+    tensor = torch.zeros(len(line), 1, len(character_set))
     for li, letter in enumerate(line):
-        tensor[li][0][letterToIndex(letter)] = 1
+        tensor[li][0][character_set.letterToIndex(letter)] = 1
     return tensor
 
 
@@ -183,32 +194,47 @@ def label_from_output(output, output_labels):
     return output_labels[label_i], label_i
 
 
-def train(rnn, training_data, n_epoch=10, n_batch_size=64, report_every=1,
-          # learning_rate=0.2,
-          criterion=nn.NLLLoss(),rng = np.random.default_rng(), optimizer =None):
+def train(rnn, data, n_epoch=10, n_batch_size=64, report_every=1,
+          criterion=nn.NLLLoss(), rng=np.random.default_rng(), optimizer=None):
     '''
-    Learn on a batch of training_data for a specified number of iterations and reporting thresholds
+    Learn on a batch of training data for a specified number of iterations and reporting thresholds
+
+    Parameters:
+        rnn
+        data
+        n_epoch
+        n_batch_size
+        report_every
+        criterion=nn.NLLLoss()
+        rng
+        optimizer
     '''
+    def create_minibatches():
+        '''
+        create some minibatches
+        we cannot use dataloaders because each of our names is a different length
+
+        Returns:
+           A permutation of the indices of the data items, origanized into an array of arrays.
+           Each of the low level arrays contains the indices of data items comprising one batch
+        '''
+        permutation = list(range(len(data)))
+        rng.shuffle(permutation)
+        return np.array_split(permutation, len(permutation) // n_batch_size)
+
     current_loss = 0
     all_losses = []
     rnn.train()
-    # optimizer = torch.optim.SGD(rnn.parameters(), lr=learning_rate)
 
-    print(f'training on data set with n = {len(training_data)}')
+    print(f'training on data set with n = {len(data)}')
 
     for epoch in range(1, n_epoch + 1):
-        rnn.zero_grad() # clear the gradients
-
-        # create some minibatches
-        # we cannot use dataloaders because each of our names is a different length
-        batches = list(range(len(training_data)))
-        rng.shuffle(batches)
-        batches = np.array_split(batches, len(batches) // n_batch_size)
-
+        rnn.zero_grad()
+        batches = create_minibatches()
         for idx, batch in enumerate(batches):
             batch_loss = 0
-            for i in batch: #for each example in this batch
-                (label_tensor, text_tensor, label, text) = training_data[i]
+            for i in batch:
+                (label_tensor, text_tensor, label, text) = data[i]
                 output = rnn.forward(text_tensor)
                 loss = criterion(output, label_tensor)
                 batch_loss += loss
@@ -230,7 +256,7 @@ def train(rnn, training_data, n_epoch=10, n_batch_size=64, report_every=1,
 
 def evaluate(rnn, data, classes):
     '''
-    Evaluate model against testing data and compute confusion matrix
+    Evaluate model against test data and compute confusion matrix
 
     Parameters:
         rnn
@@ -270,17 +296,16 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.set_default_device(device)
     print(f'Using device = {torch.get_default_device()}')
-
-    alldata = NamesDataset(args.data)
+    character_set = CharacterSet()
+    alldata = NamesDataset(args.data, character_set=character_set)
     print(f'loaded {len(alldata)} items of data')
-    print(f'example = {alldata[0]}')
+
     train_set, test_set = random_split(alldata, [.85, .15], generator=torch.Generator(device=device).manual_seed(int(seed)))
     print(f'train examples = {len(train_set)}, validation examples = {len(test_set)}')
-    n_hidden = 128
-    rnn = CharRNN(n_letters, n_hidden, len(alldata.labels_uniq))
+    rnn = CharRNN(len(character_set), args.n_hidden, len(alldata.labels_uniq))
     print(rnn)
     optimizer = OptimizerFactory.create(rnn, args)
-    all_losses = train(rnn, train_set, n_epoch=args.N, optimizer=optimizer, report_every=5,rng=rng)
+    all_losses = train(rnn, train_set, n_epoch=args.N, optimizer=optimizer, report_every=5, rng=rng, n_batch_size=args.batch_size)
 
     confusion, classes = evaluate(rnn, test_set, classes=alldata.labels_uniq)
 
