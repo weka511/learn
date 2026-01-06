@@ -235,21 +235,22 @@ if __name__=='__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
-    device = torch.device('cpu')
-    if torch.cuda.is_available():
-        device = torch.device('cuda')
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.set_default_device(device)
     print(f'Using device = {torch.get_default_device()}')
+
     alldata = NamesDataset(args.data)
     print(f'loaded {len(alldata)} items of data')
     print(f'example = {alldata[0]}')
-    train_set, test_set = random_split(alldata, [.85, .15], generator=torch.Generator(device=device).manual_seed(2024))
+    train_set, test_set = random_split(alldata, [.85, .15], generator=torch.Generator(device=device).manual_seed(int(seed)))
     print(f'train examples = {len(train_set)}, validation examples = {len(test_set)}')
     n_hidden = 128
     rnn = CharRNN(n_letters, n_hidden, len(alldata.labels_uniq))
     print(rnn)
     all_losses = train(rnn, train_set, n_epoch=27, learning_rate=0.15, report_every=5)
+    ax = fig.add_subplot(1,1,1)
+    ax.plot(all_losses)
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
