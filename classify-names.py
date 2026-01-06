@@ -45,12 +45,10 @@ class NamesDataset(Dataset):
         self.data_dir = data_dir
         self.load_time = localtime
         labels_set = set()
-
         self.data = []
         self.data_tensors = []
         self.labels = []
         self.labels_tensors = []
-
         text_files = glob(join(data_dir, '*.txt'))
         for filename in text_files:
             label = splitext(basename(filename))[0]
@@ -75,7 +73,6 @@ class NamesDataset(Dataset):
         data_label = self.labels[idx]
         data_tensor = self.data_tensors[idx]
         label_tensor = self.labels_tensors[idx]
-
         return label_tensor, data_tensor, data_label, data_item
 
 
@@ -90,7 +87,6 @@ class CharRNN(nn.Module):
         rnn_out, hidden = self.rnn(line_tensor)
         output = self.h2o(hidden[0])
         output = self.softmax(output)
-
         return output
 
 
@@ -188,17 +184,16 @@ def label_from_output(output, output_labels):
 
 
 def train(rnn, training_data, n_epoch=10, n_batch_size=64, report_every=1,
-          learning_rate=0.2, criterion=nn.NLLLoss()):
+          # learning_rate=0.2,
+          criterion=nn.NLLLoss(),rng = np.random.default_rng(), optimizer =None):
     '''
     Learn on a batch of training_data for a specified number of iterations and reporting thresholds
     '''
-    # Keep track of losses for plotting
     current_loss = 0
     all_losses = []
     rnn.train()
-    optimizer = torch.optim.SGD(rnn.parameters(), lr=learning_rate)
+    # optimizer = torch.optim.SGD(rnn.parameters(), lr=learning_rate)
 
-    # start = time.time()
     print(f'training on data set with n = {len(training_data)}')
 
     for epoch in range(1, n_epoch + 1):
@@ -207,7 +202,7 @@ def train(rnn, training_data, n_epoch=10, n_batch_size=64, report_every=1,
         # create some minibatches
         # we cannot use dataloaders because each of our names is a different length
         batches = list(range(len(training_data)))
-        # random.shuffle(batches)    FIXME
+        rng.shuffle(batches)
         batches = np.array_split(batches, len(batches) // n_batch_size)
 
         for idx, batch in enumerate(batches):
@@ -218,7 +213,6 @@ def train(rnn, training_data, n_epoch=10, n_batch_size=64, report_every=1,
                 loss = criterion(output, label_tensor)
                 batch_loss += loss
 
-            # optimize parameters
             batch_loss.backward()
             nn.utils.clip_grad_norm_(rnn.parameters(), 3)
             optimizer.step()
@@ -234,19 +228,26 @@ def train(rnn, training_data, n_epoch=10, n_batch_size=64, report_every=1,
     return all_losses
 
 
-def evaluate(rnn, testing_data, classes):
+def evaluate(rnn, data, classes):
+    '''
+    Evaluate model against testing data and compute confusion matrix
+
+    Parameters:
+        rnn
+        data
+        classes
+    '''
     confusion = torch.zeros(len(classes), len(classes))
 
-    rnn.eval() #set to eval mode
-    with torch.no_grad(): # do not record the gradients during eval phase
-        for i in range(len(testing_data)):
-            (label_tensor, text_tensor, label, text) = testing_data[i]
+    rnn.eval()
+    with torch.no_grad():
+        for i in range(len(data)):
+            (label_tensor, text_tensor, label, text) = data[i]
             output = rnn(text_tensor)
             guess, guess_i = label_from_output(output, classes)
             label_i = classes.index(label)
             confusion[label_i][guess_i] += 1
 
-    # Normalize by dividing every row by its sum
     for i in range(len(classes)):
         denom = confusion[i].sum()
         if denom > 0:
@@ -278,24 +279,20 @@ if __name__ == '__main__':
     n_hidden = 128
     rnn = CharRNN(n_letters, n_hidden, len(alldata.labels_uniq))
     print(rnn)
-    all_losses = train(rnn, train_set, n_epoch=args.N, learning_rate=0.15, report_every=5)
+    optimizer = OptimizerFactory.create(rnn, args)
+    all_losses = train(rnn, train_set, n_epoch=args.N, optimizer=optimizer, report_every=5,rng=rng)
 
     confusion, classes = evaluate(rnn, test_set, classes=alldata.labels_uniq)
 
     ax = fig.add_subplot(2, 1, 1)
     ax.plot(all_losses)
 
-    # Set up plot
-
     ax1 = fig.add_subplot(2, 1, 2)
     cax = ax1.matshow(confusion.cpu().numpy()) #numpy uses cpu here so we need to use a cpu version
     fig.colorbar(cax)
 
-    # Set up axes
     ax1.set_xticks(np.arange(len(classes)), labels=classes, rotation=90)
     ax1.set_yticks(np.arange(len(classes)), labels=classes)
-
-    # Force label at every tick
     ax1.xaxis.set_major_locator(ticker.MultipleLocator(1))
     ax1.yaxis.set_major_locator(ticker.MultipleLocator(1))
 
