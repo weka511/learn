@@ -29,6 +29,7 @@ from string import ascii_letters
 from time import time, localtime
 from matplotlib.pyplot import figure, show
 from matplotlib import rc
+import matplotlib.ticker as ticker
 import numpy as np
 import torch
 import torch.nn as nn
@@ -225,6 +226,26 @@ def train(rnn, training_data, n_epoch = 10, n_batch_size = 64, report_every = 1,
 
     return all_losses
 
+def evaluate(rnn, testing_data, classes):
+    confusion = torch.zeros(len(classes), len(classes))
+
+    rnn.eval() #set to eval mode
+    with torch.no_grad(): # do not record the gradients during eval phase
+        for i in range(len(testing_data)):
+            (label_tensor, text_tensor, label, text) = testing_data[i]
+            output = rnn(text_tensor)
+            guess, guess_i = label_from_output(output, classes)
+            label_i = classes.index(label)
+            confusion[label_i][guess_i] += 1
+
+    # Normalize by dividing every row by its sum
+    for i in range(len(classes)):
+        denom = confusion[i].sum()
+        if denom > 0:
+            confusion[i] = confusion[i] / denom
+
+    return confusion,classes
+
 if __name__=='__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
@@ -248,9 +269,28 @@ if __name__=='__main__':
     n_hidden = 128
     rnn = CharRNN(n_letters, n_hidden, len(alldata.labels_uniq))
     print(rnn)
-    all_losses = train(rnn, train_set, n_epoch=27, learning_rate=0.15, report_every=5)
-    ax = fig.add_subplot(1,1,1)
+    all_losses = train(rnn, train_set, n_epoch=args.N, learning_rate=0.15, report_every=5)
+
+    confusion,classes =evaluate(rnn, test_set, classes=alldata.labels_uniq)
+
+    ax = fig.add_subplot(2,1,1)
     ax.plot(all_losses)
+
+    # Set up plot
+
+    ax1 = fig.add_subplot(2,1,2)
+    cax = ax1.matshow(confusion.cpu().numpy()) #numpy uses cpu here so we need to use a cpu version
+    fig.colorbar(cax)
+
+    # Set up axes
+    ax1.set_xticks(np.arange(len(classes)), labels=classes, rotation=90)
+    ax1.set_yticks(np.arange(len(classes)), labels=classes)
+
+    # Force label at every tick
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax1.yaxis.set_major_locator(ticker.MultipleLocator(1))
+
+    fig.savefig(join(args.figs, Path(args.file).stem))
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
