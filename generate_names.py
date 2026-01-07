@@ -60,6 +60,17 @@ class RNN(nn.Module):
     def initHidden(self):
         return torch.zeros(1, self.hidden_size)
 
+    def save(self, name):
+        '''
+        Used to save weights
+        '''
+        torch.save(self.state_dict(), f'{name}.pth')
+
+    def load(self, file):
+        '''
+        Used to recall a previous set of weights
+        '''
+        self.load_state_dict(torch.load(file))
 
 class OptimizerFactory:
     '''
@@ -188,18 +199,21 @@ def parse_args():
     parser.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
     parser.add_argument('--N', default=5, type=int, help='Number of epochs')
     parser.add_argument('--steps', default=5, type=int, help='Number of steps to an epoch')
-    parser.add_argument('--params', default='./params', help='Location for storing plot files')
+    parser.add_argument('--params', default='./params', help='Location for storing parameter files')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     parser.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
     parser.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                         help='Optimizer to be used for training')
     parser.add_argument('--restart', default=None, help='Restart from saved parameters')
-    parser.add_argument('--file', default=None, help='Used to load weights')
+    parser.add_argument('--file', default=__file__, help='Used to load weights')
     parser.add_argument('--data', default='./data/rnn-1/names', help='Location of data files')
     parser.add_argument('--logfiles', default='./logfiles', help='Location of log files')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     parser.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
+    parser.add_argument('--hidden', default=128, type=int, help='Number of hidden nodes')
+    parser.add_argument('--print_every', default=1000, type=int, help='Number of epochs')
+    parser.add_argument('--plot_every', default=100, type=int, help='Number of epochs')
     return parser.parse_args()
 
 
@@ -214,24 +228,30 @@ if __name__ == '__main__':
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
     character_set = CharacterSet()
-    n_iters = 100000
-    print_every = 1#5000
-    plot_every = 1#500
+
     all_losses = []
-    total_loss = 0 # Reset every ``plot_every`` ``iters``
+    total_loss = 0
     all_categories, category_lines = read_all_data(args.data,character_set=character_set)
     data = TrainingDataAdapter(all_categories, category_lines,rng=rng,character_set = character_set)
-    rnn = RNN(character_set.n_letters, 128, character_set.n_letters,len(data.all_categories))
+    rnn = RNN(character_set.n_letters, args.hidden, character_set.n_letters,len(data.all_categories))
     for iter in range(1, args.N + 1):
         output, loss = train(*data.randomTrainingExample())
         total_loss += loss
 
-        # if iter % print_every == 0:
-            # print('%s (%d %d%%) %.4f' % (timeSince(start), iter, iter / n_iters * 100, loss))
+        if iter % args.print_every == 0:
+            print (f'Iteration {iter}, {(iter / args.N) * 100}% , loss={loss}')
 
-        if iter % plot_every == 0:
-            all_losses.append(total_loss / plot_every)
+        if iter % args.plot_every == 0:
+            all_losses.append(total_loss / args.plot_every)
             total_loss = 0
+
+    rnn.save(join(args.params, Path(args.file).stem))
+
+    ax = fig.add_subplot(1,1,1)
+    ax.plot(all_losses)
+    ax.set_xlabel('Epoch')
+    ax.set_ylabel('Loss')
+    fig.savefig(join(args.figs, Path(args.file).stem))
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
