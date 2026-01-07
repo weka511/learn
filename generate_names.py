@@ -38,7 +38,7 @@ from classify_names import CharacterSet
 
 
 class RNN(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_size, output_size,n_categories):
         super().__init__()
         self.hidden_size = hidden_size
         self.i2h = nn.Linear(n_categories + input_size + hidden_size, hidden_size)
@@ -92,20 +92,32 @@ def readLines(filename, character_set=CharacterSet()):
     with open(filename, encoding='utf-8') as some_file:
         return [character_set.unicodeToAscii(line.strip()) for line in some_file]
 
+class TrainingDataAdapter:
+    def __init__(self,all_categories, category_lines,rng=np.random.default_rng(),character_set = CharacterSet()):
+        self.all_categories = all_categories
+        self.rng = rng
+        self.category_lines = category_lines
+        self.character_set = character_set
 
-def randomTrainingPair(all_categories, rng=np.random.default_rng()):
-    category = rng.choice(all_categories)
-    line = rng.choice(category_lines[category])
-    return category, line
+    def randomTrainingPair(self):
+        category = self.rng.choice(self.all_categories)
+        line = self.rng.choice(self.category_lines[category])
+        return category, line
 
-# One-hot vector for category
+    def randomTrainingExample(self):
+        category, line = self.randomTrainingPair()
+        category_tensor = self.categoryTensor(category)
+        input_line_tensor = inputTensor(line,self.character_set.n_letters,self.character_set.all_letters)
+        target_line_tensor = targetTensor(line,self.character_set.all_letters,self.character_set.n_letters)
+        return category_tensor, input_line_tensor, target_line_tensor
 
-
-def categoryTensor(category):
-    li = all_categories.index(category)
-    tensor = torch.zeros(1, n_categories)
-    tensor[0][li] = 1
-    return tensor
+    def categoryTensor(self,category):
+        '''
+        '''
+        li = all_categories.index(category)
+        tensor = torch.zeros(1, len(self.all_categories))
+        tensor[0][li] = 1
+        return tensor
 
 # One-hot matrix of first to last letters (not including EOS) for input
 
@@ -128,12 +140,21 @@ def targetTensor(line,all_letters,n_letters):
 # Make category, input, and target tensors from a random category, line pair
 
 
-def randomTrainingExample(all_categories = [],n_letters=0,all_letters=[]):
-    category, line = randomTrainingPair(all_categories)
-    category_tensor = categoryTensor(category)
-    input_line_tensor = inputTensor(line,n_letters,all_letters)
-    target_line_tensor = targetTensor(line,all_letters,n_letters)
-    return category_tensor, input_line_tensor, target_line_tensor
+def read_all_data(data_path,character_set = CharacterSet()):
+    category_lines = {}
+    all_categories = []
+    for filename in findFiles(join(data_path, '*.txt')):
+        category = splitext(basename(filename))[0]
+        all_categories.append(category)
+        lines = readLines(filename, character_set=character_set)
+        category_lines[category] = lines
+
+    n_categories = len(all_categories)
+    assert(n_categories > 0)
+
+    print('# categories:', n_categories, all_categories)
+    print(character_set.unicodeToAscii("O'Néàl"))
+    return all_categories, category_lines
 
 
 def train(category_tensor, input_line_tensor, target_line_tensor):
@@ -173,9 +194,7 @@ def parse_args():
     parser.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                         help='Optimizer to be used for training')
     parser.add_argument('--restart', default=None, help='Restart from saved parameters')
-
     parser.add_argument('--file', default=None, help='Used to load weights')
-
     parser.add_argument('--data', default='./data/rnn-1/names', help='Location of data files')
     parser.add_argument('--logfiles', default='./logfiles', help='Location of log files')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
@@ -195,34 +214,16 @@ if __name__ == '__main__':
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
     character_set = CharacterSet()
-    category_lines = {}
-    all_categories = []
-    for filename in findFiles(join(args.data, '*.txt')):
-        category = splitext(basename(filename))[0]
-        all_categories.append(category)
-        lines = readLines(filename, character_set=character_set)
-        category_lines[category] = lines
-
-    n_categories = len(all_categories)
-
-    if n_categories == 0:
-        raise RuntimeError('Data not found. Make sure that you downloaded data '
-                           'from https://download.pytorch.org/tutorial/data.zip and extract it to '
-                           'the current directory.')
-
-    print('# categories:', n_categories, all_categories)
-    print(character_set.unicodeToAscii("O'Néàl"))
-
-    rnn = RNN(character_set.n_letters, 128, character_set.n_letters)
-
     n_iters = 100000
     print_every = 1#5000
     plot_every = 1#500
     all_losses = []
     total_loss = 0 # Reset every ``plot_every`` ``iters``
-
+    all_categories, category_lines = read_all_data(args.data,character_set=character_set)
+    data = TrainingDataAdapter(all_categories, category_lines,rng=rng,character_set = character_set)
+    rnn = RNN(character_set.n_letters, 128, character_set.n_letters,len(data.all_categories))
     for iter in range(1, args.N + 1):
-        output, loss = train(*randomTrainingExample(all_categories,n_letters=character_set.n_letters,all_letters=character_set.all_letters))
+        output, loss = train(*data.randomTrainingExample())
         total_loss += loss
 
         # if iter % print_every == 0:
