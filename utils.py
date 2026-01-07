@@ -22,7 +22,7 @@
 from pathlib import Path
 from re import split
 import numpy as np
-
+import torch
 
 class Logger(object):
 	'''
@@ -61,7 +61,7 @@ def get_seed(seed, notify=lambda s: print(f'Created new seed {s}')):
 		return seed
 	rng = np.random.default_rng()
 	max_int64_value = np.iinfo(np.int64).max
-	new_seed = rng.integers(max_int64_value)
+	new_seed = int(rng.integers(max_int64_value))
 	notify(new_seed)
 	return new_seed
 
@@ -116,6 +116,13 @@ def ensure_we_can_save(checkpoint_file_name):
 			checkpoint_path_bak.unlink()
 		checkpoint_path.rename(checkpoint_path_bak)
 
+def get_device(notify=lambda device: print(f'Using device = {device}')):
+	'''
+	Use fastest device available
+	'''
+	torch.set_default_device(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+	notify(torch.get_default_device())
+	return torch.get_default_device()
 
 if __name__ == '__main__':
 	for colour in generate_xkcd_colours():

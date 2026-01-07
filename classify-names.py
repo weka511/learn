@@ -40,7 +40,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
-from utils import Logger, get_seed, user_has_requested_stop
+from utils import get_seed, get_device
 
 
 class CharacterSet:
@@ -151,29 +151,19 @@ class OptimizerFactory:
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--action', choices=['train', 'test'],
-                        default='train', help='Chooses between training or testing')
 
-    training_group = parser.add_argument_group('Parameters for --action train')
-    training_group.add_argument('--batch_size', default=64, type=int, help='Number of images per batch')
-    training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
-    training_group.add_argument('--n_hidden', default=128, type=int, help='Number of hidden nodes')
-    training_group.add_argument('--params', default='./params', help='Location for storing plot files')
-    training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
-    training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
-    training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
+    parser.add_argument('--batch_size', default=64, type=int, help='Number of images per batch')
+    parser.add_argument('--N', default=5, type=int, help='Number of epochs')
+    parser.add_argument('--hidden', default=128, type=int, help='Number of hidden nodes')
+    parser.add_argument('--params', default='./params', help='Location for storing plot files')
+    parser.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
+    parser.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
+    parser.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                                 help='Optimizer to be used for training')
-    training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
-
-    test_group = parser.add_argument_group('Parameters for --action test')
-    test_group.add_argument('--file', default=__file__, help='Used to load weights')
-
-    shared_group = parser.add_argument_group('General Parameters')
-    shared_group.add_argument('--data', default='./data/rnn-1/names', help='Location of data files')
-    shared_group.add_argument('--logfiles', default='./logfiles', help='Location of log files')
-    shared_group.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
-    shared_group.add_argument('--figs', default='./figs', help='Location for storing plot files')
-    shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
+    parser.add_argument('--data', default='./data/rnn-1/names', help='Location of data files')
+    parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
+    parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
+    parser.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
     return parser.parse_args()
 
 
@@ -292,17 +282,15 @@ if __name__ == '__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
+    device = get_device()
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    torch.set_default_device(device)
-    print(f'Using device = {torch.get_default_device()}')
     character_set = CharacterSet()
     alldata = NamesDataset(args.data, character_set=character_set)
     print(f'loaded {len(alldata)} items of data')
 
-    train_set, test_set = random_split(alldata, [.85, .15], generator=torch.Generator(device=device).manual_seed(int(seed)))
+    train_set, test_set = random_split(alldata, [.85, .15], generator=torch.Generator(device=device).manual_seed(seed))
     print(f'train examples = {len(train_set)}, validation examples = {len(test_set)}')
-    rnn = CharRNN(len(character_set), args.n_hidden, len(alldata.labels_uniq))
+    rnn = CharRNN(len(character_set), args.hidden, len(alldata.labels_uniq))
     print(rnn)
     optimizer = OptimizerFactory.create(rnn, args)
     all_losses = train(rnn, train_set, n_epoch=args.N, optimizer=optimizer, report_every=5, rng=rng, n_batch_size=args.batch_size)
