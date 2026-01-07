@@ -164,7 +164,7 @@ def read_all_data(data_path,character_set = CharacterSet()):
     assert(n_categories > 0)
 
     print('# categories:', n_categories, all_categories)
-    print(character_set.unicodeToAscii("O'Néàl"))
+
     return all_categories, category_lines
 
 
@@ -217,6 +217,40 @@ def parse_args():
     return parser.parse_args()
 
 
+
+
+def sample(rnn,category, data, start_letter='A',max_length = 20,character_set = CharacterSet()):
+    '''
+    Sample from a category and starting letter
+    '''
+    with torch.no_grad():  # no need to track history in sampling
+        category_tensor = data.categoryTensor(category)
+        input = inputTensor(start_letter,character_set.n_letters,character_set.all_letters)
+        hidden = rnn.initHidden()
+
+        output_name = start_letter
+
+        for i in range(max_length):
+            output, hidden = rnn(category_tensor, input[0], hidden)
+            topv, topi = output.topk(1)
+            topi = topi[0][0]
+            if topi == character_set.n_letters - 1:
+                break
+            else:
+                letter = character_set.all_letters[topi]
+                output_name += letter
+            input = inputTensor(letter,character_set.n_letters,character_set.all_letters)
+
+        return output_name
+
+
+def samples(rnn,category, data, start_letters='ABC'):
+    '''
+    Get multiple samples from one category and multiple starting letters
+    '''
+    for start_letter in start_letters:
+        print(sample(rnn,category, data,start_letter))
+
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
@@ -228,30 +262,38 @@ if __name__ == '__main__':
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
     character_set = CharacterSet()
-
-    all_losses = []
-    total_loss = 0
     all_categories, category_lines = read_all_data(args.data,character_set=character_set)
     data = TrainingDataAdapter(all_categories, category_lines,rng=rng,character_set = character_set)
     rnn = RNN(character_set.n_letters, args.hidden, character_set.n_letters,len(data.all_categories))
-    for iter in range(1, args.N + 1):
-        output, loss = train(*data.randomTrainingExample())
-        total_loss += loss
 
-        if iter % args.print_every == 0:
-            print (f'Iteration {iter}, {(iter / args.N) * 100}% , loss={loss}')
-
-        if iter % args.plot_every == 0:
-            all_losses.append(total_loss / args.plot_every)
+    match args.action:
+        case 'train':
+            all_losses = []
             total_loss = 0
+            for iter in range(1, args.N + 1):
+                output, loss = train(*data.randomTrainingExample())
+                total_loss += loss
 
-    rnn.save(join(args.params, Path(args.file).stem))
+                if iter % args.print_every == 0:
+                    print (f'Iteration {iter}, {(iter / args.N) * 100}% , loss={loss}')
 
-    ax = fig.add_subplot(1,1,1)
-    ax.plot(all_losses)
-    ax.set_xlabel('Epoch')
-    ax.set_ylabel('Loss')
-    fig.savefig(join(args.figs, Path(args.file).stem))
+                if iter % args.plot_every == 0:
+                    all_losses.append(total_loss / args.plot_every)
+                    total_loss = 0
+
+            rnn.save(join(args.params, Path(args.file).stem))
+
+            ax = fig.add_subplot(1,1,1)
+            epochs = [args.plot_every * i for i in range(1,len(all_losses)+1)]
+            ax.plot(epochs,all_losses)
+            ax.set_xlabel('Epoch')
+            ax.set_ylabel('Loss')
+            fig.savefig(join(args.figs, Path(args.file).stem))
+
+        case 'test':
+            rnn.load(join(args.params, Path(args.file).stem+'.pth'))
+            print (samples(rnn,'Spanish', data, 'SPA'))
+
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
