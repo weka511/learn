@@ -46,6 +46,8 @@ from utils import get_seed, get_device
 class CharacterSet:
     def __init__(self):
         self.allowed_characters = ascii_letters + ' .,;\'' + '_'
+        self.all_letters = ascii_letters + " .,;'-"
+        self.n_letters = len(self.all_letters) + 1 # Plus EOS marker
 
     def __len__(self):
         return len(self.allowed_characters)
