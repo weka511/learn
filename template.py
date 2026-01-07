@@ -65,7 +65,7 @@ def parse_args():
     training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
     training_group.add_argument('--steps', default=5, type=int, help='Number of steps to an epoch')
-    training_group.add_argument('--params', default='./params', help='Location for storing plot files')
+    training_group.add_argument('--params', default='./params', help='Location for storing parameter files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
     training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
