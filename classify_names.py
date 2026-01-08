@@ -44,6 +44,9 @@ from utils import get_seed, get_device
 
 
 class CharacterSet:
+    '''
+    This class understand the character set
+    '''
     def __init__(self):
         self.allowed_characters = ascii_letters + ' .,;\'' + '_'
         self.all_letters = ascii_letters + " .,;'-"
@@ -86,10 +89,6 @@ class CharacterSet:
         letter_indexes = [self.all_letters.find(line[li]) for li in range(1, len(line))]
         letter_indexes.append(self.n_letters - 1) # EOS
         return torch.LongTensor(letter_indexes)
-
-
-
-
 
 class NamesDataset(Dataset):
     '''

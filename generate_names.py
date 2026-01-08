@@ -36,8 +36,32 @@ from torch.optim import SGD, Adam
 from utils import Logger, get_seed, user_has_requested_stop
 from classify_names import CharacterSet
 
-
 class RNN(nn.Module):
+    '''
+    Recurrent Neural Network
+
+      category input hidden
+        \      |     /
+         \     |    /
+          \    |   /
+           combined
+              /\
+             /   \
+            /     \
+          i2o     i2h
+           |       |
+        output   hidden
+            |    / \        |
+            |   /   \       |
+            |  /     \______|
+            o2o
+             |
+          dropout
+             |
+          softmax
+             |
+          output
+    '''
     def __init__(self, input_size, hidden_size, output_size,n_categories):
         super().__init__()
         self.hidden_size = hidden_size
