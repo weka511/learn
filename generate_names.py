@@ -37,30 +37,41 @@ from utils import Logger, get_seed, user_has_requested_stop
 from classify_names import CharacterSet
 
 class RNN(nn.Module):
-    '''
+    r'''
     Recurrent Neural Network
 
-      category input hidden
-        \      |     /
-         \     |    /
-          \    |   /
-           combined
-              /\
-             /   \
-            /     \
-          i2o     i2h
-           |       |
-        output   hidden
-            |    / \        |
-            |   /   \       |
-            |  /     \______|
-            o2o
-             |
-          dropout
-             |
-          softmax
-             |
-          output
+    We will interpret the output as the probability of the next letter.
+    When sampling, the most likely output letter is used as the next input letter.
+                _____________________
+                |      _____         |
+                v      |    |        |
+                v      v    |        |
+                v      v    |        |
+      category input hidden |        |
+        \      |     /      |        |
+         \     |    /       |        |
+          \    |   /        |        |
+           combined         ^        |
+              /\            |        |
+             /   \          |        |
+            /     \         |        |
+          i2o     i2h       |        |
+           |       |        ^        |
+        output   hidden     ^        |
+            |    / \        |        |
+            |   /   \       |        |
+            |  /     \______|        |        |
+            o2o                      |
+             |                       |
+          dropout                    |
+             |                       |
+          softmax                    |
+             |                       |
+          output                     ^
+             \                       ^
+              \                      ^
+               \                     |
+                \____________________|
     '''
     def __init__(self, input_size, hidden_size, output_size,n_categories):
         super().__init__()

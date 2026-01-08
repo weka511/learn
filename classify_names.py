@@ -134,6 +134,14 @@ class NamesDataset(Dataset):
 class CharRNN(nn.Module):
     '''
     Recurrent Neural Network
+
+    This CharRNN class implements an RNN with three components.
+    First, we use the nn.RNN implementation. Next, we define a layer
+    that maps the RNN hidden layers to our output.
+    And finally, we apply a softmax function.
+    Using nn.RNN leads to a significant improvement in performance,
+    such as cuDNN-accelerated kernels, versus implementing each layer as a nn.Linear.
+    It also simplifies the implementation in forward()
     '''
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
