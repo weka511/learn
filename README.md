@@ -13,6 +13,7 @@ classify_names.py|[NLP From Scratch: Classifying Names with a Character-Level RN
 generate_names.py|[NLP From Scratch: Generating Names with a Character-Level RNN](https://docs.pytorch.org/tutorials/intermediate/char_rnn_generation_tutorial.html)
 mnist.py|Testbed for deep neural networks, using ideas from [Deep Learning](https://www.deeplearningbook.org/) by Ian Goodfellow and Yoshua Bengio and Aaron Courville. This program learns to recognize images from the NIST dataset
 torch-nn.py|[train](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#sphx-glr-beginner-blitz-cifar10-tutorial-py)
+translate.py|[NLP From Scratch: Translation with a Sequence to Sequence Network and Attention](https://docs.pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html)
 visualize.py|Visualize neural network used by mnisp.py
 
 ## Variational Inference
