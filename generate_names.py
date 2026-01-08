@@ -168,7 +168,7 @@ def read_all_data(data_path,character_set = CharacterSet()):
     return all_categories, category_lines
 
 
-def train(category_tensor, input_line_tensor, target_line_tensor):
+def train(rnn,category_tensor, input_line_tensor, target_line_tensor):
     target_line_tensor.unsqueeze_(-1)
     hidden = rnn.initHidden()
 
@@ -248,8 +248,11 @@ def samples(rnn,category, data, start_letters='ABC'):
     '''
     Get multiple samples from one category and multiple starting letters
     '''
+    print (category)
     for start_letter in start_letters:
-        print(sample(rnn,category, data,start_letter))
+            s=sample(rnn,category, data,start_letter)
+            if s != None:
+                print (s)
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -268,10 +271,15 @@ if __name__ == '__main__':
 
     match args.action:
         case 'train':
+            if args.restart != None:
+                rnn.load(args.restart)
+                print (f'{args.restart} loaded')
+
             all_losses = []
             total_loss = 0
             for iter in range(1, args.N + 1):
-                output, loss = train(*data.randomTrainingExample())
+                category_tensor, input_line_tensor, target_line_tensor = data.randomTrainingExample()
+                output, loss = train(rnn, category_tensor, input_line_tensor, target_line_tensor)
                 total_loss += loss
 
                 if iter % args.print_every == 0:
@@ -284,7 +292,7 @@ if __name__ == '__main__':
             rnn.save(join(args.params, Path(args.file).stem))
 
             ax = fig.add_subplot(1,1,1)
-            epochs = [args.plot_every * i for i in range(1,len(all_losses)+1)]
+            epochs = [int(args.plot_every * i) for i in range(1,len(all_losses)+1)]
             ax.plot(epochs,all_losses)
             ax.set_xlabel('Epoch')
             ax.set_ylabel('Loss')
@@ -292,7 +300,11 @@ if __name__ == '__main__':
 
         case 'test':
             rnn.load(join(args.params, Path(args.file).stem+'.pth'))
+
+            print (samples(rnn,'Russian', data, 'RUS'))
             print (samples(rnn,'Spanish', data, 'SPA'))
+            print (samples(rnn,'German', data, 'GER'))
+            print (samples(rnn,'Chinese', data, 'CHI'))
 
 
     elapsed = time() - start
