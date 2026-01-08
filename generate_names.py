@@ -158,8 +158,8 @@ class TrainingDataAdapter:
         '''
         category, line = self.randomTrainingPair()
         category_tensor = self.categoryTensor(category)
-        input_line_tensor = self.inputTensor(line)
-        target_line_tensor = self.character_set.targetTensor(line)
+        input_line_tensor = self.createInputTensor(line)
+        target_line_tensor = self.character_set.createTargetTensor(line)
         return category_tensor, input_line_tensor, target_line_tensor
 
     def categoryTensor(self,category):
@@ -259,7 +259,7 @@ def sample(rnn,category, data, start_letter='A',max_length = 20,character_set = 
     '''
     with torch.no_grad():  # no need to track history in sampling
         category_tensor = data.categoryTensor(category)
-        input = character_set.inputTensor(start_letter)
+        input = character_set.createInputTensor(start_letter)
         hidden = rnn.initHidden()
 
         output_name = start_letter
@@ -273,7 +273,7 @@ def sample(rnn,category, data, start_letter='A',max_length = 20,character_set = 
             else:
                 letter = character_set.all_letters[topi]
                 output_name += letter
-            input = character_set.inputTensor(letter)
+            input = character_set.createInputTensor(letter)
 
         return output_name
 

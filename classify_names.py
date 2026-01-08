@@ -45,7 +45,7 @@ from utils import get_seed, get_device
 
 class CharacterSet:
     '''
-    This class understand the character set
+    This class contains knowledge of the chracter set. Ir constructs one-hot vectors representing characters
     '''
     def __init__(self):
         self.allowed_characters = ascii_letters + ' .,;\'' + '_'
@@ -57,7 +57,9 @@ class CharacterSet:
 
     def unicodeToAscii(self, s):
         '''
-        Turn a Unicode string to plain ASCII, thanks to https://stackoverflow.com/a/518232/2809427
+        Turn a Unicode string to plain ASCII
+
+        Thanks to https://stackoverflow.com/a/518232/2809427
         '''
         return ''.join(
             c for c in unicodedata.normalize('NFD', s)
@@ -66,35 +68,68 @@ class CharacterSet:
 
     def letterToIndex(self, letter):
         '''
-        Find letter index from all_letters, e.g. 'a' = 0
-        return our out-of-vocabulary character if we encounter a letter unknown to our model
+        Find  index from a letters, e.g. 'a' = 0
+
+        Parameters:
+            letter     Letter whose index is desired
+
+        Returns:
+            Index, or our out-of-vocabulary character if we encounter a letter unknown to our model
+
         '''
         index = self.allowed_characters.find(letter)
         return index if index > -1 else self.allowed_characters.find('_')
 
-    def inputTensor(self,line):
+    def createInputTensor(self,line):
         '''
-        One-hot matrix of first to last letters (not including EOS) for input
-        '''
-        tensor = torch.zeros(len(line), 1, self.n_letters)
-        for li in range(len(line)):
-            letter = line[li]
-            tensor[li][0][self.all_letters.find(letter)] = 1
-        return tensor
+        Factory method to construct one-hot matrix of first to last letters (not including EOS) for input
 
-    def targetTensor(self,line):
+        Parameters:
+            line    A line of text to be used to make matrix of one-hot vectors
         '''
-        LongTensor of second letter to end (EOS) for target
+        product = torch.zeros(len(line), 1, self.n_letters)
+        for i in range(len(line)):
+            letter = line[i]
+            product[i][0][self.all_letters.find(letter)] = 1
+        return product
+
+    def createTargetTensor(self,line):
         '''
-        letter_indexes = [self.all_letters.find(line[li]) for li in range(1, len(line))]
+        Factory Method to create LongTensor of second letter to end (EOS) for target
+
+        Parameters:
+            line    A line of text to be used to make matrix of one-hot vectors
+        '''
+        letter_indexes = [self.all_letters.find(line[i]) for i in range(1, len(line))]
         letter_indexes.append(self.n_letters - 1) # EOS
         return torch.LongTensor(letter_indexes)
 
+    def createLineTensor(self,line):
+        '''
+        Turn a line into a <line_length x 1 x n_letters>,
+        or an array of one-hot letter vectors
+
+         Parameters:
+            line    A line of text to be used to make tensoe
+        '''
+        product = torch.zeros(len(line), 1, len(self))
+        for i, letter in enumerate(line):
+            product[i][0][self.letterToIndex(letter)] = 1
+        return product
+
 class NamesDataset(Dataset):
     '''
-    This class contains names from the dataset
-    '''
+    This class holds the traring and test data for out network.
+    It contains names from the dataset
 
+    Data members:
+        data_dir        Folder where data was loaded from
+        load_time       Identifies when data was loaded
+        data            List of names in dataset
+        data_tensors    List of names in dataset converted to tensors, one for each language
+        labels          List of labels (languages) one for each word (so there are duplicates)
+        labels_tensors  List of labels  converted to tensors
+    '''
     def __init__(self, data_dir, character_set=CharacterSet()):
         self.data_dir = data_dir
         self.load_time = localtime
@@ -108,10 +143,9 @@ class NamesDataset(Dataset):
         for filename in text_files:
             label = splitext(basename(filename))[0]
             labels_set.add(label)
-            lines = open(filename, encoding='utf-8').read().strip().split('\n')
-            for name in lines:
+            for name in open(filename, encoding='utf-8').read().strip().split('\n'):
                 self.data.append(name)
-                self.data_tensors.append(lineToTensor(name, character_set=character_set))
+                self.data_tensors.append(character_set.createLineTensor(name))
                 self.labels.append(label)
 
         #Cache the tensor representation of the labels
@@ -121,9 +155,24 @@ class NamesDataset(Dataset):
             self.labels_tensors.append(temp_tensor)
 
     def __len__(self):
+        '''
+        Get number of languges
+        '''
         return len(self.data)
 
     def __getitem__(self, idx):
+        '''
+        Retrieve data for one language
+
+        Parameters:
+            idx      Index indentifying language
+
+        Returns:
+            label_tensor
+            data_tensor
+            data_label     The language corresponding to the name
+            data_item      Name corresponding to index
+        '''
         data_item = self.data[idx]
         data_label = self.labels[idx]
         data_tensor = self.data_tensors[idx]
@@ -194,19 +243,8 @@ def parse_args():
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     parser.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
+    parser.add_argument('--file', default=__file__, help='Used to save figure')
     return parser.parse_args()
-
-
-def lineToTensor(line, character_set=CharacterSet()):
-    '''
-    Turn a line into a <line_length x 1 x n_letters>,
-    or an array of one-hot letter vectors
-    '''
-    tensor = torch.zeros(len(line), 1, len(character_set))
-    for li, letter in enumerate(line):
-        tensor[li][0][character_set.letterToIndex(letter)] = 1
-    return tensor
-
 
 def label_from_output(output, output_labels):
     top_n, top_i = output.topk(1)
@@ -214,47 +252,47 @@ def label_from_output(output, output_labels):
     return output_labels[label_i], label_i
 
 
-def train(rnn, data, n_epoch=10, n_batch_size=64, report_every=1,
+def train(rnn, data_set, N=10, batch_size=64, report_every=5,
           criterion=nn.NLLLoss(), rng=np.random.default_rng(), optimizer=None):
     '''
     Learn on a batch of training data for a specified number of iterations and reporting thresholds
 
     Parameters:
-        rnn
-        data
-        n_epoch
-        n_batch_size
-        report_every
-        criterion=nn.NLLLoss()
-        rng
-        optimizer
+        rnn              The network we are training
+        data_set         Training data
+        N                Number of epochs of training
+        batch_size       Number of records per batch
+        report_every     Controls frequency of reporting
+        criterion        For judging match
+        rng              Random number geerator
+        optimizer        Used to improve fitness
     '''
     def create_minibatches():
         '''
-        create some minibatches
+        Organize data into minibatches
         we cannot use dataloaders because each of our names is a different length
 
         Returns:
            A permutation of the indices of the data items, origanized into an array of arrays.
            Each of the low level arrays contains the indices of data items comprising one batch
         '''
-        permutation = list(range(len(data)))
+        permutation = list(range(len(data_set)))
         rng.shuffle(permutation)
-        return np.array_split(permutation, len(permutation) // n_batch_size)
+        return np.array_split(permutation, len(permutation) // batch_size)
 
     current_loss = 0
     all_losses = []
     rnn.train()
 
-    print(f'training on data set with n = {len(data)}')
+    print(f'training on data set with n = {len(data_set)}')
 
-    for epoch in range(1, n_epoch + 1):
+    for epoch in range(1, N + 1):
         rnn.zero_grad()
         batches = create_minibatches()
         for idx, batch in enumerate(batches):
             batch_loss = 0
             for i in batch:
-                (label_tensor, text_tensor, label, text) = data[i]
+                (label_tensor, text_tensor, label, text) = data_set[i]
                 output = rnn.forward(text_tensor)
                 loss = criterion(output, label_tensor)
                 batch_loss += loss
@@ -268,38 +306,43 @@ def train(rnn, data, n_epoch=10, n_batch_size=64, report_every=1,
 
         all_losses.append(current_loss / len(batches))
         if epoch % report_every == 0:
-            print(f'{epoch} ({epoch / n_epoch:.0%}): \t average batch loss = {all_losses[-1]}')
+            print(f'{epoch} ({epoch / N:.0%}): \t average batch loss = {all_losses[-1]}')
         current_loss = 0
 
     return all_losses
 
 
-def evaluate(rnn, data, classes):
+def evaluate(rnn, data_set, classes):
     '''
     Evaluate model against test data and compute confusion matrix
 
     Parameters:
-        rnn
-        data
-        classes
+        rnn         Model
+        data_set    The data
+        classes     List of classification labels
     '''
+    def normalize(matrix):
+        '''
+        Normalize  matrix so each row sums to 1 (unless is is all zeros)
+        '''
+        for i in range(len(classes)):
+            denom = matrix[i].sum()
+            matrix[i] /= (denom if denom > 0 else 1)
+
+        return matrix
+
     confusion = torch.zeros(len(classes), len(classes))
 
     rnn.eval()
     with torch.no_grad():
-        for i in range(len(data)):
-            (label_tensor, text_tensor, label, text) = data[i]
+        for i in range(len(data_set)):
+            (label_tensor, text_tensor, label, text) = data_set[i]
             output = rnn(text_tensor)
             guess, guess_i = label_from_output(output, classes)
             label_i = classes.index(label)
             confusion[label_i][guess_i] += 1
 
-    for i in range(len(classes)):
-        denom = confusion[i].sum()
-        if denom > 0:
-            confusion[i] = confusion[i] / denom
-
-    return confusion, classes
+    return normalize(confusion), classes
 
 
 if __name__ == '__main__':
@@ -313,33 +356,38 @@ if __name__ == '__main__':
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
     device = get_device()
-
+    torch_generator = torch.Generator(device=device).manual_seed(seed)
     character_set = CharacterSet()
     alldata = NamesDataset(args.data, character_set=character_set)
     print(f'loaded {len(alldata)} items of data')
 
-    train_set, test_set = random_split(alldata, [.85, .15], generator=torch.Generator(device=device).manual_seed(seed))
+    train_set, test_set = random_split(alldata, [.85, .15], generator=torch_generator)
     print(f'train examples = {len(train_set)}, validation examples = {len(test_set)}')
+
     rnn = CharRNN(len(character_set), args.hidden, len(alldata.labels_uniq))
     print(rnn)
     optimizer = OptimizerFactory.create(rnn, args)
-    all_losses = train(rnn, train_set, n_epoch=args.N, optimizer=optimizer, report_every=5, rng=rng, n_batch_size=args.batch_size)
+    all_losses = train(rnn, train_set, N=args.N, optimizer=optimizer, rng=rng, batch_size=args.batch_size)
 
     confusion, classes = evaluate(rnn, test_set, classes=alldata.labels_uniq)
 
-    ax = fig.add_subplot(2, 1, 1)
-    ax.plot(all_losses)
+    ax1 = fig.add_subplot(2, 1, 1)
+    ax1.plot(list(range(1,len(all_losses)+1)),all_losses)
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Loss')
+    ax1.set_title(f'{args.optimizer}: N={args.N}')
 
-    ax1 = fig.add_subplot(2, 1, 2)
-    cax = ax1.matshow(confusion.cpu().numpy()) #numpy uses cpu here so we need to use a cpu version
+    ax2 = fig.add_subplot(2, 1, 2)
+    cax = ax2.matshow(confusion.cpu().numpy())
     fig.colorbar(cax)
+    ax2.set_xticks(np.arange(len(classes)), labels=classes, rotation=90)
+    ax2.set_yticks(np.arange(len(classes)), labels=classes)
+    ax2.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax2.yaxis.set_major_locator(ticker.MultipleLocator(1))
 
-    ax1.set_xticks(np.arange(len(classes)), labels=classes, rotation=90)
-    ax1.set_yticks(np.arange(len(classes)), labels=classes)
-    ax1.xaxis.set_major_locator(ticker.MultipleLocator(1))
-    ax1.yaxis.set_major_locator(ticker.MultipleLocator(1))
-
+    fig.tight_layout(pad=3, h_pad=9, w_pad=3)
     fig.savefig(join(args.figs, Path(args.file).stem))
+
     elapsed = time() - start
     minutes = int(elapsed / 60)
     seconds = elapsed - 60 * minutes
