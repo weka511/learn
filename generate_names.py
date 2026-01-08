@@ -95,15 +95,14 @@ class OptimizerFactory:
                 return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 
-def findFiles(path):
-    return glob.glob(path)
-
-
 def readLines(filename, character_set=CharacterSet()):
     with open(filename, encoding='utf-8') as some_file:
         return [character_set.unicodeToAscii(line.strip()) for line in some_file]
 
 class TrainingDataAdapter:
+    '''
+    This class wraps around the dataset so it can be accessed for training the RNN
+    '''
     def __init__(self,all_categories, category_lines,rng=np.random.default_rng(),character_set = CharacterSet()):
         self.all_categories = all_categories
         self.rng = rng
@@ -111,50 +110,45 @@ class TrainingDataAdapter:
         self.character_set = character_set
 
     def randomTrainingPair(self):
+        '''
+        Helper function to get random pairs of (category, line):
+        '''
         category = self.rng.choice(self.all_categories)
         line = self.rng.choice(self.category_lines[category])
         return category, line
 
     def randomTrainingExample(self):
+        '''
+        Make category, input, and target tensors from a random category, line pair
+        '''
         category, line = self.randomTrainingPair()
         category_tensor = self.categoryTensor(category)
-        input_line_tensor = inputTensor(line,self.character_set.n_letters,self.character_set.all_letters)
-        target_line_tensor = targetTensor(line,self.character_set.all_letters,self.character_set.n_letters)
+        input_line_tensor = self.inputTensor(line)
+        target_line_tensor = self.character_set.targetTensor(line)
         return category_tensor, input_line_tensor, target_line_tensor
 
     def categoryTensor(self,category):
         '''
+        Create one-hot vector for category
         '''
         li = all_categories.index(category)
         tensor = torch.zeros(1, len(self.all_categories))
         tensor[0][li] = 1
         return tensor
 
-# One-hot matrix of first to last letters (not including EOS) for input
-
-
-def inputTensor(line,n_letters,all_letters):
-    tensor = torch.zeros(len(line), 1, n_letters)
-    for li in range(len(line)):
-        letter = line[li]
-        tensor[li][0][all_letters.find(letter)] = 1
-    return tensor
-
-# ``LongTensor`` of second letter to end (EOS) for target
-
-
-def targetTensor(line,all_letters,n_letters):
-    letter_indexes = [all_letters.find(line[li]) for li in range(1, len(line))]
-    letter_indexes.append(n_letters - 1) # EOS
-    return torch.LongTensor(letter_indexes)
-
-# Make category, input, and target tensors from a random category, line pair
-
 
 def read_all_data(data_path,character_set = CharacterSet()):
+    '''
+    Extract a list of all categories (languages) and a dictionary containing
+    a list of works for each category
+
+    Parameters:
+        data_path
+        character_set
+    '''
     category_lines = {}
     all_categories = []
-    for filename in findFiles(join(data_path, '*.txt')):
+    for filename in glob.glob(join(data_path, '*.txt')):
         category = splitext(basename(filename))[0]
         all_categories.append(category)
         lines = readLines(filename, character_set=character_set)
@@ -169,6 +163,15 @@ def read_all_data(data_path,character_set = CharacterSet()):
 
 
 def train(rnn,category_tensor, input_line_tensor, target_line_tensor):
+    '''
+    Used to train network
+
+    Parameters:
+        rnn
+        category_tensor
+        input_line_tensor
+        target_line_tensor
+    '''
     target_line_tensor.unsqueeze_(-1)
     hidden = rnn.initHidden()
 
@@ -189,7 +192,6 @@ def train(rnn,category_tensor, input_line_tensor, target_line_tensor):
         p.data.add_(p.grad.data, alpha=-learning_rate)
 
     return output, loss.item() / input_line_tensor.size(0)
-
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
@@ -216,16 +218,13 @@ def parse_args():
     parser.add_argument('--plot_every', default=100, type=int, help='Number of epochs')
     return parser.parse_args()
 
-
-
-
 def sample(rnn,category, data, start_letter='A',max_length = 20,character_set = CharacterSet()):
     '''
     Sample from a category and starting letter
     '''
     with torch.no_grad():  # no need to track history in sampling
         category_tensor = data.categoryTensor(category)
-        input = inputTensor(start_letter,character_set.n_letters,character_set.all_letters)
+        input = character_set.inputTensor(start_letter)
         hidden = rnn.initHidden()
 
         output_name = start_letter
@@ -239,7 +238,7 @@ def sample(rnn,category, data, start_letter='A',max_length = 20,character_set = 
             else:
                 letter = character_set.all_letters[topi]
                 output_name += letter
-            input = inputTensor(letter,character_set.n_letters,character_set.all_letters)
+            input = character_set.inputTensor(letter)
 
         return output_name
 

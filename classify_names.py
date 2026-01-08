@@ -69,6 +69,27 @@ class CharacterSet:
         index = self.allowed_characters.find(letter)
         return index if index > -1 else self.allowed_characters.find('_')
 
+    def inputTensor(self,line):
+        '''
+        One-hot matrix of first to last letters (not including EOS) for input
+        '''
+        tensor = torch.zeros(len(line), 1, self.n_letters)
+        for li in range(len(line)):
+            letter = line[li]
+            tensor[li][0][self.all_letters.find(letter)] = 1
+        return tensor
+
+    def targetTensor(self,line):
+        '''
+        LongTensor of second letter to end (EOS) for target
+        '''
+        letter_indexes = [self.all_letters.find(line[li]) for li in range(1, len(line))]
+        letter_indexes.append(self.n_letters - 1) # EOS
+        return torch.LongTensor(letter_indexes)
+
+
+
+
 
 class NamesDataset(Dataset):
     '''
