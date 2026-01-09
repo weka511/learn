@@ -28,6 +28,7 @@ from argparse import ArgumentParser
 from glob import glob
 from os.path import splitext, join, basename
 from pathlib import Path
+from re import sub
 from string import ascii_letters
 from time import time, localtime
 import unicodedata
@@ -45,7 +46,7 @@ from utils import get_seed, get_device
 
 class CharacterSet:
     '''
-    This class contains knowledge of the chracter set. Ir constructs one-hot vectors representing characters
+    This class contains knowledge of the character set. It constructs one-hot vectors representing characters
     '''
     def __init__(self):
         self.allowed_characters = ascii_letters + ' .,;\'' + '_'
@@ -116,6 +117,15 @@ class CharacterSet:
         for i, letter in enumerate(line):
             product[i][0][self.letterToIndex(letter)] = 1
         return product
+
+    def normalizeString(self,s):
+        '''
+        Lowercase, trim, and remove non-letter characters
+        '''
+        s = self.unicodeToAscii(s.lower().strip())
+        s = sub(r"([.!?])", r" \1", s)
+        s = sub(r"[^a-zA-Z!?]+", r" ", s)
+        return s.strip()
 
 class NamesDataset(Dataset):
     '''
