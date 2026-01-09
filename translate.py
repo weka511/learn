@@ -36,7 +36,7 @@ from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
-from utils import Logger, get_seed, user_has_requested_stop
+from utils import Logger, get_seed, user_has_requested_stop,get_device
 from classify_names import CharacterSet
 
 class Lang:
@@ -165,15 +165,16 @@ class EncoderRNN(nn.Module):
         return output, hidden
 
 class DecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size):
+    def __init__(self, hidden_size, output_size,device='cpu'):
         super(DecoderRNN, self).__init__()
         self.embedding = nn.Embedding(output_size, hidden_size)
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, output_size)
+        self.device = device
 
     def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
         batch_size = encoder_outputs.size(0)
-        decoder_input = torch.empty(batch_size, 1, dtype=torch.long, device=device).fill_(Lang.SOS_token)
+        decoder_input = torch.empty(batch_size, 1, dtype=torch.long, device=self.device).fill_(Lang.SOS_token)
         decoder_hidden = encoder_hidden
         decoder_outputs = []
 
@@ -181,11 +182,9 @@ class DecoderRNN(nn.Module):
             decoder_output, decoder_hidden  = self.forward_step(decoder_input, decoder_hidden)
             decoder_outputs.append(decoder_output)
 
-            if target_tensor is not None:
-                # Teacher forcing: Feed the target as the next input
+            if target_tensor is not None: # Teacher forcing: Feed the target as the next input
                 decoder_input = target_tensor[:, i].unsqueeze(1) # Teacher forcing
-            else:
-                # Without teacher forcing: use its own predictions as the next input
+            else: # Without teacher forcing: use its own predictions as the next input
                 _, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze(-1).detach()  # detach from history as input
 
@@ -216,17 +215,18 @@ class BahdanauAttention(nn.Module):
         return context, weights
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size, dropout_p=0.1):
+    def __init__(self, hidden_size, output_size, dropout_p=0.1, device='cpu'):
         super(AttnDecoderRNN, self).__init__()
         self.embedding = nn.Embedding(output_size, hidden_size)
         self.attention = BahdanauAttention(hidden_size)
         self.gru = nn.GRU(2 * hidden_size, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, output_size)
         self.dropout = nn.Dropout(dropout_p)
+        self.device = device
 
     def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
         batch_size = encoder_outputs.size(0)
-        decoder_input = torch.empty(batch_size, 1, dtype=torch.long, device=device).fill_(Lang.SOS_token)
+        decoder_input = torch.empty(batch_size, 1, dtype=torch.long, device=self.device).fill_(Lang.SOS_token)
         decoder_hidden = encoder_hidden
         decoder_outputs = []
         attentions = []
@@ -296,16 +296,10 @@ def parse_args():
 def indexesFromSentence(lang, sentence):
     return [lang.word2index[word] for word in sentence.split(' ')]
 
-def tensorFromSentence(lang, sentence):
+def tensorFromSentence(lang, sentence,device='cpu'):
     indexes = indexesFromSentence(lang, sentence)
     indexes.append(Lang.EOS_token)
     return torch.tensor(indexes, dtype=torch.long, device=device).view(1, -1)
-
-def tensorsFromPair(pair):
-    input_tensor = tensorFromSentence(input_lang, pair[0])
-    target_tensor = tensorFromSentence(output_lang, pair[1])
-    return (input_tensor, target_tensor)
-
 
 def get_dataloader(batch_size,path='./',device='cpu'):
     dataset = DataSet(path=path)
@@ -384,9 +378,9 @@ def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
 
     return plot_losses
 
-def evaluate(encoder, decoder, sentence, input_lang, output_lang):
+def evaluate(encoder, decoder, sentence, input_lang, output_lang,device='cpu'):
     with torch.no_grad():
-        input_tensor = tensorFromSentence(input_lang, sentence)
+        input_tensor = tensorFromSentence(input_lang, sentence,device=device)
 
         encoder_outputs, encoder_hidden = encoder(input_tensor)
         decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs, encoder_hidden)
@@ -402,12 +396,12 @@ def evaluate(encoder, decoder, sentence, input_lang, output_lang):
             decoded_words.append(output_lang.index2word[idx.item()])
     return decoded_words, decoder_attn
 
-def evaluateRandomly(encoder, decoder, pairs,n=10,rng = np.random.default_rng()):
+def evaluateRandomly(encoder, decoder, pairs,n=10,rng = np.random.default_rng(),device='cpu'):
     for i in range(n):
         pair = rng.choice(pairs)
         print('>', pair[0])
         print('=', pair[1])
-        output_words, _ = evaluate(encoder, decoder, pair[0], input_lang, output_lang)
+        output_words, _ = evaluate(encoder, decoder, pair[0], input_lang, output_lang,device=device)
         output_sentence = ' '.join(output_words)
         print('<', output_sentence)
         print('')
@@ -422,20 +416,21 @@ if __name__ == '__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
+    device = get_device()
 
     hidden_size = 128
     batch_size = 32
 
-    input_lang, output_lang, train_dataloader,pairs = get_dataloader(batch_size=args.batch_size,path=args.data)
-    device = 'cpu'
+    input_lang, output_lang, train_dataloader,pairs = get_dataloader(batch_size=args.batch_size,path=args.data,device=device)
+
     encoder = EncoderRNN(input_lang.n_words, hidden_size).to(device)
-    decoder = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
+    decoder = AttnDecoderRNN(hidden_size, output_lang.n_words,device=device).to(device)
 
     losses = train(train_dataloader, encoder, decoder, args.N, print_every=1, plot_every=1)
 
     encoder.eval()
     decoder.eval()
-    evaluateRandomly(encoder, decoder,pairs,rng=rng)
+    evaluateRandomly(encoder, decoder,pairs,rng=rng,device=device)
 
     ax1 = fig.add_subplot(1,1,1)
     ax1.plot(list(range(1,len(losses)+1)),losses)
