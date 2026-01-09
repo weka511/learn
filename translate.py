@@ -21,7 +21,6 @@
     https://docs.pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html
 '''
 
-# from __future__ import unicode_literals, print_function, division
 from argparse import ArgumentParser
 from os.path import splitext, join
 from pathlib import Path
@@ -40,7 +39,6 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 from utils import Logger, get_seed, user_has_requested_stop
 from classify_names import CharacterSet
 
-MAX_LENGTH = 10 #FIXME
 class Lang:
     '''
         We’ll need a unique index per word to use as the inputs and targets of the networks later.
@@ -97,22 +95,23 @@ class OptimizerFactory:
 
 class DataSet:
 
-    def __init__(self,path='',maximum_length = 10,eng_prefixes = (
-                                                                'i am ', 'i m ',
-                                                                'he is', 'he s ',
-                                                                'she is', 'she s ',
-                                                                'you are', 'you re ',
-                                                                'we are', 'we re ',
-                                                                'they are', 'they re '
-                                                            )):
+    MAX_LENGTH = 10
+
+    def __init__(self,path='',eng_prefixes = (
+                                            'i am ', 'i m ',
+                                            'he is', 'he s ',
+                                            'she is', 'she s ',
+                                            'you are', 'you re ',
+                                            'we are', 'we re ',
+                                            'they are', 'they re '
+                                        )):
         self.character_set = CharacterSet()
         self.path = path
-        self.maximum_length = maximum_length
         self.eng_prefixes = eng_prefixes
 
     def filterPair(self,pair):
-        return (len(pair[0].split(' ')) < self.maximum_length and
-                len(pair[1].split(' ')) < self.maximum_length and
+        return (len(pair[0].split(' ')) < DataSet.MAX_LENGTH and
+                len(pair[1].split(' ')) < DataSet.MAX_LENGTH and
                 pair[1].startswith(self.eng_prefixes))
 
     def filterPairs(self,pairs):
@@ -178,7 +177,7 @@ class DecoderRNN(nn.Module):
         decoder_hidden = encoder_hidden
         decoder_outputs = []
 
-        for i in range(MAX_LENGTH):
+        for i in range(Dataset.MAX_LENGTH):
             decoder_output, decoder_hidden  = self.forward_step(decoder_input, decoder_hidden)
             decoder_outputs.append(decoder_output)
 
@@ -211,7 +210,6 @@ class BahdanauAttention(nn.Module):
     def forward(self, query, keys):
         scores = self.Va(torch.tanh(self.Wa(query) + self.Ua(keys)))
         scores = scores.squeeze(2).unsqueeze(1)
-
         weights = F.softmax(scores, dim=-1)
         context = torch.bmm(weights, keys)
 
@@ -233,7 +231,7 @@ class AttnDecoderRNN(nn.Module):
         decoder_outputs = []
         attentions = []
 
-        for i in range(MAX_LENGTH):
+        for i in range(DataSet.MAX_LENGTH):
             decoder_output, decoder_hidden, attn_weights = self.forward_step(
                 decoder_input, decoder_hidden, encoder_outputs
             )
@@ -314,8 +312,8 @@ def get_dataloader(batch_size,path='./',device='cpu'):
     input_lang, output_lang, pairs = dataset.prepareData('eng', 'fra', reverse=True)
 
     n = len(pairs)
-    input_ids = np.zeros((n, dataset.maximum_length), dtype=np.int32)
-    target_ids = np.zeros((n, dataset.maximum_length), dtype=np.int32)
+    input_ids = np.zeros((n, DataSet.MAX_LENGTH), dtype=np.int32)
+    target_ids = np.zeros((n, DataSet.MAX_LENGTH), dtype=np.int32)
 
     for idx, (inp, tgt) in enumerate(pairs):
         inp_ids = indexesFromSentence(input_lang, inp)
