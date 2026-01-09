@@ -141,7 +141,7 @@ class DataSet:
         input_lang, output_lang, pairs = self.readLangs(lang1, lang2, reverse)
         print(f'Read {len(pairs)} sentence pairs' )
         pairs = self.filterPairs(pairs)
-        print('Trimmed to {len(pairs)} sentence pairs')
+        print(f'Trimmed to {len(pairs)} sentence pairs')
         print('Counting words...')
         for pair in pairs:
             input_lang.addSentence(pair[0])
@@ -330,7 +330,7 @@ def get_dataloader(batch_size,path='./',device='cpu'):
 
     train_sampler = RandomSampler(train_data)
     train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
-    return input_lang, output_lang, train_dataloader
+    return input_lang, output_lang, train_dataloader, pairs
 
 def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
                 decoder_optimizer, criterion):
@@ -386,6 +386,34 @@ def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
 
     return plot_losses
 
+def evaluate(encoder, decoder, sentence, input_lang, output_lang):
+    with torch.no_grad():
+        input_tensor = tensorFromSentence(input_lang, sentence)
+
+        encoder_outputs, encoder_hidden = encoder(input_tensor)
+        decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs, encoder_hidden)
+
+        _, topi = decoder_outputs.topk(1)
+        decoded_ids = topi.squeeze()
+
+        decoded_words = []
+        for idx in decoded_ids:
+            if idx.item() == Lang.EOS_token:
+                decoded_words.append('<EOS>')
+                break
+            decoded_words.append(output_lang.index2word[idx.item()])
+    return decoded_words, decoder_attn
+
+def evaluateRandomly(encoder, decoder, pairs,n=10,rng = np.random.default_rng()):
+    for i in range(n):
+        pair = rng.choice(pairs)
+        print('>', pair[0])
+        print('=', pair[1])
+        output_words, _ = evaluate(encoder, decoder, pair[0], input_lang, output_lang)
+        output_sentence = ' '.join(output_words)
+        print('<', output_sentence)
+        print('')
+
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
@@ -400,12 +428,17 @@ if __name__ == '__main__':
     hidden_size = 128
     batch_size = 32
 
-    input_lang, output_lang, train_dataloader = get_dataloader(batch_size=args.batch_size,path=args.data)
+    input_lang, output_lang, train_dataloader,pairs = get_dataloader(batch_size=args.batch_size,path=args.data)
     device = 'cpu'
     encoder = EncoderRNN(input_lang.n_words, hidden_size).to(device)
     decoder = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
 
-    losses = train(train_dataloader, encoder, decoder, 10, print_every=1, plot_every=1)
+    losses = train(train_dataloader, encoder, decoder, args.N, print_every=1, plot_every=1)
+
+    encoder.eval()
+    decoder.eval()
+    evaluateRandomly(encoder, decoder,pairs,rng=rng)
+
     ax = fig.add_subplot(1,1,1)
     ax.plot(losses)
     elapsed = time() - start
