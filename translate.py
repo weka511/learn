@@ -36,8 +36,9 @@ from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
-from utils import Logger, get_seed, user_has_requested_stop,get_device
+from utils import Logger, get_seed, user_has_requested_stop, get_device
 from classify_names import CharacterSet
+
 
 class Lang:
     '''
@@ -97,27 +98,27 @@ class DataSet:
 
     MAX_LENGTH = 10
 
-    def __init__(self,path='',eng_prefixes = (
-                                            'i am ', 'i m ',
-                                            'he is', 'he s ',
-                                            'she is', 'she s ',
-                                            'you are', 'you re ',
-                                            'we are', 'we re ',
-                                            'they are', 'they re '
-                                        )):
+    def __init__(self, path='', eng_prefixes=(
+        'i am ', 'i m ',
+        'he is', 'he s ',
+        'she is', 'she s ',
+        'you are', 'you re ',
+        'we are', 'we re ',
+        'they are', 'they re '
+    )):
         self.character_set = CharacterSet()
         self.path = path
         self.eng_prefixes = eng_prefixes
 
-    def filterPair(self,pair):
+    def filterPair(self, pair):
         return (len(pair[0].split(' ')) < DataSet.MAX_LENGTH and
                 len(pair[1].split(' ')) < DataSet.MAX_LENGTH and
                 pair[1].startswith(self.eng_prefixes))
 
-    def filterPairs(self,pairs):
+    def filterPairs(self, pairs):
         return [pair for pair in pairs if self.filterPair(pair)]
 
-    def readLangs(self,lang1, lang2, reverse=False):
+    def readLangs(self, lang1, lang2, reverse=False):
         file_name = join(self.path, f'{lang1}-{lang2}.txt')
         print(f'Reading lines from {file_name}')
         lines = open(file_name, encoding='utf-8').read().strip().split('\n')
@@ -136,9 +137,9 @@ class DataSet:
 
         return input_lang, output_lang, pairs
 
-    def prepareData(self,lang1, lang2, reverse=False):
+    def prepareData(self, lang1, lang2, reverse=False):
         input_lang, output_lang, pairs = self.readLangs(lang1, lang2, reverse)
-        print(f'Read {len(pairs)} sentence pairs' )
+        print(f'Read {len(pairs)} sentence pairs')
         pairs = self.filterPairs(pairs)
         print(f'Trimmed to {len(pairs)} sentence pairs')
         print('Counting words...')
@@ -149,6 +150,7 @@ class DataSet:
         print(input_lang.name, input_lang.n_words)
         print(output_lang.name, output_lang.n_words)
         return input_lang, output_lang, pairs
+
 
 class EncoderRNN(nn.Module):
     def __init__(self, input_size, hidden_size, dropout_p=0.1):
@@ -164,8 +166,9 @@ class EncoderRNN(nn.Module):
         output, hidden = self.gru(embedded)
         return output, hidden
 
+
 class DecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size,device='cpu'):
+    def __init__(self, hidden_size, output_size, device='cpu'):
         super(DecoderRNN, self).__init__()
         self.embedding = nn.Embedding(output_size, hidden_size)
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
@@ -179,7 +182,7 @@ class DecoderRNN(nn.Module):
         decoder_outputs = []
 
         for i in range(Dataset.MAX_LENGTH):
-            decoder_output, decoder_hidden  = self.forward_step(decoder_input, decoder_hidden)
+            decoder_output, decoder_hidden = self.forward_step(decoder_input, decoder_hidden)
             decoder_outputs.append(decoder_output)
 
             if target_tensor is not None: # Teacher forcing: Feed the target as the next input
@@ -199,6 +202,7 @@ class DecoderRNN(nn.Module):
         output = self.out(output)
         return output, hidden
 
+
 class BahdanauAttention(nn.Module):
     def __init__(self, hidden_size):
         super(BahdanauAttention, self).__init__()
@@ -213,6 +217,7 @@ class BahdanauAttention(nn.Module):
         context = torch.bmm(weights, keys)
 
         return context, weights
+
 
 class AttnDecoderRNN(nn.Module):
     def __init__(self, hidden_size, output_size, dropout_p=0.1, device='cpu'):
@@ -252,9 +257,8 @@ class AttnDecoderRNN(nn.Module):
 
         return decoder_outputs, decoder_hidden, attentions
 
-
     def forward_step(self, input, hidden, encoder_outputs):
-        embedded =  self.dropout(self.embedding(input))
+        embedded = self.dropout(self.embedding(input))
 
         query = hidden.permute(1, 0, 2)
         context, attn_weights = self.attention(query, encoder_outputs)
@@ -264,6 +268,7 @@ class AttnDecoderRNN(nn.Module):
         output = self.out(output)
 
         return output, hidden, attn_weights
+
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
@@ -293,15 +298,18 @@ def parse_args():
     parser.add_argument('--file', default=__file__, help='Used to save figure')
     return parser.parse_args()
 
+
 def indexesFromSentence(lang, sentence):
     return [lang.word2index[word] for word in sentence.split(' ')]
 
-def tensorFromSentence(lang, sentence,device='cpu'):
+
+def tensorFromSentence(lang, sentence, device='cpu'):
     indexes = indexesFromSentence(lang, sentence)
     indexes.append(Lang.EOS_token)
     return torch.tensor(indexes, dtype=torch.long, device=device).view(1, -1)
 
-def get_dataloader(batch_size,path='./',device='cpu'):
+
+def get_dataloader(batch_size, path='./', device='cpu'):
     dataset = DataSet(path=path)
     input_lang, output_lang, pairs = dataset.prepareData('eng', 'fra', reverse=True)
 
@@ -323,6 +331,7 @@ def get_dataloader(batch_size,path='./',device='cpu'):
     train_sampler = RandomSampler(train_data)
     train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
     return input_lang, output_lang, train_dataloader, pairs
+
 
 def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
                 decoder_optimizer, criterion):
@@ -350,16 +359,16 @@ def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
 
     return total_loss / len(dataloader)
 
-def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
-          print_every=100, plot_every=100):
+
+def train(train_dataloader, encoder, decoder, n_epochs,
+          print_every=100, plot_every=100,criterion = nn.NLLLoss()):
 
     plot_losses = []
-    print_loss_total = 0  # Reset every print_every
-    plot_loss_total = 0  # Reset every plot_every
+    print_loss_total = 0
+    plot_loss_total = 0
 
-    encoder_optimizer = Adam(encoder.parameters(), lr=learning_rate)
-    decoder_optimizer = Adam(decoder.parameters(), lr=learning_rate)
-    criterion = nn.NLLLoss()
+    encoder_optimizer = OptimizerFactory.create(encoder,args)
+    decoder_optimizer = OptimizerFactory.create(decoder,args)
 
     for epoch in range(1, n_epochs + 1):
         loss = train_epoch(train_dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
@@ -369,7 +378,7 @@ def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
         if epoch % print_every == 0:
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
-            print (f'{epoch}, {epoch / n_epochs * 100}%, {print_loss_avg}')
+            print(f'{epoch}, {int((epoch / n_epochs) * 100)}%, {print_loss_avg}')
 
         if epoch % plot_every == 0:
             plot_loss_avg = plot_loss_total / plot_every
@@ -378,9 +387,10 @@ def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
 
     return plot_losses
 
-def evaluate(encoder, decoder, sentence, input_lang, output_lang,device='cpu'):
+
+def evaluate(encoder, decoder, sentence, input_lang, output_lang, device='cpu'):
     with torch.no_grad():
-        input_tensor = tensorFromSentence(input_lang, sentence,device=device)
+        input_tensor = tensorFromSentence(input_lang, sentence, device=device)
 
         encoder_outputs, encoder_hidden = encoder(input_tensor)
         decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs, encoder_hidden)
@@ -396,15 +406,17 @@ def evaluate(encoder, decoder, sentence, input_lang, output_lang,device='cpu'):
             decoded_words.append(output_lang.index2word[idx.item()])
     return decoded_words, decoder_attn
 
-def evaluateRandomly(encoder, decoder, pairs,n=10,rng = np.random.default_rng(),device='cpu'):
+
+def evaluateRandomly(encoder, decoder, pairs, n=10, rng=np.random.default_rng(), device='cpu'):
     for i in range(n):
         pair = rng.choice(pairs)
         print('>', pair[0])
         print('=', pair[1])
-        output_words, _ = evaluate(encoder, decoder, pair[0], input_lang, output_lang,device=device)
+        output_words, _ = evaluate(encoder, decoder, pair[0], input_lang, output_lang, device=device)
         output_sentence = ' '.join(output_words)
         print('<', output_sentence)
         print('')
+
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -421,19 +433,19 @@ if __name__ == '__main__':
     hidden_size = 128
     batch_size = 32
 
-    input_lang, output_lang, train_dataloader,pairs = get_dataloader(batch_size=args.batch_size,path=args.data,device=device)
+    input_lang, output_lang, train_dataloader, pairs = get_dataloader(batch_size=args.batch_size, path=args.data, device=device)
 
     encoder = EncoderRNN(input_lang.n_words, hidden_size).to(device)
-    decoder = AttnDecoderRNN(hidden_size, output_lang.n_words,device=device).to(device)
+    decoder = AttnDecoderRNN(hidden_size, output_lang.n_words, device=device).to(device)
 
     losses = train(train_dataloader, encoder, decoder, args.N, print_every=1, plot_every=1)
 
     encoder.eval()
     decoder.eval()
-    evaluateRandomly(encoder, decoder,pairs,rng=rng,device=device)
+    evaluateRandomly(encoder, decoder, pairs, rng=rng, device=device)
 
-    ax1 = fig.add_subplot(1,1,1)
-    ax1.plot(list(range(1,len(losses)+1)),losses)
+    ax1 = fig.add_subplot(1, 1, 1)
+    ax1.plot(list(range(1, len(losses) + 1)), losses)
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Loss')
     ax1.set_title(f'N={args.N}')
