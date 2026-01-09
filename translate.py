@@ -285,7 +285,6 @@ def parse_args():
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
 
     test_group = parser.add_argument_group('Parameters for --action test')
-    test_group.add_argument('--file', default=None, help='Used to load weights')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data/rnn-1', help='Location of data files')
@@ -293,6 +292,7 @@ def parse_args():
     shared_group.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     shared_group.add_argument('--figs', default='./figs', help='Location for storing plot files')
     shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
+    parser.add_argument('--file', default=__file__, help='Used to save figure')
     return parser.parse_args()
 
 def indexesFromSentence(lang, sentence):
@@ -439,8 +439,13 @@ if __name__ == '__main__':
     decoder.eval()
     evaluateRandomly(encoder, decoder,pairs,rng=rng)
 
-    ax = fig.add_subplot(1,1,1)
-    ax.plot(losses)
+    ax1 = fig.add_subplot(1,1,1)
+    ax1.plot(list(range(1,len(losses)+1)),losses)
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Loss')
+    ax1.set_title(f'N={args.N}')
+    fig.savefig(join(args.figs, Path(args.file).stem))
+
     elapsed = time() - start
     minutes = int(elapsed / 60)
     seconds = elapsed - 60 * minutes
