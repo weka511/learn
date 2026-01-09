@@ -360,7 +360,7 @@ def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
 
 def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
           print_every=100, plot_every=100):
-    # start = time.time()
+
     plot_losses = []
     print_loss_total = 0  # Reset every print_every
     plot_loss_total = 0  # Reset every plot_every
@@ -377,8 +377,7 @@ def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
         if epoch % print_every == 0:
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
-            print('%s (%d %d%%) %.4f' % (timeSince(start, epoch / n_epochs),
-                                         epoch, epoch / n_epochs * 100, print_loss_avg))
+            print (f'{epoch}, {epoch / n_epochs * 100}%, {print_loss_avg}')
 
         if epoch % plot_every == 0:
             plot_loss_avg = plot_loss_total / plot_every
@@ -406,8 +405,9 @@ if __name__ == '__main__':
     encoder = EncoderRNN(input_lang.n_words, hidden_size).to(device)
     decoder = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
 
-    train(train_dataloader, encoder, decoder, 80, print_every=5, plot_every=5)
-
+    losses = train(train_dataloader, encoder, decoder, 10, print_every=1, plot_every=1)
+    ax = fig.add_subplot(1,1,1)
+    ax.plot(losses)
     elapsed = time() - start
     minutes = int(elapsed / 60)
     seconds = elapsed - 60 * minutes
