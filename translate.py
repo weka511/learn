@@ -181,7 +181,7 @@ class DecoderRNN(nn.Module):
         decoder_hidden = encoder_hidden
         decoder_outputs = []
 
-        for i in range(Dataset.MAX_LENGTH):
+        for i in range(DataSet.MAX_LENGTH):
             decoder_output, decoder_hidden = self.forward_step(decoder_input, decoder_hidden)
             decoder_outputs.append(decoder_output)
 
@@ -217,6 +217,7 @@ class BahdanauAttention(nn.Module):
         context = torch.bmm(weights, keys)
 
         return context, weights
+
 
 
 class AttnDecoderRNN(nn.Module):
@@ -279,13 +280,17 @@ def parse_args():
 
     training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
-    training_group.add_argument('--steps', default=5, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--params', default='./params', help='Location for storing parameter files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
     training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                                 help='Optimizer to be used for training')
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
+    training_group.add_argument('--decoder', choices=DecoderFactory.choices, default=DecoderFactory.get_default(),
+                                help='Decoder to be used for training')
+    training_group.add_argument('--hidden_size', default=128, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--output_size', default=5, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--dropout', default=0.1, type=float, help='Number of steps to an epoch')
 
     test_group = parser.add_argument_group('Parameters for --action test')
 
@@ -298,6 +303,23 @@ def parse_args():
     parser.add_argument('--file', default=__file__, help='Used to save figure')
     return parser.parse_args()
 
+class DecoderFactory:
+    choices = [
+        'attention',
+        'decoder'
+    ]
+
+    @staticmethod
+    def get_default():
+        return DecoderFactory.choices[0]
+
+    @staticmethod
+    def create(args,output_size=100,device='cpu'):
+        match args.decoder:
+            case 'attention':
+                return AttnDecoderRNN( args.hidden_size, output_size, args.dropout, device=device)
+            case 'decoder':
+                return DecoderRNN(args.hidden_size, output_size, device=device)
 
 def indexesFromSentence(lang, sentence):
     return [lang.word2index[word] for word in sentence.split(' ')]
@@ -417,6 +439,8 @@ def evaluateRandomly(encoder, decoder, pairs, n=10, rng=np.random.default_rng(),
         print('<', output_sentence)
         print('')
 
+def get_file_name(args):
+    return f'{Path(args.file).stem}-{args.decoder}-{args.N}'
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -430,13 +454,10 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     device = get_device()
 
-    hidden_size = 128
-    batch_size = 32
-
     input_lang, output_lang, train_dataloader, pairs = get_dataloader(batch_size=args.batch_size, path=args.data, device=device)
 
-    encoder = EncoderRNN(input_lang.n_words, hidden_size).to(device)
-    decoder = AttnDecoderRNN(hidden_size, output_lang.n_words, device=device).to(device)
+    encoder = EncoderRNN(input_lang.n_words, args.hidden_size).to(device)
+    decoder = DecoderFactory.create(args,output_size=output_lang.n_words,device=device)
 
     losses = train(train_dataloader, encoder, decoder, args.N, print_every=1, plot_every=1)
 
@@ -448,8 +469,9 @@ if __name__ == '__main__':
     ax1.plot(list(range(1, len(losses) + 1)), losses)
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Loss')
-    ax1.set_title(f'N={args.N}')
-    fig.savefig(join(args.figs, Path(args.file).stem))
+    ax1.set_title(f'{Path(args.file).stem}: {args.decoder},N={args.N}')
+
+    fig.savefig(join(args.figs, get_file_name(args)))
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
