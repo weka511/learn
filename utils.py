@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#   Copyright (C) 2025 Simon Crase
+#   Copyright (C) 2025-2026 Simon Crase
 
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -123,6 +123,28 @@ def get_device(notify=lambda device: print(f'Using device = {device}')):
 	torch.set_default_device(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
 	notify(torch.get_default_device())
 	return torch.get_default_device()
+
+def get_moving_average(xs, ys, window_size=11):
+	'''
+	Calculate a moving average
+
+	Parameters:
+	     xs            Indices of data for plotting
+	     ys            Data to be plotted
+	     window_size   Number of points to be included
+
+	Returns:
+	     x1s    A subset of xs, chosen so average can be plotted on the same scale as xs,ys
+	     y1s    The moving average
+	'''
+	kernel = np.ones(window_size) / window_size
+	y1s = np.convolve(ys, kernel, mode='valid')
+	skip = (len(ys) - len(y1s)) // 2
+	x1s = xs[skip:]
+	tail_count = len(x1s) - len(y1s)
+	x1s = x1s[:-tail_count]
+	return x1s, y1s
+
 
 if __name__ == '__main__':
 	for colour in generate_xkcd_colours():

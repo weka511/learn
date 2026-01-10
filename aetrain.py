@@ -34,7 +34,7 @@ from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD, Adam
 import torch.nn.functional as F
 from autoencoder import AutoEncoderFactory
-from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save
+from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save,get_moving_average
 
 class Perceptron(nn.Module):
     '''
@@ -149,26 +149,6 @@ def get_file_name(args):
     return f'{Path(__file__).stem}'
 
 
-def get_moving_average(xs, ys, window_size=11):
-    '''
-    Calculate a moving average
-
-    Parameters:
-         xs            Indices of data for plotting
-         ys            Data to be plotted
-         window_size   Number of points to be included
-
-    Returns:
-         x1s    A subset of xs, chosen so average can be plotted on the same scale as xs,ys
-         y1s    The moving average
-    '''
-    kernel = np.ones(window_size) / window_size
-    y1s = np.convolve(ys, kernel, mode='valid')
-    skip = (len(ys) - len(y1s)) // 2
-    x1s = xs[skip:]
-    tail_count = len(x1s) - len(y1s)
-    x1s = x1s[:-tail_count]
-    return x1s, y1s
 
 
 def generate_samples(images, n=12):
