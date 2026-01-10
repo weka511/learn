@@ -153,6 +153,25 @@ class DataSet:
 
 
 class EncoderRNN(nn.Module):
+    r'''
+                 input  ______________
+                   \  /              |
+                    \ /               |
+                embedding             |
+                    |                 |
+                    |                 |
+                embedded              |
+                    |                 |
+                    |                 |
+                   GRU                |
+                    /\                |
+                   /  \               |
+                  /    \              |
+                 /      \             |
+              output  hidden          |
+                        |             |
+                        |_____________|
+    '''
     def __init__(self, input_size, hidden_size, dropout_p=0.1):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size
@@ -186,7 +205,7 @@ class DecoderRNN(nn.Module):
             decoder_outputs.append(decoder_output)
 
             if target_tensor is not None: # Teacher forcing: Feed the target as the next input
-                decoder_input = target_tensor[:, i].unsqueeze(1) # Teacher forcing
+                decoder_input = target_tensor[:, i].unsqueeze(1)
             else: # Without teacher forcing: use its own predictions as the next input
                 _, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze(-1).detach()  # detach from history as input
@@ -291,8 +310,11 @@ def parse_args():
     training_group.add_argument('--hidden_size', default=128, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--output_size', default=5, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--dropout', default=0.1, type=float, help='Number of steps to an epoch')
+    training_group.add_argument('--print_every', default=5, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--plot_every', default=5, type=int, help='Number of steps to an epoch')
 
     test_group = parser.add_argument_group('Parameters for --action test')
+    test_group.add_argument('--M', default=55, type=int, help='Number sentences to test')
 
     shared_group = parser.add_argument_group('General Parameters')
     shared_group.add_argument('--data', default='./data/rnn-1', help='Location of data files')
@@ -357,7 +379,17 @@ def get_dataloader(batch_size, path='./', device='cpu'):
 
 def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
                 decoder_optimizer, criterion):
+    '''
+    Train for one epoch
 
+    Parameters:
+        dataloader
+        encoder
+        decoder
+        encoder_optimizer
+        decoder_optimizer
+        criterion
+    '''
     total_loss = 0
     for data in dataloader:
         input_tensor, target_tensor = data
@@ -382,9 +414,20 @@ def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
     return total_loss / len(dataloader)
 
 
-def train(train_dataloader, encoder, decoder, n_epochs,
-          print_every=100, plot_every=100,criterion = nn.NLLLoss()):
+def train(dataloader, encoder, decoder, n_epochs,
+          print_every=100, plot_every=100,criterion = nn.NLLLoss(),save_file='save.pth'):
+    '''
+    Train network over the range of epochs
 
+    Parameters:
+        dataloader
+        encoder
+        decoder
+        n_epochs,
+        print_every
+        plot_every
+        criterion
+    '''
     plot_losses = []
     print_loss_total = 0
     plot_loss_total = 0
@@ -393,7 +436,7 @@ def train(train_dataloader, encoder, decoder, n_epochs,
     decoder_optimizer = OptimizerFactory.create(decoder,args)
 
     for epoch in range(1, n_epochs + 1):
-        loss = train_epoch(train_dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+        loss = train_epoch(dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
         plot_loss_total += loss
 
@@ -407,6 +450,11 @@ def train(train_dataloader, encoder, decoder, n_epochs,
             plot_losses.append(plot_loss_avg)
             plot_loss_total = 0
 
+        torch.save({
+            'encoder_state_dict': encoder.state_dict(),
+            'decoder_state_dict': decoder.state_dict(),
+            'plot_losses': plot_losses,
+        }, save_file)
     return plot_losses
 
 
@@ -459,19 +507,45 @@ if __name__ == '__main__':
     encoder = EncoderRNN(input_lang.n_words, args.hidden_size).to(device)
     decoder = DecoderFactory.create(args,output_size=output_lang.n_words,device=device)
 
-    losses = train(train_dataloader, encoder, decoder, args.N, print_every=1, plot_every=1)
+    match args.action:
+        case 'train':
+            losses = train(train_dataloader, encoder, decoder, args.N, print_every=args.print_every,
+                           plot_every=args.plot_every,save_file=join(args.params, get_file_name(args)+'.pth'))
 
-    encoder.eval()
-    decoder.eval()
-    evaluateRandomly(encoder, decoder, pairs, rng=rng, device=device)
+            encoder.eval()
+            decoder.eval()
+            evaluateRandomly(encoder, decoder, pairs, rng=rng, device=device)
 
-    ax1 = fig.add_subplot(1, 1, 1)
-    ax1.plot(list(range(1, len(losses) + 1)), losses)
-    ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Loss')
-    ax1.set_title(f'{Path(args.file).stem}: {args.decoder},N={args.N}')
+            ax1 = fig.add_subplot(1, 1, 1)
+            epochs = [args.plot_every * i for i in range(1, len(losses) + 1)]
+            ax1.plot(epochs, losses)
+            ax1.set_xlabel('Epoch')
+            ax1.set_ylabel('Loss')
+            ax1.set_title(f'{Path(args.file).stem}: {args.decoder},N={args.N}')
 
-    fig.savefig(join(args.figs, get_file_name(args)))
+            fig.savefig(join(args.figs, get_file_name(args)))
+
+        case 'test':
+            loaded = torch.load(join(args.params, get_file_name(args)+'.pth'))
+            encoder.load_state_dict(loaded['encoder_state_dict'])
+            decoder.load_state_dict(loaded['decoder_state_dict'])
+            matches = 0
+            mismatches = 0
+            with open(get_file_name(args)+'.txt','w') as mismatch_file:
+                for pair in pairs:
+                    if matches+mismatches > args.M: break
+                    pair = rng.choice(pairs)
+                    output_words, _ = evaluate(encoder, decoder, pair[0], input_lang, output_lang, device=device)
+                    output_sentence = ' '.join(output_words[:-1])
+                    if pair[1] == output_sentence:
+                        matches += 1
+                    else:
+                        mismatches += 1
+                        mismatch_file.write(f'> {pair[0]}\n')
+                        mismatch_file.write(f'= {pair[1]}\n')
+                        mismatch_file.write(f'< {output_sentence}\n\n')
+
+            print (f'{mismatches} mismatches out of {matches+mismatches} pairs, accuracy = {int(100*matches/(matches+mismatches))}%')
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
