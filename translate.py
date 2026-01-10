@@ -36,7 +36,7 @@ from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
-from utils import Logger, get_seed, user_has_requested_stop, get_device
+from utils import Logger, get_seed, user_has_requested_stop, get_device, get_moving_average
 from classify_names import CharacterSet
 
 
@@ -297,8 +297,8 @@ def parse_args():
 
     training_group = parser.add_argument_group('Parameters for --action train')
 
-    training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
-    training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
+    training_group.add_argument('--batch_size', default=128, type=int, help='Number of sentnce pairs per batch')
+    training_group.add_argument('--N', default=50, type=int, help='Number of epochs')
     training_group.add_argument('--params', default='./params', help='Location for storing parameter files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
@@ -307,11 +307,10 @@ def parse_args():
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
     training_group.add_argument('--decoder', choices=DecoderFactory.choices, default=DecoderFactory.get_default(),
                                 help='Decoder to be used for training')
-    training_group.add_argument('--hidden_size', default=128, type=int, help='Number of steps to an epoch')
-    training_group.add_argument('--output_size', default=5, type=int, help='Number of steps to an epoch')
-    training_group.add_argument('--dropout', default=0.1, type=float, help='Number of steps to an epoch')
-    training_group.add_argument('--print_every', default=5, type=int, help='Number of steps to an epoch')
-    training_group.add_argument('--plot_every', default=5, type=int, help='Number of steps to an epoch')
+    training_group.add_argument('--hidden_size', default=128, type=int, help='Number of elements in hidden layer')
+    training_group.add_argument('--output_size', default=5, type=int, help='Number of elements in output layer')
+    training_group.add_argument('--dropout', default=0.1, type=float, help='Used by attention decoder for dropout')
+    training_group.add_argument('--freq', default=5, type=int, help='Used to specify how frequently to print progress')
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--M', default=55, type=int, help='Number sentences to test')
@@ -415,7 +414,7 @@ def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
 
 
 def train(dataloader, encoder, decoder, n_epochs,
-          print_every=100, plot_every=100,criterion = nn.NLLLoss(),save_file='save.pth'):
+          freq=100,criterion = nn.NLLLoss(),save_file='save.pth'):
     '''
     Train network over the range of epochs
 
@@ -424,13 +423,11 @@ def train(dataloader, encoder, decoder, n_epochs,
         encoder
         decoder
         n_epochs,
-        print_every
-        plot_every
+        freq
         criterion
     '''
-    plot_losses = []
+    losses = []
     print_loss_total = 0
-    plot_loss_total = 0
 
     encoder_optimizer = OptimizerFactory.create(encoder,args)
     decoder_optimizer = OptimizerFactory.create(decoder,args)
@@ -438,24 +435,21 @@ def train(dataloader, encoder, decoder, n_epochs,
     for epoch in range(1, n_epochs + 1):
         loss = train_epoch(dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
-        plot_loss_total += loss
 
-        if epoch % print_every == 0:
-            print_loss_avg = print_loss_total / print_every
+        if epoch % freq == 0:
+            print_loss_avg = print_loss_total / freq
             print_loss_total = 0
             print(f'{epoch}, {int((epoch / n_epochs) * 100)}%, {print_loss_avg}')
 
-        if epoch % plot_every == 0:
-            plot_loss_avg = plot_loss_total / plot_every
-            plot_losses.append(plot_loss_avg)
-            plot_loss_total = 0
+        losses.append(loss)
 
         torch.save({
             'encoder_state_dict': encoder.state_dict(),
             'decoder_state_dict': decoder.state_dict(),
-            'plot_losses': plot_losses,
+            'losses': losses,
         }, save_file)
-    return plot_losses
+
+    return losses
 
 
 def evaluate(encoder, decoder, sentence, input_lang, output_lang, device='cpu'):
@@ -509,16 +503,17 @@ if __name__ == '__main__':
 
     match args.action:
         case 'train':
-            losses = train(train_dataloader, encoder, decoder, args.N, print_every=args.print_every,
-                           plot_every=args.plot_every,save_file=join(args.params, get_file_name(args)+'.pth'))
+            losses = train(train_dataloader, encoder, decoder, args.N, freq=args.freq,
+                           save_file=join(args.params, get_file_name(args)+'.pth'))
 
             encoder.eval()
             decoder.eval()
             evaluateRandomly(encoder, decoder, pairs, rng=rng, device=device)
 
             ax1 = fig.add_subplot(1, 1, 1)
-            epochs = [args.plot_every * i for i in range(1, len(losses) + 1)]
-            ax1.plot(epochs, losses)
+            epochs = range(1,len(losses)+1)
+            epochs_moving_average,losses_moving_average = get_moving_average(epochs,losses)
+            ax1.plot(epochs_moving_average, losses_moving_average)
             ax1.set_xlabel('Epoch')
             ax1.set_ylabel('Loss')
             ax1.set_title(f'{Path(args.file).stem}: {args.decoder},N={args.N}')
