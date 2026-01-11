@@ -414,7 +414,7 @@ def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
 
 
 def train(dataloader, encoder, decoder, n_epochs,
-          freq=100,criterion = nn.NLLLoss(),save_file='save.pth'):
+          freq=100,criterion = nn.NLLLoss(),losses = []):
     '''
     Train network over the range of epochs
 
@@ -426,7 +426,6 @@ def train(dataloader, encoder, decoder, n_epochs,
         freq
         criterion
     '''
-    losses = []
     print_loss_total = 0
 
     encoder_optimizer = OptimizerFactory.create(encoder,args)
@@ -442,12 +441,6 @@ def train(dataloader, encoder, decoder, n_epochs,
             print(f'{epoch}, {int((epoch / n_epochs) * 100)}%, {print_loss_avg}')
 
         losses.append(loss)
-
-        torch.save({
-            'encoder_state_dict': encoder.state_dict(),
-            'decoder_state_dict': decoder.state_dict(),
-            'losses': losses,
-        }, save_file)
 
     return losses
 
@@ -503,8 +496,20 @@ if __name__ == '__main__':
 
     match args.action:
         case 'train':
-            losses = train(train_dataloader, encoder, decoder, args.N, freq=args.freq,
-                           save_file=join(args.params, get_file_name(args)+'.pth'))
+            losses = []
+            if args.restart:
+                loaded = torch.load(join(args.params, args.restart+'.pth'))
+                encoder.load_state_dict(loaded['encoder_state_dict'])
+                decoder.load_state_dict(loaded['decoder_state_dict'])
+                losses = loaded['losses']
+
+            losses = train(train_dataloader, encoder, decoder, args.N, freq=args.freq,losses=losses)
+
+            torch.save({
+                'encoder_state_dict': encoder.state_dict(),
+                'decoder_state_dict': decoder.state_dict(),
+                'losses': losses,
+            }, join(args.params, get_file_name(args)+'.pth'))
 
             encoder.eval()
             decoder.eval()
