@@ -526,21 +526,20 @@ if __name__ == '__main__':
             decoder.load_state_dict(loaded['decoder_state_dict'])
             matches = 0
             mismatches = 0
-            with open(get_file_name(args)+'.txt','w') as mismatch_file:
-                for pair in pairs:
-                    if matches+mismatches > args.M: break
-                    pair = rng.choice(pairs)
+            with Logger(join(args.logfiles,get_file_name(args))) as logger:
+                for _ in range(args.M):
+                    pair = rng.choice(pairs,replace=False)
                     output_words, _ = evaluate(encoder, decoder, pair[0], input_lang, output_lang, device=device)
                     output_sentence = ' '.join(output_words[:-1])
                     if pair[1] == output_sentence:
                         matches += 1
                     else:
                         mismatches += 1
-                        mismatch_file.write(f'> {pair[0]}\n')
-                        mismatch_file.write(f'= {pair[1]}\n')
-                        mismatch_file.write(f'< {output_sentence}\n\n')
+                        logger.log(f'> {pair[0]}')
+                        logger.log(f'= {pair[1]}')
+                        logger.log(f'< {output_sentence}\n')
 
-            print (f'{mismatches} mismatches out of {matches+mismatches} pairs, accuracy = {int(100*matches/(matches+mismatches))}%')
+                logger.log(f'{mismatches} mismatches out of {matches+mismatches} pairs, accuracy = {int(100*matches/(matches+mismatches))}%')
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
