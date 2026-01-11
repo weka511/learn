@@ -21,6 +21,7 @@
 
 from pathlib import Path
 from re import split
+from time import strftime
 import numpy as np
 import torch
 
@@ -30,7 +31,7 @@ class Logger(object):
 	'''
 
 	def __init__(self, name):
-		self.name = name + '.log'
+		self.name = name + strftime('%Y%m%d%H%M%S')+ '.log'
 		self.file = None
 
 	def __enter__(self):
