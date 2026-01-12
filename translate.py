@@ -517,11 +517,24 @@ if __name__ == '__main__':
 
             ax1 = fig.add_subplot(1, 1, 1)
             epochs = range(1,len(losses)+1)
-            epochs_moving_average,losses_moving_average = get_moving_average(epochs,losses)
-            ax1.plot(epochs_moving_average, losses_moving_average)
+            window_size = 11
+            epochs_moving_average,losses_moving_average = get_moving_average(epochs,losses,window_size=window_size)
+            ax1.plot(epochs_moving_average, losses_moving_average,
+                     label=f'Moving average, window={window_size}')
+            ax1.set_ylim(0,None)
             ax1.set_xlabel('Epoch')
             ax1.set_ylabel('Loss')
-            ax1.set_title(f'{Path(args.file).stem}: {args.decoder},N={args.N}')
+            ax1.set_title(f'{Path(args.file).stem}: {args.decoder},N={args.N}',c='xkcd:blue')
+            ax1.legend(loc='upper right')
+
+            # Plot last segment of data on a separate scale so we can assess convergence
+            K = args.N // 4
+            if len(losses) > 2* K:
+                ax1t = ax1.twinx()
+                ax1t.plot(epochs_moving_average[-K:], losses_moving_average[-K:],ls='dotted',c='xkcd:blue',
+                          label='Last section')
+                ax1t.legend(loc='center right')
+                ax1t.set_ylim(0,None)
 
             fig.savefig(join(args.figs, get_file_name(args)))
 
