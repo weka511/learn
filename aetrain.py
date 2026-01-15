@@ -218,6 +218,24 @@ def plot_losses(history,ax=None,bottleneck=3):
     ax.set_ylabel('Loss')
     ax.set_xlabel('Step')
 
+def display_manifold(auto_encoder, loader, fig):
+    ax = fig.add_subplot(1,1,1,projection='3d')
+    colour_iterator = generate_xkcd_colours()
+    colours = [next(colour_iterator) for _ in range(10)]
+    needs_text_label = [True for _ in range(10)]
+    for k, batch in enumerate(loader):
+        images,labels = batch
+        for i in range(len(labels)):
+            img = auto_encoder.encode(images[i].reshape(-1, 784)).detach().numpy()[0]
+            text_label = None
+            if needs_text_label[labels[i]]:
+                text_label = str(int(labels[i].detach().numpy()))
+                needs_text_label[labels[i]] = False
+            ax.scatter(img[0],img[1],img[2],c=colours[labels[i]],label=text_label,s=1 )
+
+    sorted_handles, sorted_labels = sort_labels(ax)
+    ax.legend(sorted_handles, sorted_labels,title='Labels')
+
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
@@ -257,7 +275,8 @@ if __name__ == '__main__':
 
             subfigs = fig.subfigures(2, 1, wspace=0.07)
             plot_losses(history,ax = subfigs[0].add_subplot(1, 1, 1),bottleneck=args.bottleneck)
-            display_images(auto_encoder, validation_loader, nrows=args.nrows, ncols=args.ncols, fig=subfigs[1])
+            display_manifold(auto_encoder, validation_loader, fig=subfigs[1])
+            # display_images(auto_encoder, validation_loader, nrows=args.nrows, ncols=args.ncols, fig=subfigs[1])
             fig.savefig(join(args.figs, get_file_name(args)))
 
         case 'train2':
@@ -282,33 +301,19 @@ if __name__ == '__main__':
 
         case 'test':
             auto_encoder = auto_encoder_factory.create(args)
-            auto_encoder.load('./params/aetrain.pth')
+            auto_encoder.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             loader = DataLoader(dataset, 128)
             display_images(auto_encoder, loader, nrows=args.nrows, ncols=args.ncols, fig=fig)
 
 
         case 'plot_encoded':
-            ax = fig.add_subplot(1,1,1,projection='3d')
             auto_encoder = auto_encoder_factory.create(args)
-            auto_encoder.load('./params/aetrain.pth')
+            auto_encoder.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             loader = DataLoader(dataset, 128)
-            colour_iterator = generate_xkcd_colours()
-            colours = [next(colour_iterator) for _ in range(10)]
-            needs_text_label = [True for _ in range(10)]
-            for k, batch in enumerate(loader):
-                images,labels = batch
-                for i in range(len(labels)):
-                    img = auto_encoder.encode(images[i].reshape(-1, 784)).detach().numpy()[0]
-                    text_label = None
-                    if needs_text_label[labels[i]]:
-                        text_label = str(int(labels[i].detach().numpy()))
-                        needs_text_label[labels[i]] = False
-                    ax.scatter(img[0],img[1],img[2],c=colours[labels[i]],label=text_label,s=1 )
+            display_manifold(auto_encoder, loader, fig=dig)
 
-            sorted_handles, sorted_labels = sort_labels(ax)
-            ax.legend(sorted_handles, sorted_labels,title='Labels')
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
