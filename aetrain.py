@@ -113,6 +113,7 @@ def parse_args(factory):
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
     training_group.add_argument('--width', default=28, type=int, help='Width of each image in pixels')
     training_group.add_argument('--height', default=28, type=int, help='Height of each image in pixels')
+    training_group.add_argument('--bottleneck', default=3, type=int, help='Number of neurons in bottleneck')
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None, help='Used to load weights')
@@ -146,10 +147,7 @@ def get_file_name(args):
     '''
     Used to save plots and weights.
     '''
-    return f'{Path(__file__).stem}'
-
-
-
+    return f'{Path(__file__).stem}-{args.bottleneck}'
 
 def generate_samples(images, n=12):
     '''
@@ -203,7 +201,7 @@ def display_images(auto_encoder, loader, nrows=4, ncols=2, fig=None):
         fig.suptitle(f'Batch {m}')
         return
 
-def plot_losses(history,ax=None):
+def plot_losses(history,ax=None,bottleneck=3):
     '''
     Plot history plus moving average
 
@@ -216,7 +214,7 @@ def plot_losses(history,ax=None):
     ax.plot(xs, history, c='xkcd:blue', label='Loss')
     ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
     ax.legend()
-    ax.set_title(f'{Path(__file__).stem.title()}')
+    ax.set_title(f'{Path(__file__).stem.title()}, bottleneck={bottleneck}')
     ax.set_ylabel('Loss')
     ax.set_xlabel('Step')
 
@@ -258,7 +256,7 @@ if __name__ == '__main__':
                     break
 
             subfigs = fig.subfigures(2, 1, wspace=0.07)
-            plot_losses(history,ax = subfigs[0].add_subplot(1, 1, 1))
+            plot_losses(history,ax = subfigs[0].add_subplot(1, 1, 1),bottleneck=args.bottleneck)
             display_images(auto_encoder, validation_loader, nrows=args.nrows, ncols=args.ncols, fig=subfigs[1])
             fig.savefig(join(args.figs, get_file_name(args)))
 

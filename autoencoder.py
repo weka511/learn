@@ -82,7 +82,7 @@ class SimpleAutoEncoder(AutoEncoder):
     This class represets an autoencoder based on a perceptron
     '''
 
-    def __init__(self, width=28, height=28):
+    def __init__(self, width=28, height=28,bottleneck=3):
         super().__init__(width=width,
                          height=height,
                          encoder=nn.Sequential(
@@ -90,11 +90,11 @@ class SimpleAutoEncoder(AutoEncoder):
                              nn.ReLU(),
                              nn.Linear(148, 28),
                              nn.ReLU(),
-                             nn.Linear(28, 3),
+                             nn.Linear(28, bottleneck),
                              nn.ReLU()
                          ),
                          decoder=nn.Sequential(
-                            nn.Linear(3, 28),
+                            nn.Linear(bottleneck, 28),
                             nn.ReLU(),
                              nn.Linear(28, 148),
                              nn.ReLU(),
@@ -144,12 +144,12 @@ class AutoEncoderFactory:
         return ['perceptron', 'cnn']
 
     def get_default(self):
-        return 'cnn'
+        return 'perceptron'
 
     def instantiate(self, args):
         match args.implementation:
             case 'perceptron':
-                return SimpleAutoEncoder(width=args.width, height=args.height)
+                return SimpleAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck)
             case 'cnn':
                 return CNNAutoEncoder(width=args.width, height=args.height)
 
