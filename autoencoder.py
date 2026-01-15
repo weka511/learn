@@ -89,9 +89,13 @@ class SimpleAutoEncoder(AutoEncoder):
                              nn.Linear(784, 148),
                              nn.ReLU(),
                              nn.Linear(148, 28),
+                             nn.ReLU(),
+                             nn.Linear(28, 3),
                              nn.ReLU()
                          ),
                          decoder=nn.Sequential(
+                            nn.Linear(3, 28),
+                            nn.ReLU(),
                              nn.Linear(28, 148),
                              nn.ReLU(),
                              nn.Linear(148, 784),

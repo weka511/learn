@@ -34,7 +34,7 @@ from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD, Adam
 import torch.nn.functional as F
 from autoencoder import AutoEncoderFactory
-from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save,get_moving_average
+from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save,get_moving_average,generate_xkcd_colours
 
 class Perceptron(nn.Module):
     '''
@@ -96,9 +96,9 @@ class OptimizerFactory:
 
 def parse_args(factory):
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--action', choices=['train1', 'train2','test'],
+    parser.add_argument('--action', choices=['train1', 'train2','test','plot_encoded'],
                         default='train2',
-                        help='Chooses between training auto encoder (train1), training main entwork (train2), or testing')
+                        help='Chooses between training auto encoder (train1), training main network (train2), or testing')
     parser.add_argument('--implementation', choices=factory.get_choices(), default=factory.get_default())
 
     training_group = parser.add_argument_group('Parameters for --action train')
@@ -198,7 +198,8 @@ def display_images(auto_encoder, loader, nrows=4, ncols=2, fig=None):
                 sample = next(samples)
                 subplot_index = 2 * ncols * i + 2 * j + 1
                 display_one_image(images[sample], ax=fig.add_subplot(nrows, 2 * ncols, subplot_index))
-                display_one_image(processed[sample].detach().numpy(), ax=fig.add_subplot(nrows, 2 * ncols, subplot_index + 1))
+                img = np.reshape(processed[sample].detach().numpy(),(28,28))
+                display_one_image(img, ax=fig.add_subplot(nrows, 2 * ncols, subplot_index + 1))
         fig.suptitle(f'Batch {m}')
         return
 
@@ -281,12 +282,34 @@ if __name__ == '__main__':
                     history +=  validation_losses
             plot_losses(history, ax = fig.add_subplot(1, 1, 1))
 
-        case test:
+        case 'test':
             auto_encoder = auto_encoder_factory.create(args)
             auto_encoder.load('./params/aetrain.pth')
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             loader = DataLoader(dataset, 128)
             display_images(auto_encoder, loader, nrows=args.nrows, ncols=args.ncols, fig=fig)
+
+
+        case 'plot_encoded':
+            ax = fig.add_subplot(1,1,1,projection='3d')
+            auto_encoder = auto_encoder_factory.create(args)
+            auto_encoder.load('./params/aetrain.pth')
+            dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+            loader = DataLoader(dataset, 128)
+            colour_iterator = generate_xkcd_colours()
+            colours = [next(colour_iterator) for _ in range(10)]
+            needs_text_label = [True for _ in range(10)]
+            for k, batch in enumerate(loader):
+                images,labels = batch
+                for i in range(len(labels)):
+                    img = auto_encoder.encode(images[i].reshape(-1, 784)).detach().numpy()[0]
+                    text_label = None
+                    if needs_text_label[labels[i]]:
+                        text_label = str(int(labels[i].detach().numpy()))
+                        needs_text_label[labels[i]] = False
+                    ax.scatter(img[0],img[1],img[2],c=colours[labels[i]],label=text_label )
+            ax.legend(title='Labels')
+
 
     elapsed = time() - start
     minutes = int(elapsed / 60)
