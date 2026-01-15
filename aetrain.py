@@ -34,7 +34,7 @@ from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD, Adam
 import torch.nn.functional as F
 from autoencoder import AutoEncoderFactory
-from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save,get_moving_average,generate_xkcd_colours
+from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save,get_moving_average,generate_xkcd_colours, sort_labels
 
 class Perceptron(nn.Module):
     '''
@@ -307,9 +307,10 @@ if __name__ == '__main__':
                     if needs_text_label[labels[i]]:
                         text_label = str(int(labels[i].detach().numpy()))
                         needs_text_label[labels[i]] = False
-                    ax.scatter(img[0],img[1],img[2],c=colours[labels[i]],label=text_label )
-            ax.legend(title='Labels')
+                    ax.scatter(img[0],img[1],img[2],c=colours[labels[i]],label=text_label,s=1 )
 
+            sorted_handles, sorted_labels = sort_labels(ax)
+            ax.legend(sorted_handles, sorted_labels,title='Labels')
 
     elapsed = time() - start
     minutes = int(elapsed / 60)

@@ -146,6 +146,15 @@ def get_moving_average(xs, ys, window_size=11):
 	x1s = x1s[:-tail_count]
 	return x1s, y1s
 
+def sort_labels(ax):
+	'''
+	Used to sort labels for legend
+	'''
+	legend_handles, legend_labels = ax.get_legend_handles_labels()
+	sorted_pairs = sorted(zip(legend_labels, legend_handles))
+	sorted_labels = [label for label, handle in sorted_pairs]
+	sorted_handles = [handle for label, handle in sorted_pairs]
+	return sorted_handles, sorted_labels
 
 if __name__ == '__main__':
 	for colour in generate_xkcd_colours():
