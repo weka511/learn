@@ -39,7 +39,7 @@ class AutoEncoder(nn.Module, ABC):
         decoder
     '''
 
-    def __init__(self, width=28, height=28, encoder=nn.Sequential(), decoder=nn.Sequential()):
+    def __init__(self, width=28, height=28, encoder=nn.Sequential(), decoder=nn.Sequential(),bottleneck=3):
         super().__init__()
         self.input_size = width * height
         self.encoder = encoder
@@ -50,15 +50,21 @@ class AutoEncoder(nn.Module, ABC):
         ...
 
     def encode(self,x):
+        '''
+        Encode data down to bottleneck
+        '''
         return self.encoder(x)
 
     def decode(self,x):
+        '''
+        Expand data from bottleneck
+        '''
         return self.decoder(x)
 
     def get_batch_loss(self, batch):
         '''
         I'm following https://www.geeksforgeeks.org/machine-learning/auto-encoders/
-        and using MSE Loss
+        and using MSE Loss (we want output to match input)
         '''
         images, _ = batch
         out = self(images)
@@ -100,7 +106,8 @@ class SimpleAutoEncoder(AutoEncoder):
                              nn.ReLU(),
                              nn.Linear(148, 784),
                              nn.Sigmoid()
-                         ))
+                         ),
+                         bottleneck=bottleneck)
 
     def forward(self, x):
         x = x.reshape(-1, self.input_size)

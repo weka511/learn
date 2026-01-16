@@ -219,7 +219,15 @@ def plot_losses(history,ax=None,bottleneck=3):
     ax.set_xlabel('Step')
 
 def display_manifold(auto_encoder, loader, fig):
-    ax = fig.add_subplot(1,1,1,projection='3d')
+    '''
+    Display points in bottleneck
+
+    Parameters: auto_encoder
+                loader
+                fig
+
+    '''
+    ax = None
     colour_iterator = generate_xkcd_colours()
     colours = [next(colour_iterator) for _ in range(10)]
     needs_text_label = [True for _ in range(10)]
@@ -231,10 +239,18 @@ def display_manifold(auto_encoder, loader, fig):
             if needs_text_label[labels[i]]:
                 text_label = str(int(labels[i].detach().numpy()))
                 needs_text_label[labels[i]] = False
-            ax.scatter(img[0],img[1],img[2],c=colours[labels[i]],label=text_label,s=1 )
+            match len(img):
+                case 2:
+                    if ax == None:
+                        ax = fig.add_subplot(1,1,1)
+                    ax.scatter(img[0],img[1],c=colours[labels[i]],label=text_label,s=1 )
+                case 3:
+                    if ax == None:
+                        ax = fig.add_subplot(1,1,1,projection='3d')
+                    ax.scatter(img[0],img[1],img[2],c=colours[labels[i]],label=text_label,s=1 )
 
     sorted_handles, sorted_labels = sort_labels(ax)
-    ax.legend(sorted_handles, sorted_labels,title='Labels')
+    ax.legend(sorted_handles, sorted_labels,title='Labels',loc='upper right')
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -312,7 +328,7 @@ if __name__ == '__main__':
             auto_encoder.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             loader = DataLoader(dataset, 128)
-            display_manifold(auto_encoder, loader, fig=dig)
+            display_manifold(auto_encoder, loader, fig=fig)
 
 
     elapsed = time() - start
