@@ -104,6 +104,9 @@ def generate_xkcd_colours(file_name='bgr.txt', filter=lambda R, G, B: True):
 				if filter(R, G, B):
 					yield f'xkcd:{parts[0]}'
 
+def create_xkcd_colours(n,file_name='bgr.txt', filter=lambda R, G, B: True):
+	colour_iterator = generate_xkcd_colours(file_name=file_name,filter=filter)
+	return [next(colour_iterator) for _ in range(n)]
 
 def ensure_we_can_save(checkpoint_file_name):
 	'''

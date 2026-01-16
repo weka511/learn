@@ -34,7 +34,7 @@ from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD, Adam
 import torch.nn.functional as F
 from autoencoder import AutoEncoderFactory
-from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save,get_moving_average,generate_xkcd_colours, sort_labels
+from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save,get_moving_average,create_xkcd_colours, sort_labels
 
 class Perceptron(nn.Module):
     '''
@@ -102,7 +102,7 @@ def parse_args(factory):
     parser.add_argument('--implementation', choices=factory.get_choices(), default=factory.get_default())
 
     training_group = parser.add_argument_group('Parameters for --action train')
-    training_group.add_argument('--batch_size', default=128, type=int, help='Number of images per batch')
+    training_group.add_argument('--batchsize', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
     training_group.add_argument('--n', default=5, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
@@ -220,21 +220,20 @@ def plot_losses(history,ax=None,bottleneck=3):
 
 def display_manifold(auto_encoder, loader, fig):
     '''
-    Display points in bottleneck
+    Display points in manifold defined by bottleneck
 
-    Parameters: auto_encoder
-                loader
-                fig
-
+    Parameters: auto_encoder   The autoencode (model)
+                loader         Data source
+                fig            Figure in which to place points
     '''
     ax = None
-    colour_iterator = generate_xkcd_colours()
-    colours = [next(colour_iterator) for _ in range(10)]
-    needs_text_label = [True for _ in range(10)]
+    number_of_classes = 10
+    colours = create_xkcd_colours(number_of_classes)
+    needs_text_label = [True for _ in range(number_of_classes)]
     for k, batch in enumerate(loader):
         images,labels = batch
         for i in range(len(labels)):
-            img = auto_encoder.encode(images[i].reshape(-1, 784)).detach().numpy()[0]
+            img = auto_encoder.encode(images[i]).detach().numpy()[0]
             text_label = None
             if needs_text_label[labels[i]]:
                 text_label = str(int(labels[i].detach().numpy()))
@@ -250,7 +249,7 @@ def display_manifold(auto_encoder, loader, fig):
                     ax.scatter(img[0],img[1],img[2],c=colours[labels[i]],label=text_label,s=1 )
 
     sorted_handles, sorted_labels = sort_labels(ax)
-    ax.legend(sorted_handles, sorted_labels,title='Labels',loc='upper right')
+    ax.legend(sorted_handles, sorted_labels,title='Labels',loc='upper right',markerscale=3)
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -271,8 +270,8 @@ if __name__ == '__main__':
             optimizer = OptimizerFactory.create(auto_encoder, args)
             dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
             train_data, validation_data = random_split(dataset, [50000, 10000])
-            train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
-            validation_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
+            train_loader = DataLoader(train_data, args.batchsize, shuffle=True)
+            validation_loader = DataLoader(validation_data, args.batchsize, shuffle=False)
             history = []
             for epoch in range(args.N):
                 for _ in range(args.n):
@@ -292,7 +291,6 @@ if __name__ == '__main__':
             subfigs = fig.subfigures(2, 1, wspace=0.07)
             plot_losses(history,ax = subfigs[0].add_subplot(1, 1, 1),bottleneck=args.bottleneck)
             display_manifold(auto_encoder, validation_loader, fig=subfigs[1])
-            # display_images(auto_encoder, validation_loader, nrows=args.nrows, ncols=args.ncols, fig=subfigs[1])
             fig.savefig(join(args.figs, get_file_name(args)))
 
         case 'train2':
@@ -302,8 +300,8 @@ if __name__ == '__main__':
             optimizer = OptimizerFactory.create(auto_encoder, args)
             dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
             train_data, validation_data = random_split(dataset, [50000, 10000])
-            train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
-            validation_loader = DataLoader(validation_data, args.batch_size, shuffle=False)
+            train_loader = DataLoader(train_data, args.batchsize, shuffle=True)
+            validation_loader = DataLoader(validation_data, args.batchsize, shuffle=False)
             history = []
             for epoch in range(args.N):
                 for _ in range(args.n):
@@ -319,17 +317,15 @@ if __name__ == '__main__':
             auto_encoder = auto_encoder_factory.create(args)
             auto_encoder.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
-            loader = DataLoader(dataset, 128)
+            loader = DataLoader(dataset, args.batchsize)
             display_images(auto_encoder, loader, nrows=args.nrows, ncols=args.ncols, fig=fig)
-
 
         case 'plot_encoded':
             auto_encoder = auto_encoder_factory.create(args)
             auto_encoder.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
-            loader = DataLoader(dataset, 128)
+            loader = DataLoader(dataset, args.batchsize)
             display_manifold(auto_encoder, loader, fig=fig)
-
 
     elapsed = time() - start
     minutes = int(elapsed / 60)

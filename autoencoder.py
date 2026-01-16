@@ -53,7 +53,7 @@ class AutoEncoder(nn.Module, ABC):
         '''
         Encode data down to bottleneck
         '''
-        return self.encoder(x)
+        return self.encoder(x.reshape(-1, 784))
 
     def decode(self,x):
         '''
@@ -207,8 +207,6 @@ class TestAutoEncoder(TestCase):
             decoded = ae.decode(encoded)
             self.assertEqual(images.shape,decoded.shape)
             return
-
-
 
 if __name__ == '__main__':
     main()
