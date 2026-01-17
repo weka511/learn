@@ -34,17 +34,18 @@ from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD, Adam
 import torch.nn.functional as F
 from autoencoder import AutoEncoderFactory
-from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save,get_moving_average,create_xkcd_colours, sort_labels
+from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save, get_moving_average, create_xkcd_colours, sort_labels
+
 
 class Perceptron(nn.Module):
     '''
-    A simple multi layer perceptron
+    A simple multi layer perceptron for use with encoded data
     '''
     name = 'perceptron'
 
     def __init__(self, width=7, height=7, n_classes=10):
         super().__init__()
-        self.input_size = width*height
+        self.input_size = width * height
         self.model = nn.Sequential(
             nn.Linear(self.input_size, 25),
             nn.ReLU(),
@@ -55,21 +56,22 @@ class Perceptron(nn.Module):
         xb = xb.reshape(-1, self.input_size)
         return self.model(xb)
 
-    def training_step(self,batch,encoder,optimizer):
+    def training_step(self, batch, encoder, optimizer):
+        '''
+        Compute loss for one batch of training data and use optimizer to update weights
+
+        Parameters:
+            batch      Batch of training data
+            encoder    Encode part of autoencoder
+            optimizer  Used to reduce loss
+        '''
         images, labels = batch
         encoded = encoder.encode(images)
         out = self(encoded)
-        loss= F.cross_entropy(out, labels)
+        loss = F.cross_entropy(out, labels)
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
-
-    def get_validation_loss(self,batch,encoder):
-        images, labels = batch
-        encoded = encoder.encode(images)
-        out = self(encoded)
-        loss= F.cross_entropy(out, labels)
-        return float(loss)
 
 class OptimizerFactory:
     '''
@@ -96,7 +98,7 @@ class OptimizerFactory:
 
 def parse_args(factory):
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--action', choices=['train1', 'train2','test','plot_encoded'],
+    parser.add_argument('--action', choices=['train1', 'train2', 'test', 'plot_encoded'],
                         default='train2',
                         help='Chooses between training auto encoder (train1), training main network (train2), or testing')
     parser.add_argument('--implementation', choices=factory.get_choices(), default=factory.get_default())
@@ -131,92 +133,117 @@ def parse_args(factory):
 
 def encoder_training_step(model, batch, optimizer):
     '''
-    Perform training step. Calculate loss, and its gradient, then use optimzer to update weights
+    Perform training step. Calculate loss for one batch of data, and its gradient,
+    then use optimzer to update weights
 
     Parameters:
-         batch
-         optimizer
+        model      The model that we are training
+        batch      Current batch of data
+        optimizer  Used to update weights
     '''
     loss = model.get_batch_loss(batch)
     loss.backward()
     optimizer.step()
     optimizer.zero_grad()
 
+def get_validation_loss(model, loader):
+    '''
+    Used during traning to compute loss from validation data
+
+    Parameters:
+        model     The model we are training
+        loader    Source for batches of data
+    '''
+    return [float(model.get_batch_loss(batch).detach()) for batch in loader]
 
 def get_file_name(args):
     '''
     Used to save plots and weights.
+
+    Parameters:
+        args     Command line arguments used as part of file name
     '''
     return f'{Path(__file__).stem}-{args.bottleneck}'
+
 
 def generate_samples(images, n=12):
     '''
     Used to draw samples from a collection of images
 
     Parameters:
-        images
-        n
+        images     Collection of images
+        n          Number of images to retrieve
     '''
     m, _, _, _ = images.shape
     samples = rng.choice(m, n, replace=False)
-    image_index = 0
-    for i in range(len(samples)):
+
+    for image_index in range(n):
         yield samples[image_index]
-        image_index += 1
 
-
-def display_images(auto_encoder, loader, nrows=4, ncols=2, fig=None):
+def display_images(model, loader, bottleneck, nrows=4, ncols=2, fig=None):
     '''
-    Display a grid filled with images
+    Display a grid filled with pairs of images. Each pair comprises
+    one randomly selected MNIST image, accompanied by the results of
+    processing it through the autoencoder. All images are taken
+    from the same randomly selected batch.
 
     Parameters:
-        auto_encoder
-        loader
-        nrows
-        ncols
-        fig
+        model      The autoencoder
+        loader     Used to load data
+        bottleneck Used in suptitle
+        nrows      Number of rows to display
+        ncols      Number of columns to display
+        fig        Figure fo displaying images
     '''
     def display_one_image(image, ax=None):
         '''
-        Display one image without axes
+        Display one image without axis decorations
+
+        Parameters:
+            img        Image for display
+            ax         Axis for displaying image
         '''
         ax.imshow(image.squeeze(), cmap='gray')
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
 
-    m = rng.choice(len(loader) - 1)
+    batch_number = rng.choice(len(loader) - 1)
     for k, batch in enumerate(loader):
-        if k != m:
-            continue
+        if k != batch_number: continue
         images, _ = batch
-        processed = auto_encoder(images)
+        processed = model(images)
         samples = generate_samples(images, n=nrows * ncols)
+        subplot_index = 0
         for i in range(nrows):
             for j in range(ncols):
                 sample = next(samples)
-                subplot_index = 2 * ncols * i + 2 * j + 1
+                subplot_index += 1
                 display_one_image(images[sample], ax=fig.add_subplot(nrows, 2 * ncols, subplot_index))
-                img = np.reshape(processed[sample].detach().numpy(),(28,28))
-                display_one_image(img, ax=fig.add_subplot(nrows, 2 * ncols, subplot_index + 1))
-        fig.suptitle(f'Batch {m}')
+                img = np.reshape(processed[sample].detach().numpy(), (28, 28))
+                subplot_index += 1
+                display_one_image(img, ax=fig.add_subplot(nrows, 2 * ncols, subplot_index))
+        fig.suptitle(f'Batch {batch_number}, bottleneck={bottleneck}')
         return
 
-def plot_losses(history,ax=None,bottleneck=3):
+
+def plot_losses(history, ax=None, bottleneck=3, window_size=11):
     '''
     Plot history plus moving average
 
     Parameters:
-        history
-        ax
+        history     Losses for entire run
+        ax          Axis for plotting
     '''
     xs = np.arange(0, len(history))
-    x1s, moving_average = get_moving_average(xs, history)
+    x1s, moving_average = get_moving_average(xs, history, window_size=window_size)
     ax.plot(xs, history, c='xkcd:blue', label='Loss')
-    ax.plot(x1s, moving_average, c='xkcd:red', label='Average Loss')
-    ax.legend()
+    ax.plot(x1s, moving_average, c='xkcd:red', label=f'Average Loss, last={moving_average[-1]}')
+    ax.legend(loc='upper right')
     ax.set_title(f'{Path(__file__).stem.title()}, bottleneck={bottleneck}')
     ax.set_ylabel('Loss')
     ax.set_xlabel('Step')
+    ax.set_ylim(bottom=0)
+
 
 def display_manifold(auto_encoder, loader, fig):
     '''
@@ -231,7 +258,7 @@ def display_manifold(auto_encoder, loader, fig):
     colours = create_xkcd_colours(number_of_classes)
     needs_text_label = [True for _ in range(number_of_classes)]
     for k, batch in enumerate(loader):
-        images,labels = batch
+        images, labels = batch
         for i in range(len(labels)):
             img = auto_encoder.encode(images[i]).detach().numpy()[0]
             text_label = None
@@ -241,15 +268,18 @@ def display_manifold(auto_encoder, loader, fig):
             match len(img):
                 case 2:
                     if ax == None:
-                        ax = fig.add_subplot(1,1,1)
-                    ax.scatter(img[0],img[1],c=colours[labels[i]],label=text_label,s=1 )
+                        ax = fig.add_subplot(1, 1, 1)
+                    ax.scatter(img[0], img[1], c=colours[labels[i]], label=text_label, s=1)
                 case 3:
                     if ax == None:
-                        ax = fig.add_subplot(1,1,1,projection='3d')
-                    ax.scatter(img[0],img[1],img[2],c=colours[labels[i]],label=text_label,s=1 )
+                        ax = fig.add_subplot(1, 1, 1, projection='3d')
+                    ax.scatter(img[0], img[1], img[2], c=colours[labels[i]], label=text_label, s=1)
+                case _:
+                    return
 
     sorted_handles, sorted_labels = sort_labels(ax)
-    ax.legend(sorted_handles, sorted_labels,title='Labels',loc='upper right',markerscale=3)
+    ax.legend(sorted_handles, sorted_labels, title='Labels', loc='upper right', markerscale=3)
+
 
 if __name__ == '__main__':
     rc('font', **{'family': 'serif',
@@ -276,9 +306,9 @@ if __name__ == '__main__':
             for epoch in range(args.N):
                 for _ in range(args.n):
                     for batch in train_loader:
-                        encoder_training_step(auto_encoder,batch, optimizer)
+                        encoder_training_step(auto_encoder, batch, optimizer)
 
-                validation_losses = [float(auto_encoder.get_batch_loss(batch).detach()) for batch in validation_loader]
+                validation_losses = get_validation_loss(auto_encoder, validation_loader)
                 history += validation_losses
                 print(f'Epoch {epoch + 1} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
 
@@ -289,7 +319,7 @@ if __name__ == '__main__':
                     break
 
             subfigs = fig.subfigures(2, 1, wspace=0.07)
-            plot_losses(history,ax = subfigs[0].add_subplot(1, 1, 1),bottleneck=args.bottleneck)
+            plot_losses(history, ax=subfigs[0].add_subplot(1, 1, 1), bottleneck=args.bottleneck)
             display_manifold(auto_encoder, validation_loader, fig=subfigs[1])
             fig.savefig(join(args.figs, get_file_name(args)))
 
@@ -306,19 +336,20 @@ if __name__ == '__main__':
             for epoch in range(args.N):
                 for _ in range(args.n):
                     for batch in train_loader:
-                        perceptron.training_step(batch,auto_encoder,optimizer)
+                        perceptron.training_step(batch, auto_encoder, optimizer)
 
-                    validation_losses =[perceptron.get_validation_loss(batch,auto_encoder)for batch in validation_loader]
+                    validation_losses = get_validation_loss(auto_encoder, validation_loader)
                     print(f'Epoch {epoch + 1} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
-                    history +=  validation_losses
-            plot_losses(history, ax = fig.add_subplot(1, 1, 1))
+                    history += validation_losses
+            plot_losses(history, ax=fig.add_subplot(1, 1, 1))
 
         case 'test':
             auto_encoder = auto_encoder_factory.create(args)
             auto_encoder.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             loader = DataLoader(dataset, args.batchsize)
-            display_images(auto_encoder, loader, nrows=args.nrows, ncols=args.ncols, fig=fig)
+            display_images(auto_encoder, loader, args.bottleneck, nrows=args.nrows, ncols=args.ncols, fig=fig)
+            fig.savefig(join(args.figs,f'{Path(args.file).stem}-test'))
 
         case 'plot_encoded':
             auto_encoder = auto_encoder_factory.create(args)

@@ -63,6 +63,12 @@ class AutoEncoder(nn.Module, ABC):
 
     def get_batch_loss(self, batch):
         '''
+
+        Use encode + decode to predict loss.
+
+        Parameters:
+            batch       One batch of data
+
         I'm following https://www.geeksforgeeks.org/machine-learning/auto-encoders/
         and using MSE Loss (we want output to match input)
         '''
