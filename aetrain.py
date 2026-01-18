@@ -88,10 +88,10 @@ class OptimizerFactory:
         return OptimizerFactory.choices[1]
 
     @staticmethod
-    '''
-    Instantiate optimizer
-    '''
     def create(model, args):
+        '''
+        Instantiate optimizer
+        '''
         match args.optimizer:
             case 'SGD':
                 return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
