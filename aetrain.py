@@ -32,6 +32,7 @@ from torchvision.datasets import MNIST
 import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD, Adam
+from torch.optim.lr_scheduler import LinearLR
 import torch.nn.functional as F
 from autoencoder import AutoEncoderFactory
 from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save, get_moving_average, create_xkcd_colours, sort_labels
@@ -304,6 +305,7 @@ if __name__ == '__main__':
         case 'train1':
             auto_encoder = auto_encoder_factory.create(args)
             optimizer,optimizer_text = OptimizerFactory.create(auto_encoder, args)
+            scheduler = LinearLR(optimizer, start_factor=1.0, end_factor=0.5, total_iters=args.N//2)
             dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
             train_data, validation_data = random_split(dataset, [50000, 10000])
             train_loader = DataLoader(train_data, args.batchsize, shuffle=True)
@@ -314,9 +316,13 @@ if __name__ == '__main__':
                     for batch in train_loader:
                         encoder_training_step(auto_encoder, batch, optimizer)
 
+                before_lr = optimizer.param_groups[0]["lr"]
+                scheduler.step()
+                after_lr = optimizer.param_groups[0]["lr"]
+
                 validation_losses = get_validation_loss(auto_encoder, validation_loader)
                 history += validation_losses
-                print(f'Epoch {epoch + 1} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
+                print(f'Epoch {epoch + 1} of {args.N}. Loss = {np.mean(validation_losses)}, lr={before_lr}->{after_lr}')
 
                 checkpoint_file_name = join(args.params, get_file_name(args))
                 ensure_we_can_save(checkpoint_file_name)
@@ -348,6 +354,7 @@ if __name__ == '__main__':
                     validation_losses = get_validation_loss(auto_encoder, validation_loader)
                     print(f'Epoch {epoch + 1} of {args.N}. Average validation loss = {np.mean(validation_losses)}')
                     history += validation_losses
+
             plot_losses(history, ax=fig.add_subplot(1, 1, 1))
 
         case 'test':
