@@ -94,9 +94,11 @@ class OptimizerFactory:
         '''
         match args.optimizer:
             case 'SGD':
-                return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+                text = (f'optimizer=SGD, lr={args.lr}, weight_decay={args.weight_decay},momentum={args.momentum}')
+                return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay,momentum=args.momentum),text
             case 'Adam':
-                return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+                text = f'optimizer=Adam, lr={args.lr}, weight_decay={args.weight_decay}'
+                return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay),text
 
 
 def parse_args(factory):
@@ -112,7 +114,8 @@ def parse_args(factory):
     training_group.add_argument('--n', default=5, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
-    training_group.add_argument('--weight_decay', type=float, default=1e-4, help='Weight decay')
+    training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
+    training_group.add_argument('--momentum', type=float, default=0, help='Momentum for SGD')
     training_group.add_argument('--optimizer', choices=OptimizerFactory.choices, default=OptimizerFactory.get_default(),
                                 help='Optimizer to be used for training')
     training_group.add_argument('--restart', default=None, help='Restart from saved parameters')
@@ -229,7 +232,7 @@ def display_images(model, loader, bottleneck, nrows=4, ncols=2, fig=None):
         return
 
 
-def plot_losses(history, ax=None, bottleneck=3, window_size=11,weight_decay=0.0001,lr=0.01):
+def plot_losses(history, ax=None, bottleneck=3, window_size=11,optimizer_text=''):
     '''
     Plot history plus moving average
 
@@ -242,7 +245,7 @@ def plot_losses(history, ax=None, bottleneck=3, window_size=11,weight_decay=0.00
     ax.plot(xs, history, c='xkcd:blue', label='Loss')
     ax.plot(x1s, moving_average, c='xkcd:red', label=f'Average Loss, last={moving_average[-1]}')
     ax.legend(loc='upper right')
-    ax.set_title(f'{Path(__file__).stem.title()}, bottleneck={bottleneck}, lr={lr}, weight_decay={weight_decay}')
+    ax.set_title(f'{Path(__file__).stem.title()}, bottleneck={bottleneck}, {optimizer_text}')
     ax.set_ylabel('Loss')
     ax.set_xlabel('Step')
     ax.set_ylim(bottom=0)
@@ -300,7 +303,7 @@ if __name__ == '__main__':
     match args.action:
         case 'train1':
             auto_encoder = auto_encoder_factory.create(args)
-            optimizer = OptimizerFactory.create(auto_encoder, args)
+            optimizer,optimizer_text = OptimizerFactory.create(auto_encoder, args)
             dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
             train_data, validation_data = random_split(dataset, [50000, 10000])
             train_loader = DataLoader(train_data, args.batchsize, shuffle=True)
@@ -322,7 +325,8 @@ if __name__ == '__main__':
                     break
 
             subfigs = fig.subfigures(2, 1, wspace=0.07)
-            plot_losses(history, ax=subfigs[0].add_subplot(1, 1, 1), bottleneck=args.bottleneck, weight_decay=args.weight_decay,lr=args.lr)
+            plot_losses(history, ax=subfigs[0].add_subplot(1, 1, 1),
+                        bottleneck=args.bottleneck, optimizer_text=optimizer_text)
             display_manifold(auto_encoder, validation_loader, fig=subfigs[1])
             fig.savefig(join(args.figs, get_file_name(args)))
 
