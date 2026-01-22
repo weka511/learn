@@ -32,7 +32,7 @@ from torch.utils.data import DataLoader
 
 class AutoEncoder(nn.Module, ABC):
     '''
-    This class represets a network that acts as an autoencoder
+    This class represents a network that acts as an autoencoder
 
     Data members:
         encoder
