@@ -45,6 +45,9 @@ class Logger(object):
 	def log(self, line):
 		'''
 		Output one line of text to console and file, flushing as we go
+
+		Parameters:
+		    line     A string to be logged
 		'''
 		print(line, flush=True)
 		self.file.write(line + '\n')
@@ -56,7 +59,10 @@ def get_seed(seed, notify=lambda s: print(f'Created new seed {s}')):
 	Used to generate a new seed for random number generation if none specified
 
 	Parameters:
-	    seed
+	    seed       The specified seed (may be None)
+		notify     A function used to notify that a new seed has been generated
+	Returns:
+	    The original seed (if not None), or a newly generated seed
 	'''
 	if seed != None:
 		return seed
@@ -73,6 +79,9 @@ def user_has_requested_stop(stopfile='stop'):
 
 	Parameters:
 	    stopfile    Name of file used as token to stop program
+
+	Returns:
+	    True iff stopfile detected
 	'''
 	stop_path = Path(stopfile)
 	stopfile_detected = stop_path.is_file()
@@ -84,13 +93,13 @@ def user_has_requested_stop(stopfile='stop'):
 
 def generate_xkcd_colours(file_name='bgr.txt', filter=lambda R, G, B: True):
 	'''
-	    Generate XKCD colours.
+	Generate XKCD colours.
 
-	    Keyword Parameters:
-	        file_name Where XKCD colours live. The default organizes colours so
-	                  most widely recognized ones (as defined in XKCD colour
-	                  survey) come first.
-	        filter    Allows us to exclude some colours based on RGB values
+	Parameters:
+		file_name Where XKCD colours live. The default organizes colours so
+				  most widely recognized ones (as defined in XKCD colour
+				  survey) come first.
+		filter    Allows us to exclude some colours based on RGB values
 	'''
 	with open(file_name) as colours:
 		for row in colours:
@@ -105,6 +114,16 @@ def generate_xkcd_colours(file_name='bgr.txt', filter=lambda R, G, B: True):
 					yield f'xkcd:{parts[0]}'
 
 def create_xkcd_colours(n,file_name='bgr.txt', filter=lambda R, G, B: True):
+	'''
+	Create a list of XKCD colours
+
+	Parameters:
+		n      Number of colours in list
+		file_name Where XKCD colours live. The default organizes colours so
+	              most widely recognized ones (as defined in XKCD colour
+			      survey) come first.
+        filter    Allows us to exclude some colours based on RGB values
+	'''
 	colour_iterator = generate_xkcd_colours(file_name=file_name,filter=filter)
 	return [next(colour_iterator) for _ in range(n)]
 
@@ -112,6 +131,9 @@ def ensure_we_can_save(checkpoint_file_name):
 	'''
 	If there is already a checkpoint file, we need to make it
 	into a backup. But if there is already a backup, delete it first
+
+	Parameters:
+	    checkpoint_file_name    Name of checkpoint file
 	'''
 	checkpoint_path = Path(checkpoint_file_name).with_suffix('.pth')
 	if checkpoint_path.is_file():
@@ -122,7 +144,10 @@ def ensure_we_can_save(checkpoint_file_name):
 
 def get_device(notify=lambda device: print(f'Using device = {device}')):
 	'''
-	Use fastest device available
+	Use  CUDA if available
+
+	Parameters:
+	    notify      Used to notify user which device will be used
 	'''
 	torch.set_default_device(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
 	notify(torch.get_default_device())
@@ -152,6 +177,12 @@ def get_moving_average(xs, ys, window_size=11):
 def sort_labels(ax):
 	'''
 	Used to sort labels for legend
+
+	Parameters:
+	    ax      The axis on which things are being plotted
+
+	Returns:
+	    sorted_handles, sorted_labels
 	'''
 	legend_handles, legend_labels = ax.get_legend_handles_labels()
 	sorted_pairs = sorted(zip(legend_labels, legend_handles))
