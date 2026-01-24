@@ -47,9 +47,11 @@ class AutoEncoder(nn.Module, ABC):
         self.decoder = decoder
         self.bottleneck = bottleneck
 
-    @abstractmethod
     def forward(self, x):
-        ...
+        x = x.reshape(-1, self.input_size)
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
 
     def encode(self,x):
         '''
@@ -117,11 +119,24 @@ class SimpleAutoEncoder(AutoEncoder):
                          ),
                          bottleneck=bottleneck)
 
-    def forward(self, x):
-        x = x.reshape(-1, self.input_size)
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
+class ShallowAutoEncoder(AutoEncoder):
+    '''
+    This class represets an autoencoder with minimal encoder and decoder
+    '''
+
+    def __init__(self, width=28, height=28,bottleneck=14):
+        super().__init__(width=width,
+                         height=height,
+                         encoder=nn.Sequential(
+                             nn.Linear(width*height, bottleneck),
+                             nn.ReLU()
+                         ),
+                         decoder=nn.Sequential(
+                            nn.Linear(bottleneck, width*height),
+                            nn.ReLU(),
+                            nn.Sigmoid()
+                         ),
+                         bottleneck=bottleneck)
 
 class CNNAutoEncoder(AutoEncoder):
     '''
@@ -156,7 +171,7 @@ class CNNAutoEncoder(AutoEncoder):
 
 class AutoEncoderFactory:
     def get_choices(self):
-        return ['perceptron', 'cnn']
+        return ['perceptron', 'cnn', 'shallow']
 
     def get_default(self):
         return 'perceptron'
@@ -167,6 +182,8 @@ class AutoEncoderFactory:
                 return SimpleAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck)
             case 'cnn':
                 return CNNAutoEncoder(width=args.width, height=args.height)
+            case 'shallow':
+                return ShallowAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck)
 
     def create(self, args):
         '''

@@ -116,7 +116,6 @@ def parse_args(factory):
     training_group.add_argument('--n', default=5, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
     training_group.add_argument('--lr', type=float, default=0.01, help='Learning Rate')
-    training_group.add_argument('--lr_start_factor', type=float, default=1.0, help='Learning Rate start factor')
     training_group.add_argument('--lr_end_factor', type=float, default=0.01, help='Learning Rate end factor')
     training_group.add_argument('--total_lr_iters', default=None, type=int, help='Number of steps to fully decay learning rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
@@ -313,10 +312,22 @@ class ManifoldDisplayer:
         ax.legend(sorted_handles, sorted_labels, title='Labels', loc='upper right', markerscale=3)
 
 
-def create_scheduler(optimizer, args):
-    total_iters = args.total_lr_iters if args.total_lr_iters != None else args.N // 2
-    return LinearLR(optimizer, start_factor=args.lr_start_factor,
-                    end_factor=args.lr_end_factor, total_iters=total_iters)
+def create_scheduler(optimizer, end_factor=0.01,total_iters=None,N=50):
+    '''
+    Create a learning rate scheduler
+
+    Parameters:
+        optimizer     The scheduler whose learning rate is to be controlled
+        end_factor    Learning rate will be reduced to this value time original
+        total_iters   Learning rate will decrease by this amount per iteration
+        N             Total number of iterations for training,
+                      used to establish default for total_iters
+
+    Returns:
+       A scheduler associated with optimizer
+    '''
+    return LinearLR(optimizer, start_factor=1.0,end_factor=end_factor,
+                    total_iters = total_iters if total_iters != None else N)
 
 
 if __name__ == '__main__':
@@ -328,68 +339,28 @@ if __name__ == '__main__':
     start = time()
     auto_encoder_factory = AutoEncoderFactory()
     args = parse_args(auto_encoder_factory)
-    seed = get_seed(args.seed)
-    rng = np.random.default_rng(seed)
-    torch.manual_seed(seed)
+    with Logger(join(args.logfiles,get_file_name(args))) as logger:
+        seed = get_seed(args.seed,notify=lambda s: logger.log(f'Created new seed {s}'))
+        rng = np.random.default_rng(seed)
+        torch.manual_seed(seed)
+        validation_fraction = 0.1
 
-    match args.action:
-        case 'train1':
-            auto_encoder = auto_encoder_factory.create(args)
-            optimizer, optimizer_text = OptimizerFactory.create(auto_encoder, args)
-            scheduler = create_scheduler(optimizer, args)
-            dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
-            train_data, validation_data = random_split(dataset, [50000, 10000])
-            train_loader = DataLoader(train_data, args.batchsize, shuffle=True)
-            validation_loader = DataLoader(validation_data, args.batchsize, shuffle=False)
-            history = []
-            lr_history = []
-            for epoch in range(args.N):
-                for _ in range(args.n):
-                    for batch in train_loader:
-                        encoder_training_step(auto_encoder, batch, optimizer)
-
-                lr_previous = optimizer.param_groups[0]["lr"]
-                scheduler.step()
-
-                validation_losses = get_validation_loss(auto_encoder, validation_loader)
-                history += validation_losses
-                lr_history += len(validation_losses) * [lr_previous]
-                print(f'Epoch {epoch + 1} of {args.N}. Loss = {np.mean(validation_losses):.6f}, lr={lr_previous:.6f}')
-
-                checkpoint_file_name = join(args.params, get_file_name(args))
-                ensure_we_can_save(checkpoint_file_name)
-                auto_encoder.save(checkpoint_file_name)
-                if user_has_requested_stop():
-                    break
-
-            manifold_displayer = ManifoldDisplayer(auto_encoder)
-            if manifold_displayer.can_display():
-                subfigs = fig.subfigures(2, 1, wspace=0.07)
-                plot_losses(history, lr_history, ax=subfigs[0].add_subplot(1, 1, 1),
-                            bottleneck=args.bottleneck, optimizer_text=optimizer_text)
-                manifold_displayer.display(validation_loader, fig=subfigs[1])
-            else:
-                plot_losses(history, lr_history, ax=fig.add_subplot(1, 1, 1),
-                            bottleneck=args.bottleneck, optimizer_text=optimizer_text)
-            fig.savefig(join(args.figs, get_file_name(args)))
-
-        case 'train2':
-            auto_encoder = auto_encoder_factory.create(args)
-            auto_encoder.load('./params/aetrain.pth')
-            perceptron = Perceptron()
-            optimizer = OptimizerFactory.create(auto_encoder, args)
-            scheduler = create_scheduler(optimizer, args)
-            dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
-            train_data, validation_data = random_split(dataset, [50000, 10000])
-            train_loader = DataLoader(train_data, args.batchsize, shuffle=True)
-            validation_loader = DataLoader(validation_data, args.batchsize, shuffle=False)
-            history = []
-            lr_history = []
-
-            for epoch in range(args.N):
-                for _ in range(args.n):
-                    for batch in train_loader:
-                        perceptron.training_step(batch, auto_encoder, optimizer)
+        match args.action:
+            case 'train1':
+                auto_encoder = auto_encoder_factory.create(args)
+                optimizer, optimizer_text = OptimizerFactory.create(auto_encoder, args)
+                scheduler = create_scheduler(optimizer, end_factor=args.lr_end_factor,
+                                             total_iters=args.total_lr_iters,N=args.N)
+                dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
+                train_data, validation_data = random_split(dataset, [1-validation_fraction, validation_fraction])
+                train_loader = DataLoader(train_data, args.batchsize, shuffle=True)
+                validation_loader = DataLoader(validation_data, args.batchsize, shuffle=False)
+                history = []
+                lr_history = []
+                for epoch in range(args.N):
+                    for _ in range(args.n):
+                        for batch in train_loader:
+                            encoder_training_step(auto_encoder, batch, optimizer)
 
                     lr_previous = optimizer.param_groups[0]["lr"]
                     scheduler.step()
@@ -397,31 +368,75 @@ if __name__ == '__main__':
                     validation_losses = get_validation_loss(auto_encoder, validation_loader)
                     history += validation_losses
                     lr_history += len(validation_losses) * [lr_previous]
-                    print(f'Epoch {epoch + 1} of {args.N}. Loss = {np.mean(validation_losses):.6f}, lr={lr_previous:.6f}')
+                    logger.log(f'Epoch {epoch + 1} of {args.N}. Loss = {np.mean(validation_losses):.6f}, lr={lr_previous:.6f}')
+
+                    checkpoint_file_name = join(args.params, get_file_name(args))
+                    ensure_we_can_save(checkpoint_file_name)
+                    auto_encoder.save(checkpoint_file_name)
+                    if user_has_requested_stop():
+                        break
+
+                manifold_displayer = ManifoldDisplayer(auto_encoder)
+                if manifold_displayer.can_display():
+                    subfigs = fig.subfigures(2, 1, wspace=0.07)
+                    plot_losses(history, lr_history, ax=subfigs[0].add_subplot(1, 1, 1),
+                                bottleneck=args.bottleneck, optimizer_text=optimizer_text)
+                    manifold_displayer.display(validation_loader, fig=subfigs[1])
+                else:
+                    plot_losses(history, lr_history, ax=fig.add_subplot(1, 1, 1),
+                                bottleneck=args.bottleneck, optimizer_text=optimizer_text)
+                fig.savefig(join(args.figs, get_file_name(args)))
+
+            case 'train2':
+                auto_encoder = auto_encoder_factory.create(args)
+                auto_encoder.load('./params/aetrain.pth')
+                perceptron = Perceptron()
+                optimizer = OptimizerFactory.create(auto_encoder, args)
+                scheduler = create_scheduler(optimizer, end_factor=args.lr_end_factor,
+                                   total_iters=args.total_lr_iters,N=args.N)
+                dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
+                train_data, validation_data = random_split(dataset, [50000, 10000])
+                train_loader = DataLoader(train_data, args.batchsize, shuffle=True)
+                validation_loader = DataLoader(validation_data, args.batchsize, shuffle=False)
+                history = []
+                lr_history = []
+
+                for epoch in range(args.N):
+                    for _ in range(args.n):
+                        for batch in train_loader:
+                            perceptron.training_step(batch, auto_encoder, optimizer)
+
+                        lr_previous = optimizer.param_groups[0]["lr"]
+                        scheduler.step()
+
+                        validation_losses = get_validation_loss(auto_encoder, validation_loader)
+                        history += validation_losses
+                        lr_history += len(validation_losses) * [lr_previous]
+                        print(f'Epoch {epoch + 1} of {args.N}. Loss = {np.mean(validation_losses):.6f}, lr={lr_previous:.6f}')
 
 
-            plot_losses(history, lr_history, ax=fig.add_subplot(1, 1, 1))
+                plot_losses(history, lr_history, ax=fig.add_subplot(1, 1, 1))
 
-        case 'test':
-            auto_encoder = auto_encoder_factory.create(args)
-            auto_encoder.load(args.file)
-            dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
-            loader = DataLoader(dataset, args.batchsize)
-            display_images(auto_encoder, loader, args.bottleneck, nrows=args.nrows, ncols=args.ncols, fig=fig)
-            fig.savefig(join(args.figs, f'{Path(args.file).stem}-test'))
+            case 'test':
+                auto_encoder = auto_encoder_factory.create(args)
+                auto_encoder.load(args.file)
+                dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+                loader = DataLoader(dataset, args.batchsize)
+                display_images(auto_encoder, loader, args.bottleneck, nrows=args.nrows, ncols=args.ncols, fig=fig)
+                fig.savefig(join(args.figs, f'{Path(args.file).stem}-test'))
 
-        case 'plot_encoded':
-            auto_encoder = auto_encoder_factory.create(args)
-            auto_encoder.load(args.file)
-            dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
-            loader = DataLoader(dataset, args.batchsize)
-            manifold_displayer = ManifoldDisplayer(auto_encoder)
-            manifold_displayer.display(auto_encoder, loader, fig=fig)
+            case 'plot_encoded':
+                auto_encoder = auto_encoder_factory.create(args)
+                auto_encoder.load(args.file)
+                dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+                loader = DataLoader(dataset, args.batchsize)
+                manifold_displayer = ManifoldDisplayer(auto_encoder)
+                manifold_displayer.display(auto_encoder, loader, fig=fig)
 
-    elapsed = time() - start
-    minutes = int(elapsed / 60)
-    seconds = elapsed - 60 * minutes
-    print(f'Elapsed Time {minutes} m {seconds:.2f} s')
+        elapsed = time() - start
+        minutes = int(elapsed / 60)
+        seconds = elapsed - 60 * minutes
+        logger.log(f'Elapsed Time {minutes} m {seconds:.2f} s')
 
     if args.show:
         show()
