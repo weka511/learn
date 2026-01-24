@@ -243,16 +243,20 @@ def display_images(model, loader, bottleneck, nrows=4, ncols=2, fig=None):
 
 def plot_losses(history, lr_history, ax=None, bottleneck=3, window_size=11, optimizer_text=''):
     '''
-    Plot history plus moving average
+    Plot history: losses, moving average of losses, and learning rate
 
     Parameters:
-        history     Losses for entire run
-        ax          Axis for plotting
+        history          Losses for entire run
+        lr_history       Learning rate for entire run
+        ax               Axis for plotting
+        bottleneck       Number of nodes in bottleneck
+        window_size      Number of points in moving average
+        optimizer_text   Text identifying optimizer, for use in title
     '''
     xs = np.arange(0, len(history))
     x1s, moving_average = get_moving_average(xs, history, window_size=window_size)
     ax.plot(xs, history, c='xkcd:blue', label='Loss')
-    ax.plot(x1s, moving_average, c='xkcd:red', label=f'Average Loss, last={moving_average[-1]}')
+    ax.plot(x1s, moving_average, c='xkcd:red', label=f'Average Loss, last={moving_average[-1]:.5e}')
     ax.legend(loc='upper right')
     ax.set_title(f'{Path(__file__).stem.title()}, bottleneck={bottleneck}, {optimizer_text}')
     ax.set_ylabel('Loss')
@@ -266,40 +270,47 @@ def plot_losses(history, lr_history, ax=None, bottleneck=3, window_size=11, opti
     legend_handles2, legend_labels2 = ax_twin.get_legend_handles_labels()
     ax.legend(legend_handles1 + legend_handles2, legend_labels1 + legend_labels2, loc='upper right')
 
-def display_manifold(auto_encoder, loader, fig):
-    '''
-    Display points in manifold defined by bottleneck
+class ManifoldDisplayer:
+    def __init__(self,auto_encoder):
+        self.auto_encoder = auto_encoder
 
-    Parameters: auto_encoder   The autoencode (model)
-                loader         Data source
-                fig            Figure in which to place points
-    '''
-    ax = None
-    number_of_classes = 10
-    colours = create_xkcd_colours(number_of_classes)
-    needs_text_label = [True for _ in range(number_of_classes)]
-    for k, batch in enumerate(loader):
-        images, labels = batch
-        for i in range(len(labels)):
-            img = auto_encoder.encode(images[i]).detach().numpy()[0]
-            text_label = None
-            if needs_text_label[labels[i]]:
-                text_label = str(int(labels[i].detach().numpy()))
-                needs_text_label[labels[i]] = False
-            match len(img):
-                case 2:
-                    if ax == None:
-                        ax = fig.add_subplot(1, 1, 1)
-                    ax.scatter(img[0], img[1], c=colours[labels[i]], label=text_label, s=1)
-                case 3:
-                    if ax == None:
-                        ax = fig.add_subplot(1, 1, 1, projection='3d')
-                    ax.scatter(img[0], img[1], img[2], c=colours[labels[i]], label=text_label, s=1)
-                case _:
-                    return
+    def can_display(self):
+        return self.auto_encoder.bottleneck in [2,3]
 
-    sorted_handles, sorted_labels = sort_labels(ax)
-    ax.legend(sorted_handles, sorted_labels, title='Labels', loc='upper right', markerscale=3)
+    def display(self, loader, fig):
+        '''
+        Display points in manifold defined by bottleneck
+
+        Parameters:
+            loader         Data source
+            fig            Figure in which to place points
+        '''
+        ax = None
+        number_of_classes = 10
+        colours = create_xkcd_colours(number_of_classes)
+        needs_text_label = [True for _ in range(number_of_classes)]
+        for k, batch in enumerate(loader):
+            images, labels = batch
+            for i in range(len(labels)):
+                img = self.auto_encoder.encode(images[i]).detach().numpy()[0]
+                text_label = None
+                if needs_text_label[labels[i]]:
+                    text_label = str(int(labels[i].detach().numpy()))
+                    needs_text_label[labels[i]] = False
+                match len(img):
+                    case 2:
+                        if ax == None:
+                            ax = fig.add_subplot(1, 1, 1)
+                        ax.scatter(img[0], img[1], c=colours[labels[i]], label=text_label, s=1)
+                    case 3:
+                        if ax == None:
+                            ax = fig.add_subplot(1, 1, 1, projection='3d')
+                        ax.scatter(img[0], img[1], img[2], c=colours[labels[i]], label=text_label, s=1)
+                    case _:
+                        return
+
+        sorted_handles, sorted_labels = sort_labels(ax)
+        ax.legend(sorted_handles, sorted_labels, title='Labels', loc='upper right', markerscale=3)
 
 
 def create_scheduler(optimizer, args):
@@ -351,10 +362,15 @@ if __name__ == '__main__':
                 if user_has_requested_stop():
                     break
 
-            subfigs = fig.subfigures(2, 1, wspace=0.07)
-            plot_losses(history, lr_history, ax=subfigs[0].add_subplot(1, 1, 1),
-                        bottleneck=args.bottleneck, optimizer_text=optimizer_text)
-            display_manifold(auto_encoder, validation_loader, fig=subfigs[1])
+            manifold_displayer = ManifoldDisplayer(auto_encoder)
+            if manifold_displayer.can_display():
+                subfigs = fig.subfigures(2, 1, wspace=0.07)
+                plot_losses(history, lr_history, ax=subfigs[0].add_subplot(1, 1, 1),
+                            bottleneck=args.bottleneck, optimizer_text=optimizer_text)
+                manifold_displayer.display(validation_loader, fig=subfigs[1])
+            else:
+                plot_losses(history, lr_history, ax=fig.add_subplot(1, 1, 1),
+                            bottleneck=args.bottleneck, optimizer_text=optimizer_text)
             fig.savefig(join(args.figs, get_file_name(args)))
 
         case 'train2':
@@ -399,7 +415,8 @@ if __name__ == '__main__':
             auto_encoder.load(args.file)
             dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
             loader = DataLoader(dataset, args.batchsize)
-            display_manifold(auto_encoder, loader, fig=fig)
+            manifold_displayer = ManifoldDisplayer(auto_encoder)
+            manifold_displayer.display(auto_encoder, loader, fig=fig)
 
     elapsed = time() - start
     minutes = int(elapsed / 60)

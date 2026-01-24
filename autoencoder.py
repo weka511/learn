@@ -35,8 +35,9 @@ class AutoEncoder(nn.Module, ABC):
     This class represents a network that acts as an autoencoder
 
     Data members:
-        encoder
-        decoder
+        encoder      The encoder network
+        decoder      Decoder nwtwork
+        bottleneck   Size of bottleneck
     '''
 
     def __init__(self, width=28, height=28, encoder=nn.Sequential(), decoder=nn.Sequential(),bottleneck=3):
@@ -44,6 +45,7 @@ class AutoEncoder(nn.Module, ABC):
         self.input_size = width * height
         self.encoder = encoder
         self.decoder = decoder
+        self.bottleneck = bottleneck
 
     @abstractmethod
     def forward(self, x):
