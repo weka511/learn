@@ -376,12 +376,12 @@ if __name__ == '__main__':
                     if user_has_requested_stop():
                         break
 
-                manifold_displayer = ManifoldDisplayer(auto_encoder)
+                displayer = ManifoldDisplayer(auto_encoder)
                 if manifold_displayer.can_display():
                     subfigs = fig.subfigures(2, 1, wspace=0.07)
                     plot_losses(history, lr_history, ax=subfigs[0].add_subplot(1, 1, 1),
                                 bottleneck=args.bottleneck, optimizer_text=optimizer_text)
-                    manifold_displayer.display(validation_loader, fig=subfigs[1])
+                    displayer.display(validation_loader, fig=subfigs[1])
                 else:
                     plot_losses(history, lr_history, ax=fig.add_subplot(1, 1, 1),
                                 bottleneck=args.bottleneck, optimizer_text=optimizer_text)
@@ -430,8 +430,8 @@ if __name__ == '__main__':
                 auto_encoder.load(args.file)
                 dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
                 loader = DataLoader(dataset, args.batchsize)
-                manifold_displayer = ManifoldDisplayer(auto_encoder)
-                manifold_displayer.display(auto_encoder, loader, fig=fig)
+                displayer = ManifoldDisplayer(auto_encoder)
+                displayer.display(loader, fig=fig)
 
         elapsed = time() - start
         minutes = int(elapsed / 60)
