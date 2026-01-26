@@ -67,7 +67,6 @@ class AutoEncoder(nn.Module, ABC):
 
     def get_batch_loss(self, batch):
         '''
-
         Use encode + decode to predict loss.
 
         Parameters:
@@ -138,6 +137,31 @@ class ShallowAutoEncoder(AutoEncoder):
                          ),
                          bottleneck=bottleneck)
 
+class DeepAutoEncoder(AutoEncoder):
+
+    @staticmethod
+    def build(augmented_widths,decode=False):
+        product = nn.Sequential()
+        for w1,w2 in zip(augmented_widths[:-1],augmented_widths[1:]):
+            product.append(nn.Linear(w1,w2))
+            product.append(nn.ReLU())
+        if decode:
+            product.append(nn.Sigmoid())
+        return product
+
+    def __init__(self, width=28, height=28,bottleneck=14,widths=[600,400,200]):
+        augmented_widths = [width*height] + widths + [bottleneck]
+        super().__init__(width=width,
+                         height=height,
+                         encoder=DeepAutoEncoder.build(augmented_widths),
+                         decoder=DeepAutoEncoder.build(augmented_widths[::-1],decode=True),
+                         bottleneck=bottleneck)
+
+        print (self.encoder)
+        print (self.decoder)
+
+
+
 class CNNAutoEncoder(AutoEncoder):
     '''
     This class represets an autoencoder using Convolutional layers
@@ -170,13 +194,28 @@ class CNNAutoEncoder(AutoEncoder):
 
 
 class AutoEncoderFactory:
+    '''
+    This class is used to allow the user to choose a particular autoencoder
+    '''
     def get_choices(self):
-        return ['perceptron', 'cnn', 'shallow']
+        '''
+        List of choices available for autoencoder
+        '''
+        return ['perceptron', 'cnn', 'shallow', 'deep']
 
     def get_default(self):
+        '''
+        Use to assign default autoencoder
+        '''
         return 'perceptron'
 
     def instantiate(self, args):
+        '''
+        This function creates a specific autoencoder
+
+        Parameters:
+            args
+        '''
         match args.implementation:
             case 'perceptron':
                 return SimpleAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck)
@@ -184,6 +223,8 @@ class AutoEncoderFactory:
                 return CNNAutoEncoder(width=args.width, height=args.height)
             case 'shallow':
                 return ShallowAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck)
+            case 'deep':
+                return DeepAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck,widths=args.widths)
 
     def create(self, args):
         '''
