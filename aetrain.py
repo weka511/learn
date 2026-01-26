@@ -257,7 +257,6 @@ def plot_losses(history, lr_history, ax=None, bottleneck=3, window_size=11, opti
     x1s, moving_average = get_moving_average(xs, history, window_size=window_size)
     ax.plot(xs, history, c='xkcd:blue', label='Loss')
     ax.plot(x1s, moving_average, c='xkcd:red', label=f'Average Loss, last={moving_average[-1]:.5e}')
-    ax.legend(loc='upper right')
     ax.set_title(f'{Path(__file__).stem.title()}, bottleneck={bottleneck}, {optimizer_text}')
     ax.set_ylabel('Loss')
     ax.set_xlabel('Step')
@@ -268,7 +267,7 @@ def plot_losses(history, lr_history, ax=None, bottleneck=3, window_size=11, opti
     ax_twin.set_ylabel('Learning Rate')
     legend_handles1, legend_labels1 = ax.get_legend_handles_labels()
     legend_handles2, legend_labels2 = ax_twin.get_legend_handles_labels()
-    ax.legend(legend_handles1 + legend_handles2, legend_labels1 + legend_labels2, loc='upper right')
+    ax.legend(legend_handles1 + legend_handles2, legend_labels1 + legend_labels2, loc='lower left')
 
 class ManifoldDisplayer:
     def __init__(self,auto_encoder):
