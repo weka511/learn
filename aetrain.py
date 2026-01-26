@@ -157,9 +157,7 @@ def create_dataset(data,fraction=None,rng = np.random.default_rng()):
     '''
     dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
     if args.dataset_fraction == None: return dataset
-    return Subset(dataset, rng.choice(number_of_points,
-                                      replace=False,
-                                      size=int(dataset_fraction*len(dataset))))
+    return Subset(dataset, rng.choice(len(dataset),replace=False,size=int(fraction*len(dataset))))
 
 def encoder_training_step(model, batch, optimizer):
     '''
