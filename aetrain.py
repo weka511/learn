@@ -30,7 +30,7 @@ import torch
 import torch.nn as nn
 from torchvision.datasets import MNIST
 import torchvision.transforms as tr
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Subset
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import LinearLR
 import torch.nn.functional as F
@@ -128,6 +128,10 @@ def parse_args(factory):
     training_group.add_argument('--width', default=28, type=int, help='Width of each image in pixels')
     training_group.add_argument('--height', default=28, type=int, help='Height of each image in pixels')
     training_group.add_argument('--bottleneck', default=14, type=int, help='Number of neurons in bottleneck')
+    training_group.add_argument('--dataset_fraction',default=None,type=float,
+                                help='Proportion of training data that will be used.')
+    training_group.add_argument('--validation_fraction',default=0.1,type=float,
+                                help='Propertion of data for validation (after dataset_fraction)')
 
     test_group = parser.add_argument_group('Parameters for --action test')
     test_group.add_argument('--file', default=None, help='Used to load weights')
@@ -142,6 +146,20 @@ def parse_args(factory):
     shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
     return parser.parse_args()
 
+def create_dataset(data,fraction=None,rng = np.random.default_rng()):
+    '''
+    Read the dataset; optionally extract a subset
+
+    Parameters:
+        data       Path to stored data
+        fraction   Optional parameter for a fraction of data
+        rng        Random number generator
+    '''
+    dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
+    if args.dataset_fraction == None: return dataset
+    return Subset(dataset, rng.choice(number_of_points,
+                                      replace=False,
+                                      size=int(dataset_fraction*len(dataset))))
 
 def encoder_training_step(model, batch, optimizer):
     '''
@@ -343,7 +361,6 @@ if __name__ == '__main__':
         seed = get_seed(args.seed,notify=lambda s: logger.log(f'Created new seed {s}'))
         rng = np.random.default_rng(seed)
         torch.manual_seed(seed)
-        validation_fraction = 0.1
 
         match args.action:
             case 'train1':
@@ -351,8 +368,10 @@ if __name__ == '__main__':
                 optimizer, optimizer_text = OptimizerFactory.create(auto_encoder, args)
                 scheduler = create_scheduler(optimizer, end_factor=args.lr_end_factor,
                                              total_iters=args.total_lr_iters,N=args.N)
-                dataset = MNIST(root=args.data, download=True, transform=tr.ToTensor())
-                train_data, validation_data = random_split(dataset, [1-validation_fraction, validation_fraction])
+
+                dataset = create_dataset(args.data,fraction=args.dataset_fraction,rng=rng)
+
+                train_data, validation_data = random_split(dataset, [1-args.validation_fraction, args.validation_fraction])
                 train_loader = DataLoader(train_data, args.batchsize, shuffle=True)
                 validation_loader = DataLoader(validation_data, args.batchsize, shuffle=False)
                 history = []
