@@ -109,14 +109,16 @@ def parse_args(factory):
                         default='train2',
                         help='Chooses between training auto encoder (train1), training main network (train2), or testing')
     parser.add_argument('--implementation', choices=factory.get_choices(), default=factory.get_default())
+    parser.add_argument('--widths', default=[600,400,200], type=int,nargs='+',help='Widths used by default autoencoder')
 
     training_group = parser.add_argument_group('Parameters for --action train')
     training_group.add_argument('--batchsize', default=128, type=int, help='Number of images per batch')
     training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
     training_group.add_argument('--n', default=5, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
-    training_group.add_argument('--lr', type=float, default=0.01, help='Learning Rate')
-    training_group.add_argument('--lr_end_factor', type=float, default=0.01, help='Learning Rate end factor')
+    training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
+    training_group.add_argument('--lr_end_factor', type=float, default=0.9,
+                                help='Controls Learning Rate. After total_lr_iters epochs, learning rate will be reduced by this factor')
     training_group.add_argument('--total_lr_iters', default=None, type=int, help='Number of steps to fully decay learning rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
     training_group.add_argument('--momentum', type=float, default=0, help='Momentum for SGD')
@@ -144,7 +146,7 @@ def parse_args(factory):
 def encoder_training_step(model, batch, optimizer):
     '''
     Perform training step. Calculate loss for one batch of data, and its gradient,
-    then use optimzer to update weights
+    then use optimizer to update weights
 
     Parameters:
         model      The model that we are training
@@ -152,10 +154,9 @@ def encoder_training_step(model, batch, optimizer):
         optimizer  Used to update weights
     '''
     loss = model.get_batch_loss(batch)
+    optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-    optimizer.zero_grad()
-
 
 def get_validation_loss(model, loader):
     '''
@@ -377,7 +378,7 @@ if __name__ == '__main__':
                         break
 
                 displayer = ManifoldDisplayer(auto_encoder)
-                if manifold_displayer.can_display():
+                if displayer.can_display():
                     subfigs = fig.subfigures(2, 1, wspace=0.07)
                     plot_losses(history, lr_history, ax=subfigs[0].add_subplot(1, 1, 1),
                                 bottleneck=args.bottleneck, optimizer_text=optimizer_text)
@@ -412,7 +413,7 @@ if __name__ == '__main__':
                         validation_losses = get_validation_loss(auto_encoder, validation_loader)
                         history += validation_losses
                         lr_history += len(validation_losses) * [lr_previous]
-                        print(f'Epoch {epoch + 1} of {args.N}. Loss = {np.mean(validation_losses):.6f}, lr={lr_previous:.6f}')
+                        logger.log(f'Epoch {epoch + 1} of {args.N}. Loss = {np.mean(validation_losses):.6f}, lr={lr_previous:.6f}')
 
 
                 plot_losses(history, lr_history, ax=fig.add_subplot(1, 1, 1))
