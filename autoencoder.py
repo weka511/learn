@@ -92,50 +92,6 @@ class AutoEncoder(nn.Module, ABC):
         self.load_state_dict(torch.load(file))
 
 
-class SimpleAutoEncoder(AutoEncoder):
-    '''
-    This class represets an autoencoder based on a perceptron
-    '''
-
-    def __init__(self, width=28, height=28,bottleneck=3):
-        super().__init__(width=width,
-                         height=height,
-                         encoder=nn.Sequential(
-                             nn.Linear(784, 148),
-                             nn.ReLU(),
-                             nn.Linear(148, 28),
-                             nn.ReLU(),
-                             nn.Linear(28, bottleneck),
-                             nn.ReLU()
-                         ),
-                         decoder=nn.Sequential(
-                            nn.Linear(bottleneck, 28),
-                            nn.ReLU(),
-                             nn.Linear(28, 148),
-                             nn.ReLU(),
-                             nn.Linear(148, 784),
-                             nn.Sigmoid()
-                         ),
-                         bottleneck=bottleneck)
-
-class ShallowAutoEncoder(AutoEncoder):
-    '''
-    This class represets an autoencoder with minimal encoder and decoder
-    '''
-    def __init__(self, width=28, height=28,bottleneck=14):
-        super().__init__(width=width,
-                         height=height,
-                         encoder=nn.Sequential(
-                             nn.Linear(width*height, bottleneck),
-                             nn.ReLU()
-                         ),
-                         decoder=nn.Sequential(
-                            nn.Linear(bottleneck, width*height),
-                            nn.ReLU(),
-                            nn.Sigmoid()
-                         ),
-                         bottleneck=bottleneck)
-
 class DeepAutoEncoder(AutoEncoder):
 
     @staticmethod
@@ -193,7 +149,7 @@ class AutoEncoderFactory:
         '''
         List of choices available for autoencoder
         '''
-        return ['perceptron', 'cnn', 'shallow', 'deep']
+        return ['simple', 'cnn', 'shallow', 'deep']
 
     def get_default(self):
         '''
@@ -210,11 +166,11 @@ class AutoEncoderFactory:
         '''
         match args.implementation:
             case 'perceptron':
-                return SimpleAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck)
+                return  DeepAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck,widths=[148,28])
             case 'cnn':
                 return CNNAutoEncoder(width=args.width, height=args.height)
             case 'shallow':
-                return ShallowAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck)
+                return DeepAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck,widths=[])
             case 'deep':
                 return DeepAutoEncoder(width=args.width, height=args.height,bottleneck=args.bottleneck,widths=args.widths)
 
