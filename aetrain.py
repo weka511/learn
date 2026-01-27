@@ -386,7 +386,7 @@ if __name__ == '__main__':
                     validation_losses = get_validation_loss(auto_encoder, validation_loader)
                     history += validation_losses
                     lr_history += len(validation_losses) * [lr_previous]
-                    logger.log(f'Epoch {epoch + 1} of {args.N}. Loss = {np.mean(validation_losses):.6f}, lr={lr_previous:.6f}')
+                    logger.log(f'Epoch {epoch + 1} of {args.N}. Loss = {np.mean(validation_losses):.6f}, lr={lr_previous:.3e}')
 
                     checkpoint_file_name = join(args.params, get_file_name(args))
                     ensure_we_can_save(checkpoint_file_name)
