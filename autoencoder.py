@@ -93,11 +93,21 @@ class AutoEncoder(nn.Module, ABC):
 
 
 class DeepAutoEncoder(AutoEncoder):
-
+    '''
+    This class represents an autoencoder comprising two multi-layered perceptrons; the decoder
+    layers form a mirror image of the encoder.
+    '''
     @staticmethod
-    def build(augmented_widths,decode=False):
+    def create_component(widths,decode=False):
+        '''
+        Construct one component of DeepAutoEncoder, Encoder or Decoder
+
+        Parameters:
+            widths    The width of each layer from input to output
+            decode    Specified which component is to be constructed
+        '''
         product = nn.Sequential()
-        for w1,w2 in zip(augmented_widths[:-1],augmented_widths[1:]):
+        for w1,w2 in zip(widths[:-1],widths[1:]):
             product.append(nn.Linear(w1,w2))
             product.append(nn.ReLU())
         if decode:
@@ -109,8 +119,8 @@ class DeepAutoEncoder(AutoEncoder):
         augmented_widths = [width*height] + widths + [bottleneck]
         super().__init__(width=width,
                          height=height,
-                         encoder=DeepAutoEncoder.build(augmented_widths),
-                         decoder=DeepAutoEncoder.build(augmented_widths[::-1],decode=True),
+                         encoder=DeepAutoEncoder.create_component(augmented_widths),
+                         decoder=DeepAutoEncoder.create_component(augmented_widths[::-1],decode=True),
                          bottleneck=bottleneck)
 
 class CNNAutoEncoder(AutoEncoder):
