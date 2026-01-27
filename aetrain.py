@@ -363,6 +363,7 @@ if __name__ == '__main__':
         match args.action:
             case 'train1':
                 auto_encoder = auto_encoder_factory.create(args)
+                logger.log(str(auto_encoder))
                 optimizer, optimizer_text = OptimizerFactory.create(auto_encoder, args)
                 scheduler = create_scheduler(optimizer, end_factor=args.lr_end_factor,
                                              total_iters=args.total_lr_iters,N=args.N)
