@@ -113,11 +113,11 @@ def parse_args(factory):
 
     training_group = parser.add_argument_group('Parameters for --action train')
     training_group.add_argument('--batchsize', default=128, type=int, help='Number of images per batch')
-    training_group.add_argument('--N', default=5, type=int, help='Number of epochs')
+    training_group.add_argument('--N', default=50, type=int, help='Number of epochs')
     training_group.add_argument('--n', default=5, type=int, help='Number of steps to an epoch')
     training_group.add_argument('--params', default='./params', help='Location for storing plot files')
-    training_group.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
-    training_group.add_argument('--lr_end_factor', type=float, default=0.9,
+    training_group.add_argument('--lr', type=float, default=0.00001, help='Learning Rate')
+    training_group.add_argument('--lr_end_factor', type=float, default=0.5,
                                 help='Controls Learning Rate. After total_lr_iters epochs, learning rate will be reduced by this factor')
     training_group.add_argument('--total_lr_iters', default=None, type=int, help='Number of steps to fully decay learning rate')
     training_group.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay')
