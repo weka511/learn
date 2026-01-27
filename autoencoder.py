@@ -122,7 +122,6 @@ class ShallowAutoEncoder(AutoEncoder):
     '''
     This class represets an autoencoder with minimal encoder and decoder
     '''
-
     def __init__(self, width=28, height=28,bottleneck=14):
         super().__init__(width=width,
                          height=height,
@@ -146,6 +145,7 @@ class DeepAutoEncoder(AutoEncoder):
             product.append(nn.Linear(w1,w2))
             product.append(nn.ReLU())
         if decode:
+            product.pop(-1)
             product.append(nn.Sigmoid())
         return product
 
@@ -156,11 +156,6 @@ class DeepAutoEncoder(AutoEncoder):
                          encoder=DeepAutoEncoder.build(augmented_widths),
                          decoder=DeepAutoEncoder.build(augmented_widths[::-1],decode=True),
                          bottleneck=bottleneck)
-
-        print (self.encoder)
-        print (self.decoder)
-
-
 
 class CNNAutoEncoder(AutoEncoder):
     '''
@@ -185,13 +180,10 @@ class CNNAutoEncoder(AutoEncoder):
                              nn.ReLU()
                          ))
 
-
-
     def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
-
 
 class AutoEncoderFactory:
     '''
@@ -241,7 +233,6 @@ class AutoEncoderFactory:
             print(f'Reloaded parameters from {restart_path}')
 
         return product
-
 
 class TestAutoEncoder(TestCase):
     class Args:
