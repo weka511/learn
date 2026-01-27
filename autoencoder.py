@@ -48,16 +48,13 @@ class AutoEncoder(nn.Module, ABC):
         self.bottleneck = bottleneck
 
     def forward(self, x):
-        x = x.reshape(-1, self.input_size)
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
+        return self.decode(self.encode(x))
 
     def encode(self,x):
         '''
         Encode data down to bottleneck
         '''
-        return self.encoder(x.reshape(-1, 784))
+        return self.encoder(x.reshape(-1, self.input_size))
 
     def decode(self,x):
         '''
