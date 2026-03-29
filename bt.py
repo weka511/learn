@@ -15,7 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
-'''Bradley Terry'''
+'''
+    Generate test data from a Bradley-Terry model, then try to fit to the data.
+    Compare fitted parameters to original. How large does dataset need to be?
+'''
 
 
 from argparse import ArgumentParser
@@ -36,25 +39,29 @@ def generate_parameters(m,rng = np.random.default_rng()):
     return P / P.sum()
 
 
-def generate_contests(n,P,rng = np.random.default_rng()):
+def create_contests(n,P,rng = np.random.default_rng()):
+    '''
+    Create test data, an array of contests between two players,
+    accompanied by the outcome of each contest
+    '''
     m = len(P)
     Pairwise = np.zeros((m,m))
     for i in range(m):
         for j in range(m):
             if i != j:
                 Pairwise[i,j] = P[i]/(P[i] + P[j])
-    indices = rng.permutation(m).reshape(m//2,2)
-    Contests = np.zeros((n,(m//2),3),dtype=int)
+    
+    Product = np.zeros((n,(m//2),3),dtype=int)
     for k in range(n):
-        Contests[k,:,0:2] = rng.permutation(m).reshape(m//2,2)
-    Contests = Contests.reshape(-1, Contests.shape[-1])
+        Product[k,:,0:2] = rng.permutation(m).reshape(m//2,2)
+    Product = Product.reshape(-1, Product.shape[-1])
     for k in range(n *(m//2)):
-        i = Contests[k,0] 
-        j = Contests[k,1]         
+        i = Product[k,0] 
+        j = Product[k,1]         
         assert i != j 
-        Contests[k,2] = i if rng.uniform() < Pairwise[i,j] else j
+        Product[k,2] = i if rng.uniform() < Pairwise[i,j] else j
  
-    return Contests
+    return Product
     
 def bt(Contests,m,N):
     '''
@@ -107,14 +114,14 @@ def parse_args():
     parser.add_argument('--m', type=int, default=12,help='Number of Players')
     parser.add_argument('--n', type=int, default=100,help='Number of rounds')
     parser.add_argument('--N', type=int, default=100,help='Number of Iterations')
+    parser.add_argument('--out', '-o', default=None, help='Name of plot file')
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse_args()
     rng = np.random.default_rng(args.seed)
     P = generate_parameters(args.m,rng=rng)
-    Contests = generate_contests(args.n,P,rng=rng)
-    p = bt(Contests,args.m,args.N)
+    p = bt(create_contests(args.n,P,rng=rng),args.m,args.N)
     slope, intercept, r, pvalue, se = linregress(P,p[-1,:])
     
     fig = figure(figsize=(12,12))
@@ -128,13 +135,16 @@ if __name__ == '__main__':
     ax2 = fig.add_subplot(1,2,2)
     ax2.scatter(P,p[-1,:],c='xkcd:blue',label='Calculated')
     P0 = np.sort(P)
-    ax2.plot(P0,slope*P0+intercept,c='xkcd:red',label=f'Slope={slope:.3f}, intercept={intercept:.3f}')
+    ax2.plot(P0,slope*P0+intercept,c='xkcd:red',label=f'Slope={slope:.3f}, intercept={intercept:.3e}')
     ax2.set_title(f'r={r:.3f}, pvalue={pvalue:.3e}, se={se:.3e}')
     ax2.set_xlabel('Ground Truth')
     ax2.set_ylabel('Calculated')
     ax2.legend()
     
     fig.suptitle(f'Number of Players={args.m:,}, Number of Rounds={args.n:,}, Number of Iterations={args.N:,}')
-    
+    fig.tight_layout(pad=2,h_pad=2,w_pad=2)
+    file_name = (Path(args.figs) / args.out).with_suffix('.png')
+    fig.savefig(file_name)
+    print (f'Saved in {file_name}')
     if args.show:
         show()
