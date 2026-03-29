@@ -1,6 +1,10 @@
 # learn
 Experiments in machine learning
 
+ File  | Remarks
+------------------|--------------------------------------------
+bt.py|  Generate test data from a Bradley-Terry model, then try to fit to the data. Compare fitted parameters to original. How large does dataset need to be?
+
 ## Neural Networks
 
  File  | Remarks
