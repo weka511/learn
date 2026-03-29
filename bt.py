@@ -114,7 +114,7 @@ def parse_args():
     parser.add_argument('--m', type=int, default=12,help='Number of Players')
     parser.add_argument('--n', type=int, default=100,help='Number of rounds')
     parser.add_argument('--N', type=int, default=100,help='Number of Iterations')
-    parser.add_argument('--out', '-o', default=None, help='Name of plot file')
+    parser.add_argument('out',  help='Name of plot file')
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -123,6 +123,7 @@ if __name__ == '__main__':
     P = generate_parameters(args.m,rng=rng)
     p = bt(create_contests(args.n,P,rng=rng),args.m,args.N)
     slope, intercept, r, pvalue, se = linregress(P,p[-1,:])
+    P0 = np.sort(P)
     
     fig = figure(figsize=(12,12))
     ax1 = fig.add_subplot(1,2,1)
@@ -134,7 +135,6 @@ if __name__ == '__main__':
 
     ax2 = fig.add_subplot(1,2,2)
     ax2.scatter(P,p[-1,:],c='xkcd:blue',label='Calculated')
-    P0 = np.sort(P)
     ax2.plot(P0,slope*P0+intercept,c='xkcd:red',label=f'Slope={slope:.3f}, intercept={intercept:.3e}')
     ax2.set_title(f'r={r:.3f}, pvalue={pvalue:.3e}, se={se:.3e}')
     ax2.set_xlabel('Ground Truth')
