@@ -29,20 +29,29 @@ from scipy.stats import linregress
 
 def generate_parameters(m,rng = np.random.default_rng()):
     '''
-    Generate Bradley Terry parameters
+    Generate a set of Bradley Terry parameters
     
     Parameters:
         m       Number of parameters
         rng
+        
+    Returns:
+        Bradlet Terry Parameters
     '''
-    P = rng.uniform(size=m)
-    return P / P.sum()
-
+    return rng.uniform(size=m)
 
 def create_contests(n,P,rng = np.random.default_rng()):
     '''
-    Create test data, an array of contests between two players,
-    accompanied by the outcome of each contest
+    Create test data
+    
+    Parameters:
+         n    Number of rounds
+         P    The parameters from the Bradley-Terry model
+         rng 
+         
+        Returns:
+            An array of contests between two players,
+            accompanied by the outcome of each contest   
     '''
     m = len(P)
     Pairwise = np.zeros((m,m))
@@ -65,7 +74,16 @@ def create_contests(n,P,rng = np.random.default_rng()):
     
 def bt(Contests,m,N):
     '''
-    Bradley-Terry
+    Calculate Bradley-Terry parameters from a set of contests.
+    
+    Parameters:
+        Contests   Represents the contests between players: the first two columns
+                   are the two players, and the third contains the winners
+        m          Number of Players
+        N          Number of Iterations
+        
+    Returns:
+       Fitted set of parameters
     '''
     def createW():
         W = np.zeros((m,m),dtype=int)
@@ -81,28 +99,14 @@ def bt(Contests,m,N):
                 raise RuntimeError(f'k={k}, i={i}, j={j}, Outcome mismatch: {Contests[k,2]}')
             
         return W,np.sum(W,axis=1)
-
-    def create_p():
-        p = np.zeros((N+1,m))
-        p[0,:] = rng.uniform(size=m)
-        p[0,:] /= p[0,:].sum()
-        return p
     
     W,w = createW()
-    p = create_p()
+    p = np.zeros((N+1,m))
+    p[0,:] = rng.uniform(size=m)
     
     for k in range(N):
-        for i in range(m):
-            wp = 0
-            for j in range(m):
-                if i != j:
-                    wp += (W[i,j] + W[j,i]) / (p[k,i] + p[k,j])
-                    
-            p[k+1,i] = w[i]/wp
-            
-        Z = p[k+1,:].sum()
-        p[k+1,:] /= Z
-        
+        for i in range(m):                  
+            p[k+1,i] = w[i]/sum((W[i,j] + W[j,i])/(p[k,i] + p[k,j]) for j in range(m) if i != j)
     return p
                   
 
@@ -111,9 +115,10 @@ def parse_args():
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     parser.add_argument('--seed', type=int, default=None)
-    parser.add_argument('--m', type=int, default=12,help='Number of Players')
+    parser.add_argument('--m', type=int, default=42,help='Number of Players')
     parser.add_argument('--n', type=int, default=100,help='Number of rounds')
-    parser.add_argument('--N', type=int, default=100,help='Number of Iterations')
+    parser.add_argument('--N', type=int, default=50,help='Number of Iterations')
+    parser.add_argument('--burn', type=int, default=0,help='Burn in: skip this many iterations when we display')
     parser.add_argument('out',  help='Name of plot file')
     return parser.parse_args()
 
@@ -123,19 +128,20 @@ if __name__ == '__main__':
     P = generate_parameters(args.m,rng=rng)
     p = bt(create_contests(args.n,P,rng=rng),args.m,args.N)
     slope, intercept, r, pvalue, se = linregress(P,p[-1,:])
-    P0 = np.sort(P)
+    P_sorted = np.sort(P)
     
     fig = figure(figsize=(12,12))
     ax1 = fig.add_subplot(1,2,1)
     for k in range(args.m):
-        ax1.plot(p[:,k])
+        ax1.plot(p[args.burn:,k])
     ax1.set_title('Evolution of Bradley-Terry Parameters')
     ax1.set_xlabel('Iteration')
     ax1.set_ylabel('P')
+    ax1.set_xbound(args.burn,args.N)
 
     ax2 = fig.add_subplot(1,2,2)
     ax2.scatter(P,p[-1,:],c='xkcd:blue',label='Calculated')
-    ax2.plot(P0,slope*P0+intercept,c='xkcd:red',label=f'Slope={slope:.3f}, intercept={intercept:.3e}')
+    ax2.plot(P_sorted,slope*P_sorted+intercept,c='xkcd:red',label=f'Slope={slope:.3f}, intercept={intercept:.3e}')
     ax2.set_title(f'r={r:.3f}, pvalue={pvalue:.3e}, se={se:.3e}')
     ax2.set_xlabel('Ground Truth')
     ax2.set_ylabel('Calculated')
@@ -146,5 +152,6 @@ if __name__ == '__main__':
     file_name = (Path(args.figs) / args.out).with_suffix('.png')
     fig.savefig(file_name)
     print (f'Saved in {file_name}')
+    
     if args.show:
         show()
