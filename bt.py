@@ -36,7 +36,7 @@ def generate_parameters(m,rng = np.random.default_rng()):
         rng
         
     Returns:
-        Bradlet Terry Parameters
+        Bradley Terry Parameters
     '''
     return rng.uniform(size=m)
 
