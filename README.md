@@ -4,6 +4,7 @@ Experiments in machine learning
  File  | Remarks
 ------------------|--------------------------------------------
 bt.py|  Generate test data from a Bradley-Terry model, then try to fit to the data. Compare fitted parameters to original. How large does dataset need to be?
+sumo.py|Establish Bradley-Terry Parameters from Sumon basho results
 
 ## Neural Networks
 
