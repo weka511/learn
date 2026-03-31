@@ -72,7 +72,7 @@ def create_contests(n,P,rng = np.random.default_rng()):
  
     return Product
     
-def bt(Contests,m,N):
+def bt(Contests,m,N,rng = np.random.default_rng()):
     '''
     Calculate Bradley-Terry parameters from a set of contests.
     
