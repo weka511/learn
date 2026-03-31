@@ -25,7 +25,6 @@ from argparse import ArgumentParser
 from pathlib import Path
 from matplotlib.pyplot import figure,show
 import numpy as np
-import pandas as pd
 from bt import bt
 
 def parse_args():
@@ -38,20 +37,67 @@ def parse_args():
     parser.add_argument('out',  help='Name of plot file')
     parser.add_argument('--data',default = './data/sumo')
     parser.add_argument('--year',type=int,default=2019)
+    parser.add_argument('--epsilon',type=float,default=1.0e-6)
     return parser.parse_args()
 
+class Rikishi:
+    next_seq = 0
+    def __init__(self,rikishi_id,rank,shikona):
+        self.seq = Rikishi.next_seq
+        self.rikishi_id = rikishi_id
+        self.rank = rank
+        self.shikona = shikona
+        Rikishi.next_seq += 1
+    
 class Results:
-    def __init__(self,year,data):
-        self.year = year
-        file_name = str(year)
-        path_name = (Path(data) / file_name).with_suffix('.csv')
-        self.basho = pd.read_csv(path_name)
-        shikona = self.basho['rikishi1_shikona']
-        z=0
+    def __init__(self):
+        self.rishiki = {}
         
+    def get_rishiki(self,rikishi_id,rank,shikona):
+        if rikishi_id not in self.rishiki:
+            self.rishiki[rikishi_id] = Rikishi(rikishi_id,rank,shikona)
+        return self.rishiki[rikishi_id]     
+        
+# 0      1      2  3           4             5                6               7             8      9
+# index,basho,day,rikishi1_id,rikishi1_rank,rikishi1_shikona,rikishi1_result,rikishi1_win,kimarite,rikishi2_id
+#      10            11              12            13
+# ,rikishi2_rank,rikishi2_shikona,rikishi2_result,rikishi2_win
+    def build(self,path):
+        Product = []
+        with (open(path)) as file:
+            for i,line in enumerate(file):
+                if i == 0: continue
+                fields = line.strip().split(',')
+                basho = fields[0]
+                rikishi_1 = self.get_rishiki(fields[3],fields[4],fields[5])
+                rikishi_2 = self.get_rishiki(fields[9],fields[10],fields[11])
+                if int(fields[7]) == 1 and int(fields[13]) == 0:
+                    Product.append([rikishi_1.seq,rikishi_2.seq,rikishi_1.seq])
+                elif int(fields[13]) == 1 and int(fields[7]) == 0:
+                    Product.append([rikishi_1.seq,rikishi_2.seq,rikishi_2.seq])
+                else:
+                    raise RuntimeError(str(i))
+        return np.array(Product)
 
 if __name__ == '__main__':
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-    result = Results(args.year,args.data)
+    results = Results()
+    Contests = results.build((Path(args.data) / str(args.year)).with_suffix('.csv'))
+    scores = bt(Contests,Rikishi.next_seq,args.N,epsilon=0.001)
     
+    fig = figure(figsize=(12,12))
+    ax1 = fig.add_subplot(1,1,1)
+    for k in range(Rikishi.next_seq):
+        ax1.plot(scores[args.burn:,k])
+    ax1.set_title('Evolution of Bradley-Terry Parameters')
+    ax1.set_xlabel('Iteration')
+    ax1.set_ylabel('P')
+    ax1.set_xbound(args.burn,args.N)  
+    
+    file_name = (Path(args.figs) / args.out).with_suffix('.png')
+    fig.savefig(file_name)
+    print (f'Saved in {file_name}')
+    
+    if args.show:
+        show()    
