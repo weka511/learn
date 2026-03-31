@@ -72,7 +72,7 @@ def create_contests(n,P,rng = np.random.default_rng()):
  
     return Product
     
-def bt(Contests,m,N,rng = np.random.default_rng()):
+def bt(Contests,m,N,rng = np.random.default_rng(),epsilon=0.0):
     '''
     Calculate Bradley-Terry parameters from a set of contests.
     
@@ -81,12 +81,13 @@ def bt(Contests,m,N,rng = np.random.default_rng()):
                    are the two players, and the third contains the winners
         m          Number of Players
         N          Number of Iterations
+        epsilon    Cromwell's rule
         
     Returns:
        Fitted set of parameters
     '''
     def createW():
-        W = np.zeros((m,m),dtype=int)
+        W = np.zeros((m,m)) + epsilon
         n,_ = Contests.shape
         for k in range(n):
             i = Contests[k,0]
