@@ -1,10 +1,7 @@
 # learn
 Experiments in machine learning
 
- File  | Remarks
-------------------|--------------------------------------------
-bt.py|  Generate test data from a Bradley-Terry model, then try to fit to the data. Compare fitted parameters to original. How large does dataset need to be?
-sumo.py|Establish Bradley-Terry Parameters from Sumon basho results
+
 
 ## Neural Networks
 
@@ -43,6 +40,12 @@ UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
 ---------------|--------------------------------------------
 gibbs.py|[Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 mhast.py|[Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
+
+## Miscellaneous
+ File  | Remarks
+------------------|--------------------------------------------
+bt.py|  Generate test data from a Bradley-Terry model, then try to fit to the data. Compare fitted parameters to original. How large does dataset need to be?
+sumo.py|Establish Bradley-Terry Parameters from Sumo basho results
 
 ## supporting code
 
