@@ -72,7 +72,7 @@ def create_contests(n,P,rng = np.random.default_rng()):
  
     return Product
     
-def bt(Contests,m,N,rng = np.random.default_rng(),epsilon=0.0):
+def bt(Contests,m,N,rng = np.random.default_rng(),epsilon=0.0,log=False):
     '''
     Calculate Bradley-Terry parameters from a set of contests.
     
@@ -108,7 +108,8 @@ def bt(Contests,m,N,rng = np.random.default_rng(),epsilon=0.0):
     for k in range(N):
         for i in range(m):                  
             p[k+1,i] = w[i]/sum((W[i,j] + W[j,i])/(p[k,i] + p[k,j]) for j in range(m) if i != j)
-    return p
+            
+    return np.log(p) if log else p
                   
 
 def parse_args():
