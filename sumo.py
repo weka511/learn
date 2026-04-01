@@ -73,7 +73,8 @@ class Results:
             for i,line in enumerate(file):
                 if i == 0: continue
                 fields = line.strip().split(',')
-                basho = fields[Results.BASHO]
+                basho = int(fields[Results.BASHO].split('.')[1])
+                if args.basho != None and basho != args.basho: continue
                 rikishi_1 = self.get_rikishi(fields[Results.RIKISHI_1_ID],
                                              fields[Results.RIKISHI_1_RANK],
                                              fields[Results.RIKISHI_1_SHIKONA])
@@ -94,13 +95,13 @@ def parse_args():
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     parser.add_argument('--seed', type=int, default=None)
-    parser.add_argument('--N', type=int, default=150,help='Number of Iterations')
+    parser.add_argument('--N', type=int, default=200,help='Number of Iterations')
     parser.add_argument('--burn', type=int, default=0,help='Burn in: skip this many iterations when we display')
-    parser.add_argument('out',  help='Name of plot file')
     parser.add_argument('--data',default = './data/sumo',help='Path to data files')
     parser.add_argument('--year',type=int,default=2019,help='Year to be processed')
     parser.add_argument('--epsilon',type=float,default=1.0e-6,help="Correction for Cromwell's rule")
     parser.add_argument('--cutoff',type=int, default=10,help='Controls how many labels will be displayed in plot')
+    parser.add_argument('--basho',type=int, default = None)
     return parser.parse_args()
     
 if __name__ == '__main__':
@@ -108,7 +109,7 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     results = Results()
     Contests = results.build((Path(args.data) / str(args.year)).with_suffix('.csv'))
-    scores = bt(Contests,Rikishi.next_seq,args.N,epsilon=0.001)
+    scores = bt(Contests,Rikishi.next_seq,args.N,epsilon=args.epsilon,log=True)
     indices = np.argsort(scores[-1,:])[::-1][0:args.cutoff]
     fig = figure(figsize=(12,12))
     ax1 = fig.add_subplot(1,1,1)
@@ -117,12 +118,13 @@ if __name__ == '__main__':
                  linestyle='solid' if k in indices else 'dotted',
                  label=results.rikishi_by_seq[k] if k in indices else None)
     ax1.legend(loc='center left')
-    ax1.set_title(f'Evolution of Bradley-Terry Parameters for Bashos in {args.year}' )
+    basho_text = 'all Bashos' if args.basho == None else f'Basho {args.basho}'
+    ax1.set_title(f'Evolution of Bradley-Terry Parameters for {basho_text} in {args.year}' )
     ax1.set_xlabel('Iteration')
     ax1.set_ylabel('P')
     ax1.set_xbound(args.burn,args.N)  
-    
-    file_name = (Path(args.figs) / args.out).with_suffix('.png')
+    file_stem = str(args.year) if args.basho == None else f'{args.year}-{args.basho}'
+    file_name = (Path(args.figs) / file_stem).with_suffix('.png')
     fig.savefig(file_name)
     print (f'Saved in {file_name}')
     
