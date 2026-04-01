@@ -110,11 +110,12 @@ if __name__ == '__main__':
     results = Results()
     Contests = results.build((Path(args.data) / str(args.year)).with_suffix('.csv'))
     scores = bt(Contests,Rikishi.next_seq,args.N,epsilon=args.epsilon,log=True)
+    means = np.mean(scores,axis=1)
     indices = np.argsort(scores[-1,:])[::-1][0:args.cutoff]
     fig = figure(figsize=(12,12))
     ax1 = fig.add_subplot(1,1,1)
     for k in range(Rikishi.next_seq):
-        ax1.plot(scores[args.burn:,k],
+        ax1.plot(scores[args.burn:,k] - means[args.burn:],
                  linestyle='solid' if k in indices else 'dotted',
                  label=results.rikishi_by_seq[k] if k in indices else None)
     ax1.legend(loc='center left')
