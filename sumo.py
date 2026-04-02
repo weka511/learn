@@ -40,6 +40,9 @@ class Rikishi:
         self.loss = 0
     
     def get_rank(self):
+        '''
+        Format rank for display"
+        '''
         match self.rank[0]:
             case 'Y':
                 return f'Yokozuna {self.rank[-1].upper()}'
@@ -54,6 +57,11 @@ class Rikishi:
                     return f'Maegashira {int(self.rank[1:-1])} {self.rank[-1].upper()}'
                 except ValueError:
                     pass
+            case 'J':
+                try:
+                    return f'Juryo {int(self.rank[1:-1])} {self.rank[-1].upper()}'
+                except ValueError:
+                    pass            
                 
         return self.rank
     
