@@ -38,9 +38,27 @@ class Rikishi:
         Rikishi.next_seq += 1
         self.win = 0
         self.loss = 0
-        
+    
+    def get_rank(self):
+        match self.rank[0]:
+            case 'Y':
+                return f'Yokozuna {self.rank[-1].upper()}'
+            case 'O':
+                return f'Ozeki {self.rank[-1].upper()}'
+            case 'S':
+                return f'Sekiwaki {self.rank[-1].upper()}'
+            case 'K':
+                return f'Komosubi {self.rank[-1].upper()}'
+            case 'M':
+                try:
+                    return f'Maegashira {int(self.rank[1:-1])} {self.rank[-1].upper()}'
+                except ValueError:
+                    pass
+                
+        return self.rank
+    
     def __str__(self):
-        return f'{self.seq} {self.rikishi_id} {self.rank} {self.shikona} {self.win} {self.loss}'
+        return f'{self.shikona} {self.get_rank()} ({self.win}-{self.loss})'
     
 class Results:
     INDEX = 0
@@ -116,6 +134,7 @@ def parse_args():
     return parser.parse_args()
     
 if __name__ == '__main__':
+    LEGEND_BREAK = 24          # Number of rikishi per legend
     args = parse_args()
     rng = np.random.default_rng(args.seed)
     results = Results()
@@ -125,17 +144,18 @@ if __name__ == '__main__':
     indices = np.argsort(scores[-1,:])[::-1]
     fig = figure(figsize=(12,12))
     ax1 = fig.add_subplot(1,1,1)
-    line_plots = []
+    line_plots_for_legend = []
     for k in range(Rikishi.next_seq):
-        if results.rikishi_by_seq[k].rank[0] not in args.ranks: continue
+        if results.rikishi_by_seq[k].rank[0] not in args.ranks: # Is this rikishi within 
+            continue                                            # the ranks we want to plot?
         line_plot, = ax1.plot(scores[args.burn:,k] - means[args.burn:],
                  linestyle='solid' if k in indices else 'dotted',
                  label=results.rikishi_by_seq[k])
-        line_plots.append(line_plot)
-    
-    legend1 = ax1.legend(handles=line_plots[:24],loc='lower left')
+        line_plots_for_legend.append(line_plot)
+ 
+    legend1 = ax1.legend(handles=line_plots_for_legend[:LEGEND_BREAK],loc='lower left')
     ax1.add_artist(legend1)
-    ax1.legend(handles=line_plots[24:],loc='lower right')
+    ax1.legend(handles=line_plots_for_legend[LEGEND_BREAK:],loc='lower right')
     basho_text = 'all Bashos' if args.basho == None else f'Basho {args.basho}'
     ax1.set_title(f'Evolution of Bradley-Terry Parameters for {basho_text} in {args.year}' )
     ax1.set_xlabel('Iteration')
