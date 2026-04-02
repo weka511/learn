@@ -36,9 +36,11 @@ class Rikishi:
         self.rank = rank
         self.shikona = shikona
         Rikishi.next_seq += 1
+        self.win = 0
+        self.loss = 0
         
     def __str__(self):
-        return f'{self.seq} {self.rikishi_id} {self.rank} {self.shikona}'
+        return f'{self.seq} {self.rikishi_id} {self.rank} {self.shikona} {self.win} {self.loss}'
     
 class Results:
     INDEX = 0
@@ -69,22 +71,31 @@ class Results:
         
     def build(self,path):
         Product = []
+        id_1 = None
+        id_2 = None
         with (open(path)) as file:
             for i,line in enumerate(file):
                 if i == 0: continue
                 fields = line.strip().split(',')
                 basho = int(fields[Results.BASHO].split('.')[1])
                 if args.basho != None and basho != args.basho: continue
-                rikishi_1 = self.get_rikishi(fields[Results.RIKISHI_1_ID],
+                if id_2 == fields[Results.RIKISHI_1_ID] and id_1 == fields[Results.RIKISHI_2_ID]: continue
+                id_1 = fields[Results.RIKISHI_1_ID]
+                id_2 = fields[Results.RIKISHI_2_ID]
+                rikishi_1 = self.get_rikishi(id_1,
                                              fields[Results.RIKISHI_1_RANK],
                                              fields[Results.RIKISHI_1_SHIKONA])
-                rikishi_2 = self.get_rikishi(fields[Results.RIKISHI_2_ID],
+                rikishi_2 = self.get_rikishi(id_2,
                                              fields[Results.RIKISHI_2_RANK],
                                              fields[Results.RIKISHI_2_SHIKONA])
                 if int(fields[Results.RIKISHI_1_WIN]) == 1 and int(fields[Results.RIKISHI_2_WIN]) == 0:
                     Product.append([rikishi_1.seq,rikishi_2.seq,rikishi_1.seq])
+                    rikishi_1.win += 1
+                    rikishi_2.loss += 1
                 elif int(fields[Results.RIKISHI_2_WIN]) == 1 and int(fields[Results.RIKISHI_1_WIN]) == 0:
                     Product.append([rikishi_1.seq,rikishi_2.seq,rikishi_2.seq])
+                    rikishi_2.win += 1
+                    rikishi_1.loss += 1                    
                 else:
                     raise RuntimeError(str(i))
                
@@ -114,11 +125,16 @@ if __name__ == '__main__':
     indices = np.argsort(scores[-1,:])[::-1][0:args.cutoff]
     fig = figure(figsize=(12,12))
     ax1 = fig.add_subplot(1,1,1)
+    line_plots = []
     for k in range(Rikishi.next_seq):
-        ax1.plot(scores[args.burn:,k] - means[args.burn:],
+        line_plot, = ax1.plot(scores[args.burn:,k] - means[args.burn:],
                  linestyle='solid' if k in indices else 'dotted',
-                 label=results.rikishi_by_seq[k] if k in indices else None)
-    ax1.legend(loc='center left')
+                 label=results.rikishi_by_seq[k])# if k in indices else None)
+        line_plots.append(line_plot)
+    
+    legend1 = ax1.legend(handles=line_plots[:21],loc='lower left')
+    ax1.add_artist(legend1)
+    ax1.legend(handles=line_plots[21:],loc='lower right')
     basho_text = 'all Bashos' if args.basho == None else f'Basho {args.basho}'
     ax1.set_title(f'Evolution of Bradley-Terry Parameters for {basho_text} in {args.year}' )
     ax1.set_xlabel('Iteration')
