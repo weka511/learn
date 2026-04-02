@@ -111,8 +111,8 @@ def parse_args():
     parser.add_argument('--data',default = './data/sumo',help='Path to data files')
     parser.add_argument('--year',type=int,default=2019,help='Year to be processed')
     parser.add_argument('--epsilon',type=float,default=1.0e-6,help="Correction for Cromwell's rule")
-    parser.add_argument('--cutoff',type=int, default=10,help='Controls how many labels will be displayed in plot')
     parser.add_argument('--basho',type=int, default = None)
+    parser.add_argument('--ranks',default='MKSOY')
     return parser.parse_args()
     
 if __name__ == '__main__':
@@ -122,19 +122,20 @@ if __name__ == '__main__':
     Contests = results.build((Path(args.data) / str(args.year)).with_suffix('.csv'))
     scores = bt(Contests,Rikishi.next_seq,args.N,epsilon=args.epsilon,log=True)
     means = np.mean(scores,axis=1)
-    indices = np.argsort(scores[-1,:])[::-1][0:args.cutoff]
+    indices = np.argsort(scores[-1,:])[::-1]
     fig = figure(figsize=(12,12))
     ax1 = fig.add_subplot(1,1,1)
     line_plots = []
     for k in range(Rikishi.next_seq):
+        if results.rikishi_by_seq[k].rank[0] not in args.ranks: continue
         line_plot, = ax1.plot(scores[args.burn:,k] - means[args.burn:],
                  linestyle='solid' if k in indices else 'dotted',
-                 label=results.rikishi_by_seq[k])# if k in indices else None)
+                 label=results.rikishi_by_seq[k])
         line_plots.append(line_plot)
     
-    legend1 = ax1.legend(handles=line_plots[:21],loc='lower left')
+    legend1 = ax1.legend(handles=line_plots[:24],loc='lower left')
     ax1.add_artist(legend1)
-    ax1.legend(handles=line_plots[21:],loc='lower right')
+    ax1.legend(handles=line_plots[24:],loc='lower right')
     basho_text = 'all Bashos' if args.basho == None else f'Basho {args.basho}'
     ax1.set_title(f'Evolution of Bradley-Terry Parameters for {basho_text} in {args.year}' )
     ax1.set_xlabel('Iteration')
