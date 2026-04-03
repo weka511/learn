@@ -16,11 +16,10 @@
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
-    Generate test data from a Bradley-Terry model, then try to fit to the data.
-    Compare fitted parameters to original. How large does dataset need to be?
+    Fit a Bradley-Terry model to data from Sumo bashos. 
+    The data has been downloaxed from
+    https://www.kaggle.com/datasets/thedevastator/sumo-wrestling-matches-results-1985-2019
 '''
-
-
 from argparse import ArgumentParser
 from pathlib import Path
 from matplotlib.pyplot import figure,show
@@ -28,6 +27,10 @@ import numpy as np
 from bt import bt
 
 class Rikishi:
+    '''
+    This class represents one Rikishi: name, rank at time of tournament, etc,
+    plus the number of wins and number of losses.
+    '''
     next_seq = 0
     
     def __init__(self,rikishi_id,rank,shikona):
@@ -69,6 +72,10 @@ class Rikishi:
         return f'{self.shikona} {self.get_rank()} ({self.win}-{self.loss})'
     
 class Results:
+    '''
+    This class holds the reults of a basho or set of bashos
+    '''
+    # The index of each field in a data record
     INDEX = 0
     BASHO = 1
     DAY = 2
@@ -89,6 +96,17 @@ class Results:
         self.rikishi_by_seq = {}
         
     def get_rikishi(self,rikishi_id,rank,shikona):
+        '''
+        Ensure rikishi is stored uniquely in dataset
+        
+        Parameters:
+            rikishi_id
+            rank
+            shikona
+            
+        Returns:
+            Unique occurence of rikishi
+        '''
         if rikishi_id not in self.rikishi:
             rikishi =  Rikishi(rikishi_id,rank,shikona)
             self.rikishi[rikishi_id] = rikishi
@@ -96,6 +114,12 @@ class Results:
         return self.rikishi[rikishi_id]     
         
     def build(self,path):
+        '''
+        Construct results from file
+        
+        Parameters:
+            path      Identified location of file
+        '''
         Product = []
         id_1 = None
         id_2 = None

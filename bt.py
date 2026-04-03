@@ -16,8 +16,7 @@
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
-    Generate test data from a Bradley-Terry model, then try to fit to the data.
-    Compare fitted parameters to original. How large does dataset need to be?
+    Fit a Bradley-Terry model to data.
 '''
 
 
@@ -33,32 +32,33 @@ def generate_parameters(m,rng = np.random.default_rng()):
     
     Parameters:
         m       Number of parameters
-        rng
+        rng     Random number generator
         
     Returns:
-        Bradley Terry Parameters
+        A set of data that can be used as parameters for Bradley-Terry Model
     '''
     return rng.uniform(size=m)
 
 def create_contests(n,P,rng = np.random.default_rng()):
     '''
-    Create test data
+    Create test data using a Bradley-Terry model
     
     Parameters:
          n    Number of rounds
          P    The parameters from the Bradley-Terry model
-         rng 
+         rng  Random number generator
          
         Returns:
             An array of contests between two players,
-            accompanied by the outcome of each contest   
+            accompanied by the outcome of each contest.
+            Each row comprises three numbers, the two players and the victor.
     '''
     m = len(P)
-    Pairwise = np.zeros((m,m))
+    PairwiseProbabilities = np.zeros((m,m))
     for i in range(m):
         for j in range(m):
             if i != j:
-                Pairwise[i,j] = P[i]/(P[i] + P[j])
+                PairwiseProbabilities[i,j] = P[i]/(P[i] + P[j])
     
     Product = np.zeros((n,(m//2),3),dtype=int)
     for k in range(n):
@@ -68,7 +68,7 @@ def create_contests(n,P,rng = np.random.default_rng()):
         i = Product[k,0] 
         j = Product[k,1]         
         assert i != j 
-        Product[k,2] = i if rng.uniform() < Pairwise[i,j] else j
+        Product[k,2] = i if rng.uniform() < PairwiseProbabilities[i,j] else j
  
     return Product
     
@@ -81,12 +81,18 @@ def bt(Contests,m,N,rng = np.random.default_rng(),epsilon=0.0,log=False):
                    are the two players, and the third contains the winners
         m          Number of Players
         N          Number of Iterations
-        epsilon    Correction for Cromwell's rule
+        epsilon    Correction for Cromwell's rule: this can be set to a 
+                   small non-zero value if data is sparse. It is best to
+                   ignore this parameter unless there we see divide by zero errors
+        log        If set returns beta, where exp(beta)=p
         
     Returns:
        Fitted set of parameters
     '''
     def createW():
+        '''
+        Calculate the number of times i beats j, plus a correction for Cromwell's rule.
+        '''
         W = np.zeros((m,m)) + epsilon
         n,_ = Contests.shape
         for k in range(n):
