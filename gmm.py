@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2022-2025 Greenweaves Software Limited
+# Copyright (C) 2022-2026 Greenweaves Software Limited
 
 # Simon A. Crase -- simon@greenweaves.nz
 
@@ -24,7 +24,7 @@
 '''
 
 from argparse import ArgumentParser
-from os.path import join
+from pathlib import Path
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
 from utils import generate_xkcd_colours
@@ -37,13 +37,12 @@ class GaussionMixtureModel:
         mu      Array of means for the clusters. The generated data
                 will have the same the same number of dimensions as mu
         sigma   Array of standard deviations for the clusters.
-        name    Name, used for saved file
         n       Number of points
-        k       Number of clustes
+        k       Number of clusters
         d       Dimensionalty of space
     '''
 
-    def __init__(self, mu=np.zeros((1)), sigma=np.ones((1)), name='gmm', n=100):
+    def __init__(self, mu=np.zeros((1)), sigma=np.ones((1)),  n=100):
         try:
             self.k,self.d = mu.shape
         except ValueError:
@@ -51,7 +50,6 @@ class GaussionMixtureModel:
             self.d = 1
         self.mu = mu.copy()
         self.sigma = sigma.copy()
-        self.name = name
         self.n = n
 
     def create_data(self):
@@ -65,24 +63,23 @@ class GaussionMixtureModel:
             samples[i] += self.mu[self.choice[i]]
         return samples
 
-    def save(self, rng=np.random.default_rng(),path='./data'):
+    def save(self,path_name):
         '''
         Save generated data and its sufficient statistics
 
         Parameters:
-            rng    Random number generator
-            path   Folder for storing data
+            path_name   Full path name of file
         '''
-        np.savez(join(path,self.name),data=self.create_data(),mu=self.mu,sigma=self.sigma,choice=self.choice)
+        np.savez(path_name,data=self.create_data(),mu=self.mu,sigma=self.sigma,choice=self.choice)
 
-    def load(self,path='./data'):
+    def load(self,path_name):
         '''
         Load data and its sufficient statistics
 
         Parameters:
-            path   Folder where data is to be found
+            path_name   Full path name of file
         '''
-        with open(join(path,f'{self.name}.npz'), 'rb') as f:
+        with open(path_name, 'rb') as f:
             npzfile = np.load(f)
             self.mu = npzfile['mu']
             self.sigma = npzfile['sigma']
@@ -119,16 +116,20 @@ def parse_args():
     '''
     Extract parameters from command line
     '''
+    K = 3
+    n = 1000
+    sigma = 1.0
+    d = 1
     parser = ArgumentParser(__doc__)
     parser.add_argument('--name', help='Base of name for files')
-    parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
-    parser.add_argument('--n', type=int, default=1000, help='Number of points')
+    parser.add_argument('--K', type=int, default=K, help=f'Number of Gaussians [{K}]')
+    parser.add_argument('--n', type=int, default=n, help=f'Number of points [{n}]')
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
-    parser.add_argument('--sigma', type=float, default=1.0, help='Standard deviation')
-    parser.add_argument('--path', default='./data', help='Path to folder where data are to be stored')
+    parser.add_argument('--sigma', type=float, default=sigma, help=f'Standard deviation [{sigma}]')
+    parser.add_argument('--data', default='./data', help='Path to folder where data are to be stored')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
-    parser.add_argument('--d', type=dimensionality, default=1, help='Dimensionality of space')
+    parser.add_argument('--d', type=dimensionality, default=d, help=f'Dimensionality of space [{d}]')
     return parser.parse_args()
 
 def create_colours(K):
@@ -149,15 +150,18 @@ if __name__ == '__main__':
     shape = args.K if args.d == 1 else (args.K,args.d)
     sigma = args.sigma * np.ones(shape=shape)
     mu = rng.uniform(low=0, high=25, size=shape)
-    model = GaussionMixtureModel(name=get_name(args), mu=mu, sigma=sigma, n=args.n)
-    model.save(rng=rng,path=args.path)
-    data = model.load(path=args.path)
+    model = GaussionMixtureModel(mu=mu, sigma=sigma, n=args.n)
+    path_name = Path(args.data) / get_name(args)
+    model.save(path_name.with_suffix('.npz'))
+    print (f'Saved data in {path_name.with_suffix('.npz')}')
+    data = model.load(path_name.with_suffix('.npz'))
+    
     fig = figure(figsize=(10, 5))
     colours = create_colours(args.K)
     match args.d:
         case 1:
             ax = fig.add_subplot(1, 1, 1)
-            n, _, _ = ax.hist(data, bins='sturges',density=True)
+            ax.hist(data, bins='sturges',density=True,color='xkcd:blue')
             ax.vlines(model.mu, 0, ax.get_ylim()[1], colors='xkcd:red', linestyles='dotted')
         case 2:
             ax = fig.add_subplot(1, 1, 1)
@@ -167,6 +171,8 @@ if __name__ == '__main__':
             ax.scatter(data[:,0],data[:,1],data[:,2],c=colours[model.choice],s=5)
 
     ax.set_title(f'{args.d}D Gaussian Mixture Model with {args.K} centres')
-    fig.savefig(join(args.figs,get_name(args)))
+
+    fig.savefig((Path(args.figs) / get_name(args)).with_suffix('.png'))
+
     if args.show:
         show()
