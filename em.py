@@ -23,11 +23,13 @@
 
 from argparse import ArgumentParser
 from os.path import basename,join
+from pathlib import Path
 from random import choice
 from time import time
 from scipy.stats import norm
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
+from gmm import GaussionMixtureModel
 
 def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1)), K=3, N=25,
                         rtol=1.0e-6, n_burn_in=3):
@@ -165,9 +167,25 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
     parser.add_argument('--show', action='store_true', default=False, help='Show plots')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
+    parser.add_argument('--load', default = None)
+    parser.add_argument('--data', default='./data', help='Path to folder where data are stored')
     return parser.parse_args()
 
-
+def get_starting_values(args):
+    if args.load == None:
+        xs = rng.normal(loc=args.mean, scale=args.sigma, size=args.N)
+        K = 1
+        mu = rng.choice(xs,size=K)
+    else:
+        path_name = Path(args.data) / args.load
+        model = GaussionMixtureModel()
+        xs = np.ravel(model.load(path_name.with_suffix('.npz')))
+        K = model.mu.shape[0]
+        mu = rng.choice(xs,size=K)
+    sigma = np.ones((K))
+    alpha = np.ones((K))/K
+    return xs,K,mu,sigma,alpha
+    
 if __name__ == '__main__':
     rcParams.update({
         "text.usetex": True
@@ -177,13 +195,11 @@ if __name__ == '__main__':
 
     rng = np.random.default_rng(args.seed)
     start = time()
-    xs = rng.normal(loc=args.mean, scale=args.sigma, size=args.N)
 
-    L, _, mu, sigma = maximize_likelihood(xs,
-                                          mu=np.array([rng.choice(xs)]), 
-                                          sigma=2*np.ones((1)),
-                                          alpha=np.ones((1)),
-                                          K=1)
+  
+    xs,K,mu,sigma,alpha = get_starting_values(args) 
+    
+    L, _, mu, sigma = maximize_likelihood(xs,mu=mu,sigma=sigma,alpha=alpha,K=K,rtol=0.01)
     fig = figure(figsize=(10, 10))
     plot_data(xs, mu, sigma, ax=fig.add_subplot(2,1,1))
 
