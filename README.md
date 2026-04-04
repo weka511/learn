@@ -30,7 +30,7 @@ cavi1.py|CAVI for Univariate Gaussian from [Univariate Gaussian Example](https:/
 cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
 cavi.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
 cavi_nd.py|A version of cavi.py that works in multiple dimensions
-em.py|Expectation Maximization
+em.py|Fit Gaussian to  data using Expectation Maximization
 gmm.py|Generate data in accordance with Gaussian Mixture Model for cavi_nd.py
 UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
 
