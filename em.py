@@ -24,7 +24,6 @@
 from argparse import ArgumentParser
 from os.path import basename,join
 from pathlib import Path
-from random import choice
 from time import time
 from scipy.stats import norm
 from matplotlib.pyplot import figure, rcParams, show
@@ -123,6 +122,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
             return np.array(likelihoods), alpha, mu, sigma
 
         alpha, mu, sigma = m_step(e_step(mu=mu,sigma=sigma,alpha=alpha))
+    return np.array(likelihoods), alpha, mu, sigma
         
 
 def plot_data(xs, mu, sigma, ax=None):
@@ -148,7 +148,7 @@ def plot_data(xs, mu, sigma, ax=None):
     ax.set_xlabel('x')
     ax.legend()
 
-def plot_Likelihoods(Likelihoods, ax=None):
+def plot_likelihoods(Likelihoods, ax=None):
     '''
     Plot the likelihood computed at each step
     '''
@@ -181,29 +181,29 @@ def get_starting_values(args):
         model = GaussionMixtureModel()
         xs = np.ravel(model.load(path_name.with_suffix('.npz')))
         K = model.mu.shape[0]
-        mu = rng.choice(xs,size=K)
+        n = len(xs)
+        xs1 = np.sort(xs)
+        mu = np.array([xs1[n//4],xs1[n//2],xs1[3*n//4]])
+   
     sigma = np.ones((K))
     alpha = np.ones((K))/K
     return xs,K,mu,sigma,alpha
     
 if __name__ == '__main__':
     rcParams.update({
-        "text.usetex": True
+        'text.usetex' : True
     })
 
     args = parse_args()
-
     rng = np.random.default_rng(args.seed)
     start = time()
 
-  
-    xs,K,mu,sigma,alpha = get_starting_values(args) 
-    
+    xs,K,mu,sigma,alpha = get_starting_values(args)   
     L, _, mu, sigma = maximize_likelihood(xs,mu=mu,sigma=sigma,alpha=alpha,K=K,rtol=0.01)
     fig = figure(figsize=(10, 10))
     plot_data(xs, mu, sigma, ax=fig.add_subplot(2,1,1))
 
-    plot_Likelihoods(L, ax=fig.add_subplot(2,1,2))
+    plot_likelihoods(L, ax=fig.add_subplot(2,1,2))
     fig.tight_layout(h_pad=2,pad=5)
     fig.suptitle('Gaussian Model fitted by Expectation Maximization')
     fig.savefig(join(args.figs,basename(__file__).split('.')[0]))
