@@ -29,6 +29,7 @@ from scipy.stats import norm
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
 from gmm import GaussionMixtureModel
+from warnings import filterwarnings
 
 def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1)), K=3, N=25,
                         rtol=1.0e-6, n_burn_in=3):
@@ -63,7 +64,11 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
         Returns:
             Log of likelihood
         '''
-        return sum(np.log(norm.pdf(xs[i], loc=mu[k], scale=sigma[k])) for i in range(len(xs)) for k in range(K))
+        def get_one_log_likelihood(x,loc,scale):
+            return - 0.5*((x-loc)/max(scale,0.001))**2 #FIXME
+            #return np.log(norm.pdf(x, loc=loc, scale=scale))
+        return sum(get_one_log_likelihood(xs[i], mu[k], sigma[k]) for i in range(len(xs)) for k in range(K))
+        #return sum(np.log(norm.pdf(xs[i], loc=mu[k], scale=sigma[k])) for i in range(len(xs)) for k in range(K))
 
     def e_step(mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1))):
         '''
@@ -141,8 +146,8 @@ def plot_data(xs, mu, sigma, ax=None):
 
     n, bins, _ = ax.hist(xs, bins=50, label=fr'1: Data $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',color='xkcd:blue')
     midpoints = (bins[:-1] + bins[1:]) / 2
-    density = normalize(norm.pdf(midpoints, loc=mu, scale=sigma),n)
-    ax.plot(midpoints,density,color='xkcd:cyan',label=fr'2: EM $\mu=${mu[0]:.3f}, $\sigma=${sigma[0]:.3f}')
+    #density = normalize(norm.pdf(midpoints, loc=mu, scale=sigma),n)
+    #ax.plot(midpoints,density,color='xkcd:cyan',label=fr'2: EM $\mu=${mu[0]:.3f}, $\sigma=${sigma[0]:.3f}')
     ax.set_title('Data compared to  EM')
     ax.set_ylabel('p')
     ax.set_xlabel('x')
@@ -193,7 +198,7 @@ if __name__ == '__main__':
     rcParams.update({
         'text.usetex' : True
     })
-
+    filterwarnings('error')
     args = parse_args()
     rng = np.random.default_rng(args.seed)
     start = time()
