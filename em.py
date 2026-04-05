@@ -64,11 +64,10 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
         Returns:
             Log of likelihood
         '''
-        def get_one_log_likelihood(x,loc,scale):
-            return - 0.5*((x-loc)/max(scale,0.001))**2 #FIXME
-            #return np.log(norm.pdf(x, loc=loc, scale=scale))
+        def get_one_log_likelihood(x,loc,scale,epsilon=1e-6):
+            return - 0.5*((x-loc)/max(scale,epsilon))**2 #FIXME
+ 
         return sum(get_one_log_likelihood(xs[i], mu[k], sigma[k]) for i in range(len(xs)) for k in range(K))
-        #return sum(np.log(norm.pdf(xs[i], loc=mu[k], scale=sigma[k])) for i in range(len(xs)) for k in range(K))
 
     def e_step(mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1))):
         '''
@@ -151,6 +150,7 @@ def plot_data(xs, mu0, mu, sigma, ax=None):
         ax.plot(midpoints,density,color='xkcd:cyan',label=fr'2: EM $\mu=${mu[0]:.3f}, $\sigma=${sigma[0]:.3f}')
     else:
         pass
+    
     y0,y1 = ax.get_ylim()
     ax.vlines(mu,y0,y1,color='xkcd:red',label=r'$\mu$'f'{mu}')
     ax.vlines(mu0,y0,y1,color='xkcd:red',linestyles='dashed',label=r'$\mu_0$'f'{mu0}')
@@ -182,6 +182,12 @@ def parse_args():
     parser.add_argument('--data', default='./data', help='Path to folder where data are stored')
     return parser.parse_args()
 
+def estimate_initial_means(xs,K):
+    n = len(xs)
+    xs1 = np.sort(xs)
+    indices = [(n*i)//(K+1) for i in range(1,K+1)]
+    return np.sort(xs1[indices])
+
 def get_starting_values(args):
     if args.load == None:
         xs = rng.normal(loc=args.mean, scale=args.sigma, size=args.N)
@@ -192,10 +198,7 @@ def get_starting_values(args):
         model = GaussionMixtureModel()
         xs = np.ravel(model.load(path_name.with_suffix('.npz')))
         K = model.mu.shape[0]
-        n = len(xs)
-        xs1 = np.sort(xs)
-        indices = [(n*i)//(K+1) for i in range(1,K+1)]
-        mu = np.sort(xs[indices])
+        mu = estimate_initial_means(xs,K)
    
     sigma = np.ones((K))
     alpha = np.ones((K))/K
