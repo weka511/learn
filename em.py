@@ -31,7 +31,7 @@ import numpy as np
 from gmm import GaussionMixtureModel
 from warnings import filterwarnings
 
-def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1)), K=3, N=25,
+def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1)), K=3, N=250,
                         rtol=1.0e-6, n_burn_in=3):
     '''
     Determine the clusters that maximize likelihood
@@ -85,7 +85,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
         w = np.empty((len(xs),K))
         for i in range(len(xs)):
             for k in range(K):
-                w[i,k] = norm.pdf(xs[i],loc=mu[k],scale=sigma[k]) * alpha[k]
+                w[i,k] = norm.pdf(xs[i],loc=mu[k],scale=max(sigma[k],0.002)) * alpha[k]  #FIXME
 
         row_sums = w.sum(axis=1)
         return w / row_sums[:, np.newaxis]
@@ -130,7 +130,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
     return np.array(likelihoods), alpha, mu, sigma
         
 
-def plot_data(xs, mu, sigma, ax=None):
+def plot_data(xs, mu0, mu, sigma, ax=None):
     '''
     Plot the data and the fitted Gaussian
     '''
@@ -143,11 +143,17 @@ def plot_data(xs, mu, sigma, ax=None):
             n      Empirical distribution
         '''
         return (n.max()/ ys.max()) * ys
-
+    K = len(mu)
     n, bins, _ = ax.hist(xs, bins=50, label=fr'1: Data $\mu=${np.mean(xs):.3f}, $\sigma=${np.std(xs):.3f}',color='xkcd:blue')
     midpoints = (bins[:-1] + bins[1:]) / 2
-    #density = normalize(norm.pdf(midpoints, loc=mu, scale=sigma),n)
-    #ax.plot(midpoints,density,color='xkcd:cyan',label=fr'2: EM $\mu=${mu[0]:.3f}, $\sigma=${sigma[0]:.3f}')
+    if K ==1:
+        density = normalize(norm.pdf(midpoints, loc=mu, scale=sigma),n)
+        ax.plot(midpoints,density,color='xkcd:cyan',label=fr'2: EM $\mu=${mu[0]:.3f}, $\sigma=${sigma[0]:.3f}')
+    else:
+        pass
+    y0,y1 = ax.get_ylim()
+    ax.vlines(mu,y0,y1,color='xkcd:red',label=r'$\mu$'f'{mu}')
+    ax.vlines(mu0,y0,y1,color='xkcd:red',linestyles='dashed',label=r'$\mu_0$'f'{mu0}')
     ax.set_title('Data compared to  EM')
     ax.set_ylabel('p')
     ax.set_xlabel('x')
@@ -188,7 +194,8 @@ def get_starting_values(args):
         K = model.mu.shape[0]
         n = len(xs)
         xs1 = np.sort(xs)
-        mu = np.array([xs1[n//4],xs1[n//2],xs1[3*n//4]])
+        indices = [(n*i)//(K+1) for i in range(1,K+1)]
+        mu = np.sort(xs[indices])
    
     sigma = np.ones((K))
     alpha = np.ones((K))/K
@@ -203,10 +210,10 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     start = time()
 
-    xs,K,mu,sigma,alpha = get_starting_values(args)   
-    L, _, mu, sigma = maximize_likelihood(xs,mu=mu,sigma=sigma,alpha=alpha,K=K,rtol=0.01)
+    xs,K,mu0,sigma0,alpha0 = get_starting_values(args)   
+    L, _, mu, sigma = maximize_likelihood(xs,mu=mu0,sigma=sigma0,alpha=alpha0,K=K)
     fig = figure(figsize=(10, 10))
-    plot_data(xs, mu, sigma, ax=fig.add_subplot(2,1,1))
+    plot_data(xs, mu0, mu, sigma, ax=fig.add_subplot(2,1,1))
 
     plot_likelihoods(L, ax=fig.add_subplot(2,1,2))
     fig.tight_layout(h_pad=2,pad=5)
