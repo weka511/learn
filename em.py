@@ -65,10 +65,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
         Returns:
             Log of likelihood
         '''
-        def get_one_log_likelihood(x,loc,scale,epsilon=1e-6):
-            return - 0.5*((x-loc)/max(scale,epsilon))**2 #FIXME
- 
-        return sum(get_one_log_likelihood(xs[i], mu[k], sigma[k]) for i in range(len(xs)) for k in range(K))
+        return sum(- 0.5*((xs[i]-mu[k])**2/sigma[k]) for i in range(len(xs)) for k in range(K))
 
     def e_step(mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1))):
         '''
@@ -85,7 +82,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
         w = np.empty((len(xs),K))
         for i in range(len(xs)):
             for k in range(K):
-                w[i,k] = norm.pdf(xs[i],loc=mu[k],scale=max(sigma[k],0.002)) * alpha[k]  #FIXME
+                w[i,k] = np.exp(-0.5*((xs[i]-mu[k])**2/sigma[k])) * alpha[k]
 
         row_sums = w.sum(axis=1)
         return w / row_sums[:, np.newaxis]
@@ -123,8 +120,8 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
 
     for i in range(N):
         likelihoods.append(get_log_likelihood(mu=mu,sigma=sigma,alpha=alpha))
-        if i > n_burn_in and abs(likelihoods[-1] / likelihoods[-2] - 1) < rtol:
-            return np.array(likelihoods), alpha, mu, sigma
+        #if i > n_burn_in and abs(likelihoods[-1] / likelihoods[-2] - 1) < rtol:
+            #return np.array(likelihoods), alpha, mu, sigma
 
         alpha, mu, sigma = m_step(e_step(mu=mu,sigma=sigma,alpha=alpha))
     return np.array(likelihoods), alpha, mu, sigma
@@ -177,7 +174,8 @@ def plot_likelihoods(Likelihoods, ax=None):
 
 def parse_args():
     parser = ArgumentParser(__doc__)
-    parser.add_argument('--N', type=int, default=5000, help='Dataset size')
+    parser.add_argument('--N', type=int, default=5, help='Number of iterations')
+    parser.add_argument('--n', type=int, default=5000, help='Dataset size')
     parser.add_argument('--mean', type=float, default=0.5, help='Mean for dataset')
     parser.add_argument('--sigma', type=float, default=0.5, help='Standard deviation')
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
@@ -207,7 +205,7 @@ def estimate_initial_means(xs,K,m=1000,rng = np.random.default_rng()):
     indices = [(n*i)//(K+1) for i in range(1,K+1)]
     return np.sort(xs1[indices])
 
-def get_starting_values(load,mean,sigma, N,data,rng = np.random.default_rng()):
+def get_starting_values(load,mean,sigma, n,data,rng = np.random.default_rng()):
     '''
     Generate or load data, and assign initial values to parameters
     
@@ -215,11 +213,11 @@ def get_starting_values(load,mean,sigma, N,data,rng = np.random.default_rng()):
         load
         mean
         sigma
-        N
+        n         Number of poibts to be generated
         data
     '''
     if load == None:
-        xs = rng.normal(loc=mean, scale=sigma, size=N)
+        xs = rng.normal(loc=mean, scale=sigma, size=n)
         K = 1
         mu = rng.choice(xs,size=K)
     else:
@@ -242,8 +240,8 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     start = time()
 
-    xs,K,mu0,sigma0,alpha0 = get_starting_values(args.load,args.mean,args.sigma, args.N,args.data,rng=rng)   
-    L, _, mu, sigma = maximize_likelihood(xs,mu=mu0,sigma=sigma0,alpha=alpha0,K=K)
+    xs,K,mu0,sigma0,alpha0 = get_starting_values(args.load,args.mean,args.sigma, args.n,args.data,rng=rng)   
+    L, _, mu, sigma = maximize_likelihood(xs,mu=mu0,sigma=sigma0,alpha=alpha0,K=K,N=args.N)
     fig = figure(figsize=(10, 10))
     plot_data(xs, mu0, mu, sigma, ax=fig.add_subplot(2,1,1))
 
