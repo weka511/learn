@@ -65,7 +65,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
         Returns:
             Log of likelihood
         '''
-        return sum(- 0.5*((xs[i]-mu[k])**2/sigma[k]) for i in range(len(xs)) for k in range(K))
+        return sum(- 0.5*((xs[i]-mu[k])**2/sigma[k]) -0.5*np.log(sigma[k]) for i in range(len(xs)) for k in range(K)) 
 
     def e_step(mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1))):
         '''
@@ -82,7 +82,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
         w = np.empty((len(xs),K))
         for i in range(len(xs)):
             for k in range(K):
-                w[i,k] = np.exp(-0.5*((xs[i]-mu[k])**2/sigma[k])) * alpha[k]
+                w[i,k] = np.exp(-0.5*(xs[i]-mu[k])**2/sigma[k]) * alpha[k]
 
         row_sums = w.sum(axis=1)
         return w / row_sums[:, np.newaxis]
