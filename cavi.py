@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2022-2025 Greenweaves Software Limited
+# Copyright (C) 2022-2026 Greenweaves Software Limited
 
 # Simon A. Crase -- simon@greenweaves.nz
 
@@ -23,6 +23,7 @@
 '''
 
 from argparse import ArgumentParser
+from pathlib import Path
 from os.path import basename, join
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
@@ -49,11 +50,12 @@ class Cavi:
     def __init__(self, K=3):
         self.K = K
 
-    def infer_hidden_parameters(self, x, rng=np.random.default_rng(),
-                                max_iterations=100,
+    def infer_hidden_parameters(self, x,
+                                N=100,
                                 atol=1e-6,
                                 sigma=1,
-                                min_iterations=5):
+                                burn_in=5, 
+                                rng=np.random.default_rng()):
         m = self.init_means(x, rng)
         s2 = rng.random(self.K)    # Variance of target q(...)
         ELBOs = []
@@ -70,10 +72,10 @@ class Cavi:
 
             ELBOs.append(self.getELBO(s2, m, sigma, x, phi))
 
-            if len(ELBOs) > min_iterations and abs(ELBOs[-1] / ELBOs[-2] - 1) < atol:
+            if len(ELBOs) > burn_in and abs(ELBOs[-1] / ELBOs[-2] - 1) < atol:
                 return Solution(ELBOs, phi, m, np.sqrt(s2))
-            if len(ELBOs) > max_iterations:
-                raise ELBO_Error(f'ELBO has not converged to within {atol} after {max_iterations} iterations', ELBOs)
+            if len(ELBOs) > N:
+                raise ELBO_Error(f'ELBO has not converged to within {atol} after {N} iterations', ELBOs)
 
     def init_means(self, x, rng=np.random.default_rng()):
         '''
@@ -119,7 +121,7 @@ class ELBO_Error(Exception):
 
 def parse_args():
     parser = ArgumentParser(__doc__)
-    parser.add_argument('--name')
+    parser.add_argument('name', help='Name of file containing data')
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
     parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
@@ -127,7 +129,7 @@ def parse_args():
     parser.add_argument('--M', type=int, default=16, help='Number of attempts')
     parser.add_argument('--tol', type=float, default=1e-6, help='Tolerance for improving ELBO')
     parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
-    parser.add_argument('--n', type=int, default=5, help='Burn in period')
+    parser.add_argument('--burn_in', type=int, default=5, help='Burn in period')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
     return parser.parse_args()
@@ -135,26 +137,28 @@ def parse_args():
 
 if __name__ == '__main__':
     rcParams.update({
-        "text.usetex": True
+        'text.usetex': True
     })
 
     args = parse_args()
+    rng = np.random.default_rng(args.seed)
+    model = GaussionMixtureModel()
+    path_name = Path(args.path) / args.name
+    x = model.load(path_name.with_suffix('.npz'))
 
-    model = GaussionMixtureModel(name=get_name(args))
-    x = model.load(path=args.path)
     cavi = Cavi(K=args.K)
 
     Solutions = []
     Failures = []
     for i in range(args.M):
         try:
-            solution = cavi.infer_hidden_parameters(x,
-                                                max_iterations=args.N,
-                                                atol=args.tol,
-                                                min_iterations=args.n,
-                                                sigma=args.sigma,
-                                                rng=np.random.default_rng(args.seed))
-            Solutions.append(solution)
+            Solutions.append(
+                cavi.infer_hidden_parameters(x,
+                                             N=args.N,
+                                             atol=args.tol,
+                                             burn_in=args.burn_in,
+                                             sigma=args.sigma,
+                                             rng=rng))
         except ELBO_Error as e:
             print(e)
             Failures.append(e.ELBOs)
