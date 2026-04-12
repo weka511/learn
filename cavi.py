@@ -144,7 +144,7 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     model = GaussionMixtureModel()
     path_name = Path(args.path) / args.name
-    x = model.load(path_name.with_suffix('.npz'))
+    x = np.ravel(model.load(path_name.with_suffix('.npz')))
 
     cavi = Cavi(K=args.K)
 
