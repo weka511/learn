@@ -223,11 +223,11 @@ def get_starting_values(load,mean,sigma, n,data,rng = np.random.default_rng()):
     Generate or load data, and assign initial values to parameters
     
     Parameters:
-        load
-        mean
-        sigma
-        n         Number of poibts to be generated
-        data
+        load      Name of file to be loaded (or None), relative to data folder
+        mean      Initial value for means if load == None
+        sigma     Initial value for standard deviaations if load == None
+        n         Number of points to be generated
+        data      Path to data file
     '''
     if load == None:
         xs = rng.normal(loc=mean, scale=sigma, size=n)
@@ -236,7 +236,7 @@ def get_starting_values(load,mean,sigma, n,data,rng = np.random.default_rng()):
     else:
         path_name = Path(data) / load
         model = GaussionMixtureModel()
-        xs = np.ravel(model.load(path_name.with_suffix('.npz')))
+        xs = model.load(path_name.with_suffix('.npz'))
         K = model.mu.shape[0]
         mu = estimate_initial_means(xs,K,rng=rng)
    

@@ -84,7 +84,9 @@ class GaussionMixtureModel:
             self.mu = npzfile['mu']
             self.sigma = npzfile['sigma']
             self.choice = npzfile['choice']
-            return npzfile['data']
+            x = npzfile['data']
+            _,d = x.shape
+            return x if d > 1 else np.ravel(x)
 
 
 def get_name(args):

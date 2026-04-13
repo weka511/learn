@@ -61,6 +61,7 @@ class Cavi:
         ELBOs = []
         while (True):
             # Blei et al, equation (26)
+            s = x.shape
             e_mu = np.outer(x, m)                    # Expectation of mu - n x K
             e_mu2 = -0.5 * (m**2 + s2)               # Expectation of mu*mu - K x 1
             phi = np.exp(e_mu + e_mu2[np.newaxis, :])  # Unnormalized - n x K
@@ -144,8 +145,8 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     model = GaussionMixtureModel()
     path_name = Path(args.path) / args.name
-    x = np.ravel(model.load(path_name.with_suffix('.npz')))
-
+    x = model.load(path_name.with_suffix('.npz'))
+  
     cavi = Cavi(K=args.K)
 
     Solutions = []
