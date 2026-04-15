@@ -26,10 +26,9 @@ Programs written to understand Variational Inference, based on the following ref
 
  File  | Remarks |
 ---------------|-------------------------------------------------------------------------------------------
-cavi1.py|CAVI for Univariate Gaussian from [Univariate Gaussian Example](https://suzyahyah.github.io/bayesian%20inference/machine%20learning/2019/03/20/CAVI.html)
-cavi3.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
 cavi.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
-cavi_nd.py|A version of cavi.py that works in multiple dimensions
+cavi3.py|Coordinate Ascent Mean-Field Variational Inference (in 1D with 3 peaks
+cavi_nd.py|Coordinate Ascent Mean-Field Variational Inference (CAVI) for multiple dimensions
 em.py|Fit Gaussian to  data using Expectation Maximization
 gmm.py|Generate data in accordance with Gaussian Mixture Model for cavi_nd.py
 UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
