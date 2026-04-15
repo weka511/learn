@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2022-2025 Greenweaves Software Limited
+# Copyright (C) 2022-2026 Greenweaves Software Limited
 
 # Simon A. Crase -- simon@greenweaves.nz
 
@@ -24,7 +24,7 @@
 '''
 
 from argparse import ArgumentParser
-from os.path import basename, join
+from pathlib import Path
 from time import time
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
@@ -97,7 +97,7 @@ def initialize(x, K, rng=np.random.default_rng()):
     Parameters:
         x          Positions of points
         K          Number of clusters
-        rng        Randome number generator
+        rng        Random number generator
 
     Returns:
         mu        K points, chosen at random to represent cluster centres
@@ -240,8 +240,9 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
 
     ELBO_colours = generate_xkcd_colours()
-    model = GaussionMixtureModel(name=get_name(args))
-    x = model.load(path=args.path)
+    model = GaussionMixtureModel()
+    path_name = Path(args.path) / args.name
+    x = model.load(path_name.with_suffix('.npz'))
     Solutions = []
     index_best = -1
 
@@ -305,7 +306,7 @@ if __name__ == '__main__':
             ax2.set_zlabel('Z')
 
     fig.tight_layout(pad=3,h_pad=4)
-    fig.savefig(join(args.figs, f'{basename(__file__).split('.')[0]}'))
+    fig.savefig(path_name.with_suffix('.png'))
 
     elapsed = time() - start
     minutes = int(elapsed/60)
