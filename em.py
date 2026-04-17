@@ -30,7 +30,7 @@ from scipy.stats import norm
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
 from gmm import GaussionMixtureModel
-from utils import generate_xkcd_colours
+from utils import generate_xkcd_colours,PrecisionContext
 
 def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1)), K=3, N=250,
                         rtol=1.0e-6, n_burn_in=3):
@@ -73,7 +73,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
        
     def e_step(mu, sigma, alpha):
         '''
-        Perform E step from EM algorithm, which assigns points to clusters
+        Perform E step from EM algorithm:  assign points to clusters
         
         Parameters:
             mu         Means
@@ -84,9 +84,8 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
             w[i,k] the membership of ith point in cluster k
         '''
         w = np.empty((len(xs),K))
-        for i in range(len(xs)):
-            for k in range(K):
-                w[i,k] = np.exp(-0.5*(xs[i]-mu[k])**2/sigma[k]) * alpha[k]/np.sqrt(sigma[k])
+        for k in range(K):
+            w[:,k] = np.exp(-0.5*(xs[:]-mu[k])**2/sigma[k]) * alpha[k]/np.sqrt(sigma[k])
 
         row_sums = w.sum(axis=1)
         return w / row_sums[:, np.newaxis]
@@ -129,6 +128,16 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
     return likelihoods, alpha, mu, sigma
         
 
+def normalize(ys,n):
+    '''
+    Used to scale a probability density so it fits into the same y range as an empirical distribution
+
+    Parameters:
+        ys     Points specifiying probability density
+        n      Empirical distribution
+    '''
+    return (n.max()/ ys.max()) * ys
+    
 def plot_data(xs, mu0, mu, sigma, ax=None):
     '''
     Plot the data and the fitted Gaussian
@@ -140,15 +149,7 @@ def plot_data(xs, mu0, mu, sigma, ax=None):
         sigma         Variance
         ax            Axis to plot
     '''
-    def normalize(ys,n):
-        '''
-        Used to scale a probability density so it fits into the same y range as an empirical distribution
 
-        Parameters:
-            ys     Points specifiying probability density
-            n      Empirical distribution
-        '''
-        return (n.max()/ ys.max()) * ys
     
     colour_generator = generate_xkcd_colours()
     n, bins, _ = ax.hist(xs, bins=50, 
@@ -162,11 +163,14 @@ def plot_data(xs, mu0, mu, sigma, ax=None):
                 color=next(colour_generator),
                 label=fr'EM $\mu=${mu[k]:.3f}, $\sigma=${sigma[k]:.3f}')    
         
-    y0,y1 = ax.get_ylim()
-    ax.vlines(mu,y0,y1,color=next(colour_generator),label=r'$\mu$'f'{mu}')
-    ax.vlines(mu0,y0,y1,color=next(colour_generator),linestyles='dashed',label=r'$\mu_0$'f'{mu0}')
+    y0,y1 = ax.get_ylim()                   # Use these to set limits for vertical lines
+ 
+    with PrecisionContext(3):
+        ax.vlines(mu,y0,y1,color=next(colour_generator),label=r'$\mu$'f'{mu}')
+        ax.vlines(mu0,y0,y1,color=next(colour_generator),linestyles='dashed',label=r'$\mu_0$'f'{mu0}')
+
     ax.set_title('Data compared to  EM')
-    ax.set_ylabel('p')
+    ax.set_ylabel('Density')
     ax.set_xlabel('x')
     ax.legend()
 
@@ -198,25 +202,17 @@ def parse_args():
     parser.add_argument('--data', default='./data', help='Path to folder where data are stored')
     return parser.parse_args()
 
-def estimate_initial_means(xs,K,m=1000,rng = np.random.default_rng()):
+def estimate_initial_means(xs,K,rng = np.random.default_rng()):
     '''
     Choose starting values for means
     
     Parameters:
         xs           Data
-        K            Number of clusters
-        m            Number of points          
+        K            Number of clusters     
         rng          Random number generator
     '''
-    n = len(xs)
-    if n > m:
-        n = m
-        xs0 = rng.choice(xs,size=n)
-    else:
-        xs0 = xs
-    xs1 = np.sort(xs0)
-    indices = [0,-1] if K==2 else [(n*i)//(K+1) for i in range(1,K+1)]
-    return xs1[indices]
+    indices = np.sort(rng.choice(len(xs),size=K,replace=False))
+    return np.sort(xs[indices])
 
 def get_starting_values(load,mean,sigma, n,data,rng = np.random.default_rng()):
     '''
@@ -228,6 +224,13 @@ def get_starting_values(load,mean,sigma, n,data,rng = np.random.default_rng()):
         sigma     Initial value for standard deviaations if load == None
         n         Number of points to be generated
         data      Path to data file
+        
+    Returns:
+        xs       Data - as generated, or as loaded from file
+        K        Expected number of clustersS
+        mu       Initial estimate for means
+        sigma    Initial estimate for standard deviation
+        alpha    Starting value for proportion of data points assigned to each cluster
     '''
     if load == None:
         xs = rng.normal(loc=mean, scale=sigma, size=n)
@@ -257,7 +260,6 @@ if __name__ == '__main__':
     L, _, mu, sigma = maximize_likelihood(xs,mu=mu0,sigma=sigma0,alpha=alpha0,K=K,N=args.N)
     fig = figure(figsize=(10, 10))
     plot_data(xs, mu0, mu, sigma, ax=fig.add_subplot(2,1,1))
-
     plot_likelihoods(L, ax=fig.add_subplot(2,1,2))
     fig.tight_layout(h_pad=2,pad=5)
     fig.suptitle('Gaussian Model fitted by Expectation Maximization')
