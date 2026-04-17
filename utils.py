@@ -19,6 +19,7 @@
 	Shared utilities classes
 '''
 
+from contextlib import AbstractContextManager
 from pathlib import Path
 from re import split
 from time import strftime
@@ -190,19 +191,30 @@ def sort_labels(ax):
     sorted_handles = [handle for label, handle in sorted_pairs]
     return sorted_handles, sorted_labels
 
-class PrecisionContext:
+class ArrayPrecision(AbstractContextManager):
     '''
-    A context manager that allows the precision to be changed temporarily
+    Allow the precision to be changed temporarily
     '''
     def __init__(self,precision):
+        '''
+        Enter context
+        
+        Parameters:
+            precision   The precision to be used in this context
+        '''
         self.precision = precision
 
     def __enter__(self):
-        self.printoptions = np.get_printoptions()
+        '''
+        Save print options precision and set to specified value
+        '''
+        printoptions = np.get_printoptions()
+        self.saved_precision = printoptions['precision']
         np.set_printoptions(precision=self.precision)
+        return self
 
     def __exit__(self,exc_type,exc_value,exc_traceback):
-        np.set_printoptions(precision=self.printoptions['precision'])
+        np.set_printoptions(precision=self.saved_precision)
 
 if __name__ == '__main__':
     for colour in generate_xkcd_colours():
