@@ -122,8 +122,10 @@ def parse_args():
     n = 1000
     sigma = 1.0
     d = 1
+    low = 0
+    high = 25
     parser = ArgumentParser(__doc__)
-    parser.add_argument('--name', help='Base of name for files')
+    parser.add_argument('--name', '-o', help='Base of name for files')
     parser.add_argument('--K', type=int, default=K, help=f'Number of Gaussians [{K}]')
     parser.add_argument('--n', type=int, default=n, help=f'Number of points [{n}]')
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
@@ -132,6 +134,8 @@ def parse_args():
     parser.add_argument('--data', default='./data', help='Path to folder where data are to be stored')
     parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
     parser.add_argument('--d', type=dimensionality, default=d, help=f'Dimensionality of space [{d}]')
+    parser.add_argument('--low', type=float, default=low, help=f'Mimimum value for means [{low}]')
+    parser.add_argument('--high', type=float, default=high, help=f'Maximum value for means [{high}]')
     return parser.parse_args()
 
 def create_colours(K):
@@ -151,7 +155,7 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     shape = args.K if args.d == 1 else (args.K,args.d)
     sigma = args.sigma * np.ones(shape=shape)
-    mu = rng.uniform(low=0, high=25, size=shape)
+    mu = rng.uniform(low=args.low, high=args.high, size=shape)
     model = GaussionMixtureModel(mu=mu, sigma=sigma, n=args.n)
     path_name = Path(args.data) / get_name(args)
     model.save(path_name.with_suffix('.npz'))
