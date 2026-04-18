@@ -30,7 +30,7 @@ from scipy.stats import norm
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
 from gmm import GaussionMixtureModel
-from utils import generate_xkcd_colours,PrecisionContext
+from utils import generate_xkcd_colours,ArrayPrecision
 
 def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1)), K=3, N=250,
                         rtol=1.0e-6, n_burn_in=3):
@@ -50,7 +50,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
     Returns:
         List of likelihoods, one for each step
         Centres for all clusters
-        Standard deviations
+        Variances
         Proportion of data points assigned to each cluster
     '''
     def get_log_likelihood(mu, sigma, alpha):
@@ -59,7 +59,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
 
         Parameters:
             mu         Means
-            sigma      Standard deviations
+            sigma      Variances
             alpha      Proportion of data points assigned to each cluster
             
         Returns:
@@ -77,7 +77,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
         
         Parameters:
             mu         Means
-            sigma      Standard deviations
+            sigma      Variances
             alpha      Proportion of data points assigned to each cluster
         
         Returns:
@@ -100,7 +100,7 @@ def maximize_likelihood(xs, mu=np.array(0), sigma=np.ones((1)), alpha=np.ones((1
         Returns:
             List of likelihoods, one for each step
             Centres for all clusters
-            Standard deviations
+            Variances
             Proportion of data points assigned to each cluster
         '''
         alpha = np.sum(w,axis=0)/np.sum(w)   # Proportion of data points assigned to each k
@@ -138,7 +138,7 @@ def normalize(ys,n):
     '''
     return (n.max()/ ys.max()) * ys
     
-def plot_data(xs, mu0, mu, sigma, ax=None):
+def plot_data(xs, mu0, mu, sigma, mu_target, ax=None,colour_generator = generate_xkcd_colours()):
     '''
     Plot the data and the fitted Gaussian
     
@@ -146,12 +146,11 @@ def plot_data(xs, mu0, mu, sigma, ax=None):
         xs            Data to be plotted
         mu0           Starting value for means
         mu            Final value for means
+        mu_target     Ground Truth - values of means that were used to generate data
         sigma         Variance
         ax            Axis to plot
     '''
-
     
-    colour_generator = generate_xkcd_colours()
     n, bins, _ = ax.hist(xs, bins=50, 
                          label=fr'Data',
                          color=next(colour_generator))
@@ -163,18 +162,27 @@ def plot_data(xs, mu0, mu, sigma, ax=None):
                 color=next(colour_generator),
                 label=fr'EM $\mu=${mu[k]:.3f}, $\sigma=${sigma[k]:.3f}')    
         
-    y0,y1 = ax.get_ylim()                   # Use these to set limits for vertical lines
+    y0,y1 = ax.get_ylim()   # Limits for vertical lines
  
-    with PrecisionContext(3):
-        ax.vlines(mu,y0,y1,color=next(colour_generator),label=r'$\mu$'f'{mu}')
-        ax.vlines(mu0,y0,y1,color=next(colour_generator),linestyles='dashed',label=r'$\mu_0$'f'{mu0}')
+    with ArrayPrecision(3):
+        ax.vlines(mu,y0,y1,
+                  color=next(colour_generator),
+                  label=r'$\mu$'f'{mu}')
+        ax.vlines(mu0,y0,y1,
+                  color=next(colour_generator),
+                  linestyles='dashed',
+                  label=r'$\mu_0$'f'{mu0}')
+        ax.vlines(mu_target,y0,y1,
+                  color=next(colour_generator),
+                  linestyles='dotted',
+                  label=r'$\mu_{Target}$'f'{np.sort(mu_target)}')
 
     ax.set_title('Data compared to  EM')
     ax.set_ylabel('Density')
     ax.set_xlabel('x')
     ax.legend()
 
-def plot_likelihoods(Likelihoods, ax=None):
+def plot_likelihoods(Likelihoods, ax=None,colour_generator = generate_xkcd_colours()):
     '''
     Plot the log likelihood computed at each step
     
@@ -183,69 +191,65 @@ def plot_likelihoods(Likelihoods, ax=None):
         ax            Axis for plotting
     '''
     ax.set_title('Progress')
-    ax.plot(Likelihoods,label='Log Likelihood',c='xkcd:magenta') #FIXME
-    ax.set_xticks(range(1, len(Likelihoods)))   
+    ax.plot(Likelihoods,label='Log Likelihood',c=next(colour_generator))
+    freq = np.round(np.log10(len(Likelihoods)))
+    ax.set_xticks(range(0, len(Likelihoods)+1,int(10**(freq-1))))   
     ax.set_ylabel('Log Likelihood')
     ax.set_xlabel('Iteration')
     ax.legend()
 
 def parse_args():
     parser = ArgumentParser(__doc__)
-    parser.add_argument('--N', type=int, default=5, help='Number of iterations')
-    parser.add_argument('--n', type=int, default=5000, help='Dataset size')
-    parser.add_argument('--mean', type=float, default=0.5, help='Mean for dataset')
-    parser.add_argument('--sigma', type=float, default=0.5, help='Standard deviation')
+    parser.add_argument('load', default = None, help='Data to be loaded from a file generated by gmm.py')
+    parser.add_argument('--N', type=int, default=25, help='Number of iterations')
+    parser.add_argument('--BURN', type=int, default=0, help='Number of iterations to skip at beginning')
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
     parser.add_argument('--show', action='store_true', default=False, help='Show plots')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
-    parser.add_argument('--load', default = None, help='Data to be loaded from a file generated by gmm.py')
     parser.add_argument('--data', default='./data', help='Path to folder where data are stored')
     return parser.parse_args()
 
 def estimate_initial_means(xs,K,rng = np.random.default_rng()):
     '''
-    Choose starting values for means
+    Choose starting values for means. Create indices that are more or less equally 
+    spaced over range of data, and use each index to select one datum.
     
     Parameters:
         xs           Data
         K            Number of clusters     
         rng          Random number generator
     '''
-    indices = np.sort(rng.choice(len(xs),size=K,replace=False))
-    return np.sort(xs[indices])
+    def create_indices():
+        match K:
+            case 2:
+                return [0,len(xs)-1]
+            case 3:
+                return [0,len(xs)//2,len(xs)-1]
+            case _:
+                run_length = len(xs)//K                         # Data will be partitioned into K runs
+                offsets = [i*run_length for i in range(0,K)]    # Points where each run starts     
+                return rng.choice(run_length,size=K) + offsets  # Choose one point from each run
+    
+    x_sorted = np.sort(xs)
+    return x_sorted[create_indices()]
 
-def get_starting_values(load,mean,sigma, n,data,rng = np.random.default_rng()):
+def load_data(load,data):
     '''
-    Generate or load data, and assign initial values to parameters
+    Load data
     
     Parameters:
         load      Name of file to be loaded (or None), relative to data folder
-        mean      Initial value for means if load == None
-        sigma     Initial value for standard deviaations if load == None
-        n         Number of points to be generated
         data      Path to data file
         
     Returns:
         xs       Data - as generated, or as loaded from file
-        K        Expected number of clustersS
-        mu       Initial estimate for means
-        sigma    Initial estimate for standard deviation
-        alpha    Starting value for proportion of data points assigned to each cluster
+        K        Expected number of clusters
     '''
-    if load == None:
-        xs = rng.normal(loc=mean, scale=sigma, size=n)
-        K = 1
-        mu = rng.choice(xs,size=K)
-    else:
-        path_name = Path(data) / load
-        model = GaussionMixtureModel()
-        xs = model.load(path_name.with_suffix('.npz'))
-        K = model.mu.shape[0]
-        mu = estimate_initial_means(xs,K,rng=rng)
-   
-    sigma = np.ones((K))
-    alpha = np.ones((K))/K
-    return xs,K,mu,sigma,alpha
+    path_name = Path(data) / load
+    model = GaussionMixtureModel()
+    xs = model.load(path_name.with_suffix('.npz'))
+    K = model.mu.shape[0]
+    return xs,K,model.mu
     
 if __name__ == '__main__':
     rcParams.update({
@@ -256,11 +260,15 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     start = time()
 
-    xs,K,mu0,sigma0,alpha0 = get_starting_values(args.load,args.mean,args.sigma, args.n,args.data,rng=rng)   
+    xs,K,mu_target = load_data(args.load,args.data)
+    mu0 = estimate_initial_means(xs,K,rng=rng)
+    sigma0 = np.ones((K))
+    alpha0 = np.ones((K))/K    
     L, _, mu, sigma = maximize_likelihood(xs,mu=mu0,sigma=sigma0,alpha=alpha0,K=K,N=args.N)
     fig = figure(figsize=(10, 10))
-    plot_data(xs, mu0, mu, sigma, ax=fig.add_subplot(2,1,1))
-    plot_likelihoods(L, ax=fig.add_subplot(2,1,2))
+    colour_generator = generate_xkcd_colours()
+    plot_data(xs, mu0, mu, sigma, mu_target, ax=fig.add_subplot(2,1,1),colour_generator=colour_generator)
+    plot_likelihoods(L[args.BURN:], ax=fig.add_subplot(2,1,2),colour_generator=colour_generator)
     fig.tight_layout(h_pad=2,pad=5)
     fig.suptitle('Gaussian Model fitted by Expectation Maximization')
     fig.savefig(join(args.figs,basename(__file__).split('.')[0]))
