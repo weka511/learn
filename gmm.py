@@ -58,8 +58,8 @@ class GaussionMixtureModel:
         '''
         self.choice = rng.integers(0, high=self.k, size=self.n)
         samples = rng.standard_normal(size=(self.n,self.d))
-        for i in range(self.n):
-            samples[i] *= self.sigma[self.choice[i]]
+        for i in range(self.n):   #FIXME - get rid of i - but IndexError for d==1
+            samples[i,:] *= self.sigma[self.choice[i]]
             samples[i] += self.mu[self.choice[i]]
         return samples
 
@@ -124,6 +124,7 @@ def parse_args():
     d = 1
     low = 0
     high = 25
+    minimum_distance = 0.25
     parser = ArgumentParser(__doc__)
     parser.add_argument('--name', '-o', help='Base of name for files')
     parser.add_argument('--K', type=int, default=K, help=f'Number of Gaussians [{K}]')
@@ -136,6 +137,7 @@ def parse_args():
     parser.add_argument('--d', type=dimensionality, default=d, help=f'Dimensionality of space [{d}]')
     parser.add_argument('--low', type=float, default=low, help=f'Mimimum value for means [{low}]')
     parser.add_argument('--high', type=float, default=high, help=f'Maximum value for means [{high}]')
+    parser.add_argument('--minimum_distance', type=float, default=minimum_distance, help=f'Minimm distance between means [{minimum_distance}]')
     return parser.parse_args()
 
 def create_colours(K):
@@ -148,6 +150,9 @@ def create_colours(K):
     colour_generator = generate_xkcd_colours()
     return np.array([next(colour_generator) for _ in range(K)])
 
+def get_minimum_distance(mu,K=3):
+    return min([np.linalg.norm(mu[i]-mu[j]) for i in range(K)  for j in range(i)])
+            
 if __name__ == '__main__':
     rcParams.update({'text.usetex': True})
 
@@ -155,7 +160,11 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     shape = args.K if args.d == 1 else (args.K,args.d)
     sigma = args.sigma * np.ones(shape=shape)
-    mu = rng.uniform(low=args.low, high=args.high, size=shape)
+    delta = - float('inf')
+    while delta < args.minimum_distance:
+        mu = rng.uniform(low=args.low, high=args.high, size=shape)
+        delta = get_minimum_distance(mu)
+        print (mu,delta)
     model = GaussionMixtureModel(mu=mu, sigma=sigma, n=args.n)
     path_name = Path(args.data) / get_name(args)
     model.save(path_name.with_suffix('.npz'))
