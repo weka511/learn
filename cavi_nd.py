@@ -235,6 +235,25 @@ def create_data_colours(x, c,cluster_colours):
         colours[i] = cluster_colours[index]
     return colours
 
+class Splitter:
+    '''
+    This class splits the data into a test set and a training set.
+    '''
+    def __init__(self,rng=np.random.default_rng(),test_size=0.1):
+        self.rng = rng
+        self.test_size = test_size
+        
+    def get_random_state(self):
+        '''
+        Extract a random state in the format required by train_test_split
+        '''
+        state1 = self.rng.bit_generator.state
+        state2 = state1['state']
+        return state2['state'] % (2**32)
+    
+    def split(self,x):
+        x_split = train_test_split(x,test_size=self.test_size,random_state=self.get_random_state())
+        return (x_split[0],x_split[1])       
 
 if __name__ == '__main__':
     start  = time()
@@ -249,11 +268,12 @@ if __name__ == '__main__':
     model = GaussionMixtureModel()
     path_name = Path(args.path) / args.name
     x = model.load(path_name.with_suffix('.npz'))
+    splitter = Splitter(rng=rng,test_size=args.test)
+    x_train,x_test = splitter.split(x)
+    
     Solutions = []
     index_best = -1
-    x_split = train_test_split(x,test_size=args.test,random_state=args.seed)
-    x_train = x_split[0]
-    x_test = x_split[1]
+    
     for i in range(args.M):
         print(f'{i+1}/{args.M}')
         m, s, c = initialize(x_train, args.K, rng=rng)
