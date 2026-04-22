@@ -28,6 +28,7 @@ from pathlib import Path
 from time import time
 from matplotlib.pyplot import figure, rcParams, show
 import numpy as np
+from sklearn.model_selection import train_test_split
 from utils import generate_xkcd_colours
 from gmm import GaussionMixtureModel, get_name, create_colours
 
@@ -40,7 +41,8 @@ class Solution:
         ELBO    History of ELBO throughout run
         m       Means
         s       Standard deviations
-        c       Assigments of points to clusters
+        c       Assignments of points to clusters for training data
+        c_test  Assignments of points to clusters for test data
     '''
     def __init__(self):
         '''
@@ -50,21 +52,24 @@ class Solution:
         self.m = None
         self.s = None
         self.c = None
+        self.c_test = None
 
-    def set_params(self, m, s, c):
+    def set_params(self, m, s, c,c_test):
         '''
         Used at the end of a run to store results
 
         Parameters:
             m       Means
             s       Standard deviations
-            c       Assigments of points to clusters
+            c       Assigments of points to clusters for training data
+            c_test  Assignments of points to clusters for test data
         '''
         self.m = m.copy()
         self.s = s.copy()
         self.c = c.copy()
+        self.c_test = c_test.copy()
 
-    def append_ELBO(self, ELBO):
+    def accumulateELBO(self, ELBO):
         '''
         Used during a run to accumulate ELBO for each iteration
 
@@ -87,6 +92,7 @@ def parse_args():
     parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
+    parser.add_argument('--test', type=float, default=0.1, help='Size of held out dataset')
     return parser.parse_args()
 
 
@@ -245,21 +251,23 @@ if __name__ == '__main__':
     x = model.load(path_name.with_suffix('.npz'))
     Solutions = []
     index_best = -1
-
+    x_split = train_test_split(x,test_size=args.test,random_state=args.seed)
+    x_train = x_split[0]
+    x_test = x_split[1]
     for i in range(args.M):
         print(f'{i+1}/{args.M}')
-        m, s, c = initialize(x, args.K, rng=rng)
+        m, s, c = initialize(x_train, args.K, rng=rng)
         Solutions.append(Solution())
-        Solutions[-1].append_ELBO(get_ELBO(m, s, c, x))
-
+        Solutions[-1].accumulateELBO(get_ELBO(m, s, c, x_train))
         for j in range(args.N):
-            c = get_updated_assignments(m, s, x)
-            m, s = get_updated_statistics(m, s, c, x)
-            Solutions[-1].append_ELBO(get_ELBO(m, s, c, x))
+            c = get_updated_assignments(m, s, x_train)
+            m, s = get_updated_statistics(m, s, c, x_train)
+            c_test = get_updated_assignments(m, s, x_test)
+            Solutions[-1].accumulateELBO(get_ELBO(m, s, c_test, x_test))
             if len(Solutions) > args.BURN_IN and Solutions[-1].ELBO[-1] - Solutions[-1].ELBO[-2] < args.atol:
                 break
 
-        Solutions[-1].set_params(m, s, c)
+        Solutions[-1].set_params(m, s, c,c_test)
         if index_best == -1 or Solutions[-1].ELBO[-1] > Solutions[index_best].ELBO[-1]:
             index_best = i
 
@@ -274,7 +282,7 @@ if __name__ == '__main__':
             linestyle = 'solid'
         ax1.plot(range(len(Solutions[i].ELBO)),Solutions[i].ELBO, c=next(ELBO_colours), label=label, linestyle=linestyle)
     ax1.legend()
-    ax1.set_title(f'ELBO for {args.M} runs')
+    ax1.set_title(f'ELBO for {args.M} runs, plotted with held-out data')
     ax1.set_xlabel('Iteration')
     ax1.set_ylabel('ELBO')
 
@@ -282,24 +290,28 @@ if __name__ == '__main__':
     match d:
         case 1:
             ax2 = fig.add_subplot(2, 1, 2)
-            n, _, _ = ax2.hist(x, bins='sturges', color='xkcd:blue', label='x',density=True)
-            ax2.vlines(np.ravel(Solutions[index_best].m), 0, max(n), colors='xkcd:red', linestyles='dashed', label='Means (fitted)')
+            n, _, _ = ax2.hist(x_test, bins='sturges', color='xkcd:blue', label='x',density=True)
+            ax2.vlines(np.ravel(Solutions[index_best].m), 0, max(n), 
+                       colors='xkcd:red', linestyles='dashed', label='Means (fitted)')
             ax2.set_xlabel('X')
             ax2.set_ylabel('p')
             ax2.legend()
 
         case 2:
             ax2 = fig.add_subplot(2, 1, 2)
-            ax2.scatter(x[:, 0], x[:, 1], c=create_data_colours(x, Solutions[index_best].c, create_colours(args.K)), s=1)
+            ax2.scatter(x_test[:, 0], x_test[:, 1],
+                        c=create_data_colours(x_test, Solutions[index_best].c_test, create_colours(args.K)), s=1)
             for k in range(args.K):
-                ax2.scatter(Solutions[index_best].m[k, 0], Solutions[index_best].m[k, 1], c='xkcd:black', marker='+', s=25)
+                ax2.scatter(Solutions[index_best].m[k, 0], Solutions[index_best].m[k, 1],
+                            c='xkcd:black', marker='+', s=25)
             ax2.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
             ax2.set_xlabel('X')
             ax2.set_ylabel('Y')
 
         case 3:
             ax2 = fig.add_subplot(2, 1, 2,projection='3d')
-            ax2.scatter(x[:,0],x[:,1],x[:,2],c=create_data_colours(x, Solutions[index_best].c, create_colours(args.K)), s=1)
+            ax2.scatter(x_test[:,0],x_test[:,1],x_test[:,2],
+                        c=create_data_colours(x_test, Solutions[index_best].c_test, create_colours(args.K)), s=1)
             ax2.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
             ax2.set_xlabel('X')
             ax2.set_ylabel('Y')
