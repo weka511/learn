@@ -338,7 +338,8 @@ if __name__ == '__main__':
             ax2.set_zlabel('Z')
 
     fig.tight_layout(pad=3,h_pad=4)
-    fig.savefig(path_name.with_suffix('.png'))
+    figs_path_name = Path(args.figs) / args.name
+    fig.savefig(figs_path_name.with_suffix('.png'))
 
     elapsed = time() - start
     minutes = int(elapsed/60)
