@@ -52,7 +52,6 @@ sumo.py|Establish Bradley-Terry Parameters from Sumo basho results
 ---------------|--------------------------------------------
 bgr.txt|List of [XKCD colours](https://xkcd.com/color/rgb/), in reverse order, so they are organized by most widely recognized first
 learn.wpr | Project file for Wing IDE
-utils.py|Utilities: logfiles, random number seed, stopfile, [XKCD colours](https://xkcd.com/color/rgb/)
 
 ## Documentation, stored in docs folder
 
