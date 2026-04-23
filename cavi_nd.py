@@ -53,6 +53,9 @@ class Solution:
         self.c = None
         self.c_test = None
 
+    def __str__(self):
+        return f'm={self.m},s={self.s},c={self.c},c_test={self.c_test}'
+    
     def set_params(self, m, s, c,c_test):
         '''
         Used at the end of a run to store results
