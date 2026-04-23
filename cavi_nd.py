@@ -43,10 +43,11 @@ class Solution:
         c       Assignments of points to clusters for training data
         c_test  Assignments of points to clusters for test data
     '''
-    def __init__(self):
+    def __init__(self,id=None):
         '''
         Used at the start of a run to initalize parameters
         '''
+        self.id = id
         self.ELBO = []
         self.m = None
         self.s = None
@@ -54,7 +55,7 @@ class Solution:
         self.c_test = None
 
     def __str__(self):
-        return f'm={self.m},s={self.s},c={self.c},c_test={self.c_test}'
+        return f'id={self.id},m={self.m},s={self.s},c={self.c},c_test={self.c_test}'
     
     def set_params(self, m, s, c,c_test):
         '''

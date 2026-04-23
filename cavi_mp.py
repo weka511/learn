@@ -47,22 +47,32 @@ def parse_args():
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
     parser.add_argument('--test', type=float, default=0.1,help='Size of held out dataset')
-    parser.add_argument('--processes', type=int, default=25, help='Number of processors')
+    parser.add_argument('--processes', type=int, default=cpu_count(), help='Number of processors')
     return parser.parse_args()
 
+def cavi_run(run_number:int,queue : Queue):
+    print (f'Run {run_number}')
+    solution = Solution(id=run_number)
+    queue.put(solution)
+
 def main():
+    args = parse_args()
     print (f'There are {cpu_count()} cpus')
-    queue = Queue()
-    s1 = Solution()
-    s1.set_params([1,2,3],[1,1,1],[],[])
-    queue.put(s1)
-    s2 = Solution()
-    s2.set_params([4,5,6],[1,1,1],[],[])
-    queue.put(s2)
-    s1a = queue.get()
-    s2a = queue.get()
-    print (s1a)
-    print (s2a)
+    run_number: int = 0
+    while run_number < args.M:
+        queue = Queue()
+        processes:list[Process] = []
+        for _ in range(args.processes):
+            if run_number >= args.M: break
+            process = Process(target=cavi_run,args=(run_number,queue))
+            processes.append(process)
+            process.start()
+            run_number += 1
+        for process in processes:    
+            process.join()
+        for _ in range(len(processes)):
+            solution = queue.get()
+            print (solution)
     
 if __name__ == '__main__':
     main()
