@@ -35,7 +35,7 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import LinearLR
 import torch.nn.functional as F
 from autoencoder import AutoEncoderFactory
-from utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save, get_moving_average, create_xkcd_colours, sort_labels
+from shared.utils import Logger, get_seed, user_has_requested_stop, ensure_we_can_save, get_moving_average, create_xkcd_colours, sort_labels
 
 
 class Perceptron(nn.Module):

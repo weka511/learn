@@ -36,7 +36,7 @@ from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
-from utils import Logger, get_seed, user_has_requested_stop, get_device, get_moving_average
+from shared.utils import Logger, get_seed, user_has_requested_stop, get_device, get_moving_average
 from classify_names import CharacterSet
 
 
@@ -487,12 +487,12 @@ if __name__ == '__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
-    device = get_device()
+    #device = get_device()
 
     input_lang, output_lang, train_dataloader, pairs = get_dataloader(batch_size=args.batch_size, path=args.data, device=device)
 
-    encoder = EncoderRNN(input_lang.n_words, args.hidden_size).to(device)
-    decoder = DecoderFactory.create(args,output_size=output_lang.n_words,device=device)
+    encoder = EncoderRNN(input_lang.n_words, args.hidden_size)# .to(device)
+    decoder = DecoderFactory.create(args,output_size=output_lang.n_words)
 
     match args.action:
         case 'train':

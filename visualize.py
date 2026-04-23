@@ -30,139 +30,139 @@ import torch.nn as nn
 from torchvision.datasets import MNIST
 import torchvision.transforms as tr
 from mnist import ModelFactory
-from utils import Logger
+from shared.utils import Logger
 
 class Visualizer:
-	'''
-	This class extracts layers from the model for display
-	'''
+    '''
+    This class extracts layers from the model for display
+    '''
 
-	def __init__(self):
-		self.conv_weights = []
-		self.conv_layers = []
-		self.feature_maps = []
-		self.layer_names = []
+    def __init__(self):
+        self.conv_weights = []
+        self.conv_layers = []
+        self.feature_maps = []
+        self.layer_names = []
 
-	def is_layer_of_interest(self, module, layer_types=[nn.Conv2d]):
-		for layer_type in layer_types:
-			if isinstance(module, layer_type):
-				return True
-		return False
+    def is_layer_of_interest(self, module, layer_types=[nn.Conv2d]):
+        for layer_type in layer_types:
+            if isinstance(module, layer_type):
+                return True
+        return False
 
-	def extract_layers(self, model, layer_types=[nn.Conv2d]):
-		'''
-		Extract those layers that we want to visualize
+    def extract_layers(self, model, layer_types=[nn.Conv2d]):
+        '''
+        Extract those layers that we want to visualize
 
-		Parameters:
-		    model
-		    layer_types
+        Parameters:
+            model
+            layer_types
 
-		'''
-		for module in model.children():
-			if self.is_layer_of_interest(module, layer_types=layer_types):
-				self.conv_weights.append(module.weight)
-				self.conv_layers.append(module)
+        '''
+        for module in model.children():
+            if self.is_layer_of_interest(module, layer_types=layer_types):
+                self.conv_weights.append(module.weight)
+                self.conv_layers.append(module)
 
-	def generate_weights(self):
-		for weights in self.conv_weights:
-			yield weights
+    def generate_weights(self):
+        for weights in self.conv_weights:
+            yield weights
 
-	def get_n(self):
-		return len(self.conv_weights)
+    def get_n(self):
+        return len(self.conv_weights)
 
-	def build_feature_maps(self, input_image):
-		'''
-		Pass an image through the layers and construct feature maps
+    def build_feature_maps(self, input_image):
+        '''
+        Pass an image through the layers and construct feature maps
 
-		Parameters:
-		    input_image   Image to be used
-		'''
-		self.feature_maps = []
-		self.layer_names = []
-		for layer in self.conv_layers:
-			input_image = layer(input_image)
-			self.feature_maps.append(input_image)
-			self.layer_names.append(str(layer))
+        Parameters:
+            input_image   Image to be used
+        '''
+        self.feature_maps = []
+        self.layer_names = []
+        for layer in self.conv_layers:
+            input_image = layer(input_image)
+            self.feature_maps.append(input_image)
+            self.layer_names.append(str(layer))
 
-	def generate_feature_maps(self):
-		for feature_map in self.feature_maps:
-			yield feature_map
+    def generate_feature_maps(self):
+        for feature_map in self.feature_maps:
+            yield feature_map
 
-	def get_n_maps(self,layer=None):
-		return self.feature_maps[layer].shape[0]
+    def get_n_maps(self,layer=None):
+        return self.feature_maps[layer].shape[0]
 
-	def prepare_feature_maps_for_display(self):
-		'''
-		Remove batch dimension and normalize for display
-		'''
-		self.normalized_feature_maps = []
-		for feature_map in self.feature_maps:
-			feature_map = feature_map.squeeze(0)
-			mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]
-			self.normalized_feature_maps.append(mean_feature_map.data.cpu().numpy())
+    def prepare_feature_maps_for_display(self):
+        '''
+        Remove batch dimension and normalize for display
+        '''
+        self.normalized_feature_maps = []
+        for feature_map in self.feature_maps:
+            feature_map = feature_map.squeeze(0)
+            mean_feature_map = torch.sum(feature_map, 0) / feature_map.shape[0]
+            self.normalized_feature_maps.append(mean_feature_map.data.cpu().numpy())
 
-	def generate_normalized_maps(self):
-		for feature_map in self.normalized_feature_maps:
-			yield feature_map
+    def generate_normalized_maps(self):
+        for feature_map in self.normalized_feature_maps:
+            yield feature_map
 
 def parse_args():
-	parser = ArgumentParser(description=__doc__)
-	parser.add_argument('file', default=None, help='Used to load weights')
-	parser.add_argument('--data', default='./data', help='Location of data files')
-	parser.add_argument('--logfiles', default='./logfiles', help='Location of log files')
-	parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
-	parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
-	parser.add_argument('--image_number', default=[0], type=int, nargs='+',help='List of images to process')
-	parser.add_argument('--layer', default=0, type=int,  help='Layer to display')
-	return parser.parse_args()
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument('file', default=None, help='Used to load weights')
+    parser.add_argument('--data', default='./data', help='Location of data files')
+    parser.add_argument('--logfiles', default='./logfiles', help='Location of log files')
+    parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
+    parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
+    parser.add_argument('--image_number', default=[0], type=int, nargs='+',help='List of images to process')
+    parser.add_argument('--layer', default=0, type=int,  help='Layer to display')
+    return parser.parse_args()
 
 if __name__ == '__main__':
-	rc('font', **{'family': 'serif',
-	              'serif': ['Palatino'],
-	              'size': 8})
-	rc('text', usetex=True)
-	start = time()
-	args = parse_args()
-	with Logger(join(args.logfiles, Path(args.file).stem)) as logger:
-		model = ModelFactory.create_from_file_name(args.file)
-		model.load(args.file)
-		dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
-		visualizer = Visualizer()
-		visualizer.extract_layers(model)
-		for weights in visualizer.generate_weights():
-			m,_,_,_ = weights.shape
-			weights0 = weights.squeeze().detach().numpy()
-			for i in range(m):
-				logger.log(f'{i}: {weights0[i,:,:]}')
-		for image_number in args.image_number:
-			fig = figure(figsize=(6, 6))
-			input_image, label = dataset[image_number]
-			visualizer.build_feature_maps(input_image)
+    rc('font', **{'family': 'serif',
+                  'serif': ['Palatino'],
+                      'size': 8})
+    rc('text', usetex=True)
+    start = time()
+    args = parse_args()
+    with Logger(join(args.logfiles, Path(args.file).stem)) as logger:
+        model = ModelFactory.create_from_file_name(args.file)
+        model.load(args.file)
+        dataset = MNIST(root=args.data, download=True, train=False, transform=tr.ToTensor())
+        visualizer = Visualizer()
+        visualizer.extract_layers(model)
+        for weights in visualizer.generate_weights():
+            m,_,_,_ = weights.shape
+            weights0 = weights.squeeze().detach().numpy()
+            for i in range(m):
+                logger.log(f'{i}: {weights0[i,:,:]}')
+        for image_number in args.image_number:
+            fig = figure(figsize=(6, 6))
+            input_image, label = dataset[image_number]
+            visualizer.build_feature_maps(input_image)
 
-			m = visualizer.get_n_maps(args.layer)
-			nrows = int(np.sqrt(m))
-			ncols = nrows
-			while nrows * ncols < m:
-				ncols += 1
-			nrows += 1
+            m = visualizer.get_n_maps(args.layer)
+            nrows = int(np.sqrt(m))
+            ncols = nrows
+            while nrows * ncols < m:
+                ncols += 1
+            nrows += 1
 
-			ax = fig.add_subplot(nrows, ncols, ncols//2)
-			ax.imshow(input_image[0, :, :], cmap='gray')
-			ax.axis('off')
-			feature_map = visualizer.feature_maps[args.layer]
-			for j in range(m):
-				ax = fig.add_subplot(nrows, ncols, ncols+ j+1)
-				ax.imshow(feature_map[j, :, :].detach().numpy(), cmap='gray')
-				ax.axis('off')
+            ax = fig.add_subplot(nrows, ncols, ncols//2)
+            ax.imshow(input_image[0, :, :], cmap='gray')
+            ax.axis('off')
+            feature_map = visualizer.feature_maps[args.layer]
+            for j in range(m):
+                ax = fig.add_subplot(nrows, ncols, ncols+ j+1)
+                ax.imshow(feature_map[j, :, :].detach().numpy(), cmap='gray')
+                ax.axis('off')
 
-			fig.suptitle(f'Image {image_number}, Layer {args.layer}')
-			fig.tight_layout(pad=3, h_pad=3, w_pad=3)
-			fig.savefig(join(args.figs, f'{Path(__file__).stem}-{image_number}'))
+            fig.suptitle(f'Image {image_number}, Layer {args.layer}')
+            fig.tight_layout(pad=3, h_pad=3, w_pad=3)
+            fig.savefig(join(args.figs, f'{Path(__file__).stem}-{image_number}'))
 
-	elapsed = time() - start
-	minutes = int(elapsed / 60)
-	seconds = elapsed - 60 * minutes
-	print(f'Elapsed Time {minutes} m {seconds:.2f} s')
+    elapsed = time() - start
+    minutes = int(elapsed / 60)
+    seconds = elapsed - 60 * minutes
+    print(f'Elapsed Time {minutes} m {seconds:.2f} s')
 
-	if args.show:
-		show()
+    if args.show:
+        show()

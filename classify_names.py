@@ -41,7 +41,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
-from utils import get_seed, get_device
+from shared.utils import get_seed
 
 
 class CharacterSet:
@@ -365,8 +365,8 @@ if __name__ == '__main__':
     args = parse_args()
     seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
-    device = get_device()
-    torch_generator = torch.Generator(device=device).manual_seed(seed)
+    #device = get_device()
+    torch_generator = torch.Generator().manual_seed(seed)
     character_set = CharacterSet()
     alldata = NamesDataset(args.data, character_set=character_set)
     print(f'loaded {len(alldata)} items of data')

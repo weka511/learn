@@ -31,7 +31,7 @@ import torchvision.transforms as tr
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 from torch.optim import SGD, Adam
-from utils import Logger, get_seed, user_has_requested_stop
+from shared.utils import Logger, get_seed, user_has_requested_stop
 
 class OptimizerFactory:
     '''
