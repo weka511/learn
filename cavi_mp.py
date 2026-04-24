@@ -27,7 +27,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from time import time
 from matplotlib.pyplot import figure, rcParams, show
-from multiprocessing import cpu_count, Queue, Process
+from multiprocessing import cpu_count, Process
 import numpy as np
 from shared.utils import generate_xkcd_colours,Splitter
 from gmm import GaussionMixtureModel, get_name, create_colours
@@ -50,7 +50,7 @@ def parse_args():
     parser.add_argument('--processes', type=int, default=cpu_count(), help='Number of processors')
     return parser.parse_args()
   
-def cavi_run(run_number:int,x_train,x_test,K,N,rng,queue : Queue,solution):
+def cavi_run(run_number:int,x_train,x_test,K,N,rng,solution,path,file_name):
     print (f'Run {run_number}')
 
     m, s, c = initialize(x_train, K, rng=rng)
@@ -63,40 +63,28 @@ def cavi_run(run_number:int,x_train,x_test,K,N,rng,queue : Queue,solution):
         solution.accumulateELBO(get_ELBO(m, s, c_test, x_test))
 
     solution.set_params(m, s, c,c_test)    
-    #queue.put(solution)                                     FIXME
-    print (f'Completed Run {run_number}')
-    print (solution.m)
+    with open((Path(path) / f'{file_name}{j:.04d}').with_suffix('.txt')) as f:
+        f.write(f'{solution}\n'))
 
     
 def run_processes(args,x_train,x_test,rng=np.random.default_rng()):
-    print (f'There are {cpu_count()} cpus')
+    print (f'There are {cpu_count()} cores')
     run_number: int = 0
     solutions = []
     while run_number < args.M:
-        queue = Queue()
         processes = []
         for i in range(args.processes):
             if run_number < args.M:
                 solution = Solution(id=run_number)
                 solutions.append(solution)
                 process = Process(target=cavi_run,
-                                  args=(run_number,x_train,x_test,args.K,args.N,rng,queue,solution))
+                                  args=(run_number,x_train,x_test,args.K,args.N,rng,solution,args.path,'foo'))
                 processes.append(process)
                 run_number += 1
                 process.start()
-                
-        print (f'There are {len(processes)} processes')
             
         for i in range(len(processes)):  
-            print (f'Joining {i}')
             processes[i].join()
-            print (f'Joined {i}')
-        print ('Joined')
-   
-            
-        #for _ in range(len(processes)):
-            #solution = queue.get()
-            #print (solution)
 
 def main():
     args = parse_args()
