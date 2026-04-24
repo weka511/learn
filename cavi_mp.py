@@ -20,7 +20,7 @@
 
 '''
     The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
-	with data in 1, 2 or 3 dimensions.
+    with data in 1, 2 or 3 dimensions. THis version of the program spreads the load over multiple processes.
 '''
 
 from argparse import ArgumentParser
@@ -33,7 +33,7 @@ from tempfile import gettempdir
 import numpy as np
 from shared.utils import generate_xkcd_colours,Splitter
 from gmm import GaussionMixtureModel, get_name, create_colours
-from cavi_nd import Solution, initialize, get_updated_assignments, get_updated_statistics, get_ELBO,create_data_colours
+import cavi_nd as cavi
 
 def parse_args():
     parser = ArgumentParser(__doc__)
@@ -55,13 +55,13 @@ def parse_args():
 def cavi_run(run_number:int,x_train,x_test,K,N,rng,solution,path,file_name,BURN_IN,atol):
     print (f'Run {run_number}')
     dummy = rng.integers(0, 100, size=K*run_number+7)
-    m, s, c = initialize(x_train, K, rng=rng)
-    solution.accumulateELBO(get_ELBO(m, s, c, x_train)) 
+    m, s, c = cavi.initialize(x_train, K, rng=rng)
+    solution.accumulateELBO(cavi.get_ELBO(m, s, c, x_train)) 
     for j in range(N):
-        c = get_updated_assignments(m, s, x_train)
-        m, s = get_updated_statistics(m, s, c, x_train)
-        c_test = get_updated_assignments(m, s, x_test)
-        solution.accumulateELBO(get_ELBO(m, s, c_test, x_test))
+        c = cavi.get_updated_assignments(m, s, x_train)
+        m, s = cavi.get_updated_statistics(m, s, c, x_train)
+        c_test = cavi.get_updated_assignments(m, s, x_test)
+        solution.accumulateELBO(cavi.get_ELBO(m, s, c_test, x_test))
         if j > BURN_IN and solution.ELBO[-1] - solution.ELBO[-2] < atol:
             break        
 
@@ -79,7 +79,7 @@ def run_processes(args,x_train,x_test,rng=np.random.default_rng(),prefix='foo'):
         processes = []
         for i in range(args.processes):
             if run_number < args.M:
-                solution = Solution(id=run_number)
+                solution = cavi.Solution(id=run_number)
                 solutions.append(solution)
                 process = Process(target=cavi_run,
                                   args=(run_number,x_train,x_test,args.K,
@@ -92,52 +92,10 @@ def run_processes(args,x_train,x_test,rng=np.random.default_rng(),prefix='foo'):
             processes[i].join()
             
 def create_solutions(temp_path,prefix,M):
-    Solutions = [Solution.create(get_solution_path(temp_path,prefix,i)) for i in range(M)]
+    Solutions = [cavi.Solution.create(get_solution_path(temp_path,prefix,i)) for i in range(M)]
     ELBOS = [solution.ELBO[-1] for solution in Solutions]
     return np.argmax(ELBOS),Solutions
-
-def plotELBOs(index_best,Solutions,ax=None):
-    ELBO_colours = generate_xkcd_colours()
-    for i in range(len(Solutions)):
-        label = None
-        linestyle = 'dotted'
-        if i == index_best:
-            label = f'best {Solutions[i].ELBO[-1]:.6}'
-            linestyle = 'solid'
-        ax.plot(range(len(Solutions[i].ELBO)),Solutions[i].ELBO, c=next(ELBO_colours), label=label, linestyle=linestyle)
-    ax.legend()
-    ax.set_title(f'ELBO for {len(Solutions)} runs, plotted with held-out data')
-    ax.set_xlabel('Iteration')
-    ax.set_ylabel('ELBO')
-
-def plot_clusters(d,x,index_best,Solutions,args,ax=None):
-    match d:
-        case 1:
-            n, _, _ = ax.hist(x, bins='sturges', color='xkcd:blue', label='x',density=True)
-            ax.vlines(np.ravel(Solutions[index_best].m), 0, max(n), 
-                       colors='xkcd:red', linestyles='dashed', label='Means (fitted)')
-            ax.set_xlabel('X')
-            ax.set_ylabel('p')
-            ax.legend()
-
-        case 2:
-            ax.scatter(x[:, 0], x[:, 1],
-                        c=create_data_colours(x, Solutions[index_best].c_test, create_colours(args.K)), s=1)
-            for k in range(args.K):
-                ax.scatter(Solutions[index_best].m[k, 0], Solutions[index_best].m[k, 1],
-                            c='xkcd:black', marker='+', s=25)
-            ax.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-
-        case 3:
-            ax.scatter(x[:,0],x[:,1],x[:,2],
-                        c=create_data_colours(x, Solutions[index_best].c_test, create_colours(args.K)), s=1)
-            ax.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-            ax.set_zlabel('Z')   
-            
+        
 def main():
     start = time()
     args = parse_args()
@@ -156,10 +114,10 @@ def main():
     
     fig = figure(figsize=(12, 12))
     fig.suptitle(f'{args.name}')
-    plotELBOs(index_best,Solutions,ax=fig.add_subplot(2, 1, 1))
+    cavi.plotELBOs(index_best,Solutions,ax=fig.add_subplot(2, 1, 1))
 
     _,d = x_test.shape
-    plot_clusters(d,x_test,index_best,Solutions,args,
+    cavi.plot_clusters(d,x_test,index_best,Solutions,args.K,args.M,
                   ax=fig.add_subplot(2, 1, 2,projection='3d') if d == 3 else fig.add_subplot(2, 1, 2))
           
     fig.tight_layout(pad=3,h_pad=4)
@@ -171,7 +129,6 @@ def main():
     print (f'Elapsed Time {minutes} m {seconds:.2f} s') 
     if args.show:
         show()    
-    
     
 if __name__ == '__main__':
     main()
