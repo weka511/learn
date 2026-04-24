@@ -24,6 +24,8 @@
 '''
 
 from argparse import ArgumentParser
+from glob import glob
+from os import remove
 from os.path import basename
 from pathlib import Path
 from time import time
@@ -92,17 +94,31 @@ def run_processes(args,x_train,x_test,rng=np.random.default_rng(),prefix='foo'):
             processes[i].join()
             
 def create_solutions(temp_path,prefix,M):
+    '''
+    Read list of solutions from stored values
+    '''
     Solutions = [cavi.Solution.create(get_solution_path(temp_path,prefix,i)) for i in range(M)]
     ELBOS = [solution.ELBO[-1] for solution in Solutions]
     return np.argmax(ELBOS),Solutions
-        
+
+def ensure_no_temporary_files_left(temp_path,prefix):
+    '''
+    Make sure there are no temporary files left overS
+    '''
+    removed_files = 0
+    for f in glob(str(Path(temp_path) / prefix) + '*'):
+        remove(f)
+        removed_files += 1
+    if removed_files > 0:
+        print (f'Removed {removed_files} temporary files')
+
 def main():
     start = time()
     args = parse_args()
     rng = np.random.default_rng(args.seed)
     temp_path = gettempdir()
     prefix = basename(__file__).split('.')[0]
-    
+    ensure_no_temporary_files_left(temp_path,prefix)
     model = GaussionMixtureModel()
     path_name = Path(args.path) / args.name
     
@@ -122,7 +138,10 @@ def main():
           
     fig.tight_layout(pad=3,h_pad=4)
     figs_path_name = Path(args.figs) / args.name
-    fig.savefig(figs_path_name.with_suffix('.png'))    
+    fig.savefig(figs_path_name.with_suffix('.png'))  
+    
+    ensure_no_temporary_files_left(temp_path,prefix)
+    
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
