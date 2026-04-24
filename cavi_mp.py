@@ -31,7 +31,7 @@ from multiprocessing import cpu_count, Queue, Process
 import numpy as np
 from shared.utils import generate_xkcd_colours,Splitter
 from gmm import GaussionMixtureModel, get_name, create_colours
-from cavi_nd import Solution
+from cavi_nd import Solution, initialize, get_updated_assignments, get_updated_statistics, get_ELBO
 
 def parse_args():
     parser = ArgumentParser(__doc__)
@@ -49,31 +49,66 @@ def parse_args():
     parser.add_argument('--test', type=float, default=0.1,help='Size of held out dataset')
     parser.add_argument('--processes', type=int, default=cpu_count(), help='Number of processors')
     return parser.parse_args()
-
-def cavi_run(run_number:int,queue : Queue):
+  
+def cavi_run(run_number:int,x_train,x_test,K,N,rng,queue : Queue,solution):
     print (f'Run {run_number}')
-    solution = Solution(id=run_number)
-    queue.put(solution)
+
+    m, s, c = initialize(x_train, K, rng=rng)
+    solution.accumulateELBO(get_ELBO(m, s, c, x_train)) 
+    for j in range(N):
+        print (f'Run {run_number},j={j}') 
+        c = get_updated_assignments(m, s, x_train)
+        m, s = get_updated_statistics(m, s, c, x_train)
+        c_test = get_updated_assignments(m, s, x_test)
+        solution.accumulateELBO(get_ELBO(m, s, c_test, x_test))
+
+    solution.set_params(m, s, c,c_test)    
+    #queue.put(solution)                                     FIXME
+    print (f'Completed Run {run_number}')
+    print (solution.m)
+
+    
+def run_processes(args,x_train,x_test,rng=np.random.default_rng()):
+    print (f'There are {cpu_count()} cpus')
+    run_number: int = 0
+    solutions = []
+    while run_number < args.M:
+        queue = Queue()
+        processes = []
+        for i in range(args.processes):
+            if run_number < args.M:
+                solution = Solution(id=run_number)
+                solutions.append(solution)
+                process = Process(target=cavi_run,
+                                  args=(run_number,x_train,x_test,args.K,args.N,rng,queue,solution))
+                processes.append(process)
+                run_number += 1
+                process.start()
+                
+        print (f'There are {len(processes)} processes')
+            
+        for i in range(len(processes)):  
+            print (f'Joining {i}')
+            processes[i].join()
+            print (f'Joined {i}')
+        print ('Joined')
+   
+            
+        #for _ in range(len(processes)):
+            #solution = queue.get()
+            #print (solution)
 
 def main():
     args = parse_args()
-    print (f'There are {cpu_count()} cpus')
-    run_number: int = 0
-    while run_number < args.M:
-        queue = Queue()
-        processes:list[Process] = []
-        for _ in range(args.processes):
-            if run_number >= args.M: break
-            process = Process(target=cavi_run,args=(run_number,queue))
-            processes.append(process)
-            process.start()
-            run_number += 1
-        for process in processes:    
-            process.join()
-        for _ in range(len(processes)):
-            solution = queue.get()
-            print (solution)
+    rng = np.random.default_rng(args.seed)
+
+    ELBO_colours = generate_xkcd_colours()
+    model = GaussionMixtureModel()
+    path_name = Path(args.path) / args.name
+    x = model.load(path_name.with_suffix('.npz'))
+    splitter = Splitter(rng=rng,test_size=args.test)
+    x_train,x_test = splitter.split(x)    
+    run_processes(args,x_train,x_test,rng=rng)
     
 if __name__ == '__main__':
     main()
-    
