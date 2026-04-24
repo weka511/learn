@@ -28,7 +28,7 @@ Programs written to understand Variational Inference, based on the following ref
 ---------------|-------------------------------------------------------------------------------------------
 cavi.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
 cavi3.py|Coordinate Ascent Mean-Field Variational Inference (in 1D with 3 peaks
-cavi_mp|Multiprocessing version of Coordinate Ascent Mean-Field Variational Inference (CAVI) for multiple dimensions
+cavi_mp|Driver for cavi_np.py, which apportions the load over multiple processes.
 cavi_nd.py|Coordinate Ascent Mean-Field Variational Inference (CAVI) for multiple dimensions
 em.py|Fit Gaussian to  data using Expectation Maximization
 gmm.py|Generate data in accordance with Gaussian Mixture Model for cavi_nd.py
