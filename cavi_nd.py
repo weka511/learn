@@ -269,7 +269,7 @@ if __name__ == '__main__':
             m, s = get_updated_statistics(m, s, c, x_train)
             c_test = get_updated_assignments(m, s, x_test)
             Solutions[-1].accumulateELBO(get_ELBO(m, s, c_test, x_test))
-            if len(Solutions) > args.BURN_IN and Solutions[-1].ELBO[-1] - Solutions[-1].ELBO[-2] < args.atol:
+            if j > args.BURN_IN and Solutions[-1].ELBO[-1] - Solutions[-1].ELBO[-2] < args.atol:
                 break
 
         Solutions[-1].set_params(m, s, c,c_test)

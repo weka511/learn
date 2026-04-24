@@ -50,21 +50,22 @@ def parse_args():
     parser.add_argument('--processes', type=int, default=cpu_count(), help='Number of processors')
     return parser.parse_args()
   
-def cavi_run(run_number:int,x_train,x_test,K,N,rng,solution,path,file_name):
+def cavi_run(run_number:int,x_train,x_test,K,N,rng,solution,path,file_name,BURN_IN,atol):
     print (f'Run {run_number}')
 
     m, s, c = initialize(x_train, K, rng=rng)
     solution.accumulateELBO(get_ELBO(m, s, c, x_train)) 
     for j in range(N):
-        print (f'Run {run_number},j={j}') 
         c = get_updated_assignments(m, s, x_train)
         m, s = get_updated_statistics(m, s, c, x_train)
         c_test = get_updated_assignments(m, s, x_test)
         solution.accumulateELBO(get_ELBO(m, s, c_test, x_test))
+        if j > BURN_IN and solution.ELBO[-1] - solution.ELBO[-2] < atol:
+            break        
 
     solution.set_params(m, s, c,c_test)    
-    with open((Path(path) / f'{file_name}{j:.04d}').with_suffix('.txt')) as f:
-        f.write(f'{solution}\n'))
+    with open((Path(path) / f'{file_name}{j:04d}').with_suffix('.txt'),'w') as f:
+        f.write(f'{solution}\n')
 
     
 def run_processes(args,x_train,x_test,rng=np.random.default_rng()):
@@ -78,7 +79,8 @@ def run_processes(args,x_train,x_test,rng=np.random.default_rng()):
                 solution = Solution(id=run_number)
                 solutions.append(solution)
                 process = Process(target=cavi_run,
-                                  args=(run_number,x_train,x_test,args.K,args.N,rng,solution,args.path,'foo'))
+                                  args=(run_number,x_train,x_test,args.K,
+                                        args.N,rng,solution,args.path,'foo',args.BURN_IN,args.atol))
                 processes.append(process)
                 run_number += 1
                 process.start()
@@ -87,6 +89,7 @@ def run_processes(args,x_train,x_test,rng=np.random.default_rng()):
             processes[i].join()
 
 def main():
+    start = time()
     args = parse_args()
     rng = np.random.default_rng(args.seed)
 
@@ -97,6 +100,10 @@ def main():
     splitter = Splitter(rng=rng,test_size=args.test)
     x_train,x_test = splitter.split(x)    
     run_processes(args,x_train,x_test,rng=rng)
+    elapsed = time() - start
+    minutes = int(elapsed/60)
+    seconds = elapsed - 60*minutes
+    print (f'Elapsed Time {minutes} m {seconds:.2f} s')    
     
 if __name__ == '__main__':
     main()
