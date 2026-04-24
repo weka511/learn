@@ -24,10 +24,12 @@
 '''
 
 from argparse import ArgumentParser
+from os.path import basename
 from pathlib import Path
 from time import time
 from matplotlib.pyplot import figure, rcParams, show
 from multiprocessing import cpu_count, Process
+from tempfile import gettempdir
 import numpy as np
 from shared.utils import generate_xkcd_colours,Splitter
 from gmm import GaussionMixtureModel, get_name, create_colours
@@ -63,12 +65,13 @@ def cavi_run(run_number:int,x_train,x_test,K,N,rng,solution,path,file_name,BURN_
         if j > BURN_IN and solution.ELBO[-1] - solution.ELBO[-2] < atol:
             break        
 
-    solution.set_params(m, s, c,c_test)    
-    with open((Path(path) / f'{file_name}{j:04d}').with_suffix('.txt'),'w') as f:
-        f.write(f'{solution}\n')
-
+    solution.set_params(m, s, c,c_test)
+    solution.save(get_solution_path(path,file_name,run_number))
     
-def run_processes(args,x_train,x_test,rng=np.random.default_rng()):
+def get_solution_path(path,file_name,run_number):
+    return (Path(path) / f'{file_name}{run_number:04d}').with_suffix('.npz')
+
+def run_processes(args,x_train,x_test,rng=np.random.default_rng(),prefix='foo'):
     print (f'There are {cpu_count()} cores')
     run_number: int = 0
     solutions = []
@@ -80,7 +83,7 @@ def run_processes(args,x_train,x_test,rng=np.random.default_rng()):
                 solutions.append(solution)
                 process = Process(target=cavi_run,
                                   args=(run_number,x_train,x_test,args.K,
-                                        args.N,rng,solution,args.path,'foo',args.BURN_IN,args.atol))
+                                        args.N,rng,solution,gettempdir(),prefix,args.BURN_IN,args.atol))
                 processes.append(process)
                 run_number += 1
                 process.start()
@@ -92,14 +95,17 @@ def main():
     start = time()
     args = parse_args()
     rng = np.random.default_rng(args.seed)
-
+    temp_path = gettempdir()
+    prefix = basename(__file__).split('.')[0]
     ELBO_colours = generate_xkcd_colours()
     model = GaussionMixtureModel()
     path_name = Path(args.path) / args.name
-    x = model.load(path_name.with_suffix('.npz'))
+    
     splitter = Splitter(rng=rng,test_size=args.test)
-    x_train,x_test = splitter.split(x)    
-    run_processes(args,x_train,x_test,rng=rng)
+    x_train,x_test = splitter.split(model.load(path_name.with_suffix('.npz')))    
+    run_processes(args,x_train,x_test,rng=rng,prefix=prefix)
+    for i in range(args.M):
+        solution = Solution.create(get_solution_path(temp_path,prefix,i))
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes

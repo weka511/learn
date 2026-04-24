@@ -43,6 +43,13 @@ class Solution:
         c       Assignments of points to clusters for training data
         c_test  Assignments of points to clusters for test data
     '''
+    @staticmethod
+    def create(path):
+        npzfile = np.load(path)
+        product = Solution()
+        product.set_params(npzfile['m'], npzfile['s'], npzfile['c'],npzfile['c_test'])
+        product.ELBO = npzfile['ELBO']
+        
     def __init__(self,id=None):
         '''
         Used at the start of a run to initalize parameters
@@ -80,6 +87,9 @@ class Solution:
             ELBO    Current value, to be appended to history
         '''
         self.ELBO.append(ELBO)
+        
+    def save(self,path):
+        np.savez(path,m=self.m,s=self.s,c=self.c,c_test=self.c_test,ELBO = np.array(self.ELBO))
 
 
 def parse_args():
