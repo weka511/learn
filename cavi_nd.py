@@ -49,6 +49,7 @@ class Solution:
         product = Solution()
         product.set_params(npzfile['m'], npzfile['s'], npzfile['c'],npzfile['c_test'])
         product.ELBO = npzfile['ELBO']
+        return product
         
     def __init__(self,id=None):
         '''
