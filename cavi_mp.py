@@ -109,7 +109,35 @@ def plotELBOs(index_best,Solutions,ax=None):
     ax.set_title(f'ELBO for {len(Solutions)} runs, plotted with held-out data')
     ax.set_xlabel('Iteration')
     ax.set_ylabel('ELBO')
-    
+
+def plot_clusters(d,x,index_best,Solutions,args,ax=None):
+    match d:
+        case 1:
+            n, _, _ = ax.hist(x, bins='sturges', color='xkcd:blue', label='x',density=True)
+            ax.vlines(np.ravel(Solutions[index_best].m), 0, max(n), 
+                       colors='xkcd:red', linestyles='dashed', label='Means (fitted)')
+            ax.set_xlabel('X')
+            ax.set_ylabel('p')
+            ax.legend()
+
+        case 2:
+            ax.scatter(x[:, 0], x[:, 1],
+                        c=create_data_colours(x, Solutions[index_best].c_test, create_colours(args.K)), s=1)
+            for k in range(args.K):
+                ax.scatter(Solutions[index_best].m[k, 0], Solutions[index_best].m[k, 1],
+                            c='xkcd:black', marker='+', s=25)
+            ax.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+
+        case 3:
+            ax.scatter(x[:,0],x[:,1],x[:,2],
+                        c=create_data_colours(x, Solutions[index_best].c_test, create_colours(args.K)), s=1)
+            ax.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+            ax.set_zlabel('Z')   
+            
 def main():
     start = time()
     args = parse_args()
@@ -129,38 +157,11 @@ def main():
     fig = figure(figsize=(12, 12))
     fig.suptitle(f'{args.name}')
     plotELBOs(index_best,Solutions,ax=fig.add_subplot(2, 1, 1))
-    
-    _,d = x_train.shape
-    match d:
-        case 1:
-            ax2 = fig.add_subplot(2, 1, 2)
-            n, _, _ = ax2.hist(x_test, bins='sturges', color='xkcd:blue', label='x',density=True)
-            ax2.vlines(np.ravel(Solutions[index_best].m), 0, max(n), 
-                       colors='xkcd:red', linestyles='dashed', label='Means (fitted)')
-            ax2.set_xlabel('X')
-            ax2.set_ylabel('p')
-            ax2.legend()
 
-        case 2:
-            ax2 = fig.add_subplot(2, 1, 2)
-            ax2.scatter(x_test[:, 0], x_test[:, 1],
-                        c=create_data_colours(x_test, Solutions[index_best].c_test, create_colours(args.K)), s=1)
-            for k in range(args.K):
-                ax2.scatter(Solutions[index_best].m[k, 0], Solutions[index_best].m[k, 1],
-                            c='xkcd:black', marker='+', s=25)
-            ax2.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
-            ax2.set_xlabel('X')
-            ax2.set_ylabel('Y')
-
-        case 3:
-            ax2 = fig.add_subplot(2, 1, 2,projection='3d')
-            ax2.scatter(x_test[:,0],x_test[:,1],x_test[:,2],
-                        c=create_data_colours(x_test, Solutions[index_best].c_test, create_colours(args.K)), s=1)
-            ax2.set_title(f'Solution with best ELBO: {Solutions[index_best].ELBO[-1]:.6} after {args.M} runs')
-            ax2.set_xlabel('X')
-            ax2.set_ylabel('Y')
-            ax2.set_zlabel('Z')    
-        
+    _,d = x_test.shape
+    plot_clusters(d,x_test,index_best,Solutions,args,
+                  ax=fig.add_subplot(2, 1, 2,projection='3d') if d == 3 else fig.add_subplot(2, 1, 2))
+          
     fig.tight_layout(pad=3,h_pad=4)
     figs_path_name = Path(args.figs) / args.name
     fig.savefig(figs_path_name.with_suffix('.png'))    
