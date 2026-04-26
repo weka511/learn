@@ -28,16 +28,12 @@ from os import remove
 from os.path import basename
 from pathlib import Path
 from time import time
-from matplotlib.pyplot import figure, rcParams, show,subplot
 from multiprocessing import cpu_count, Process, Pool#,Lock
 from tempfile import gettempdir
 import numpy as np
-from shared.utils import generate_xkcd_colours, Splitter
-from gmm import GaussionMixtureModel, get_name, create_colours
+from shared.utils import Splitter
+from gmm import GaussionMixtureModel, get_name
 import cavi_nd as cavi
-#import matplotlib
-#matplotlib.use('Agg')
-from matplotlib import __version__
 
 def parse_args():
     '''
@@ -47,13 +43,11 @@ def parse_args():
     parser.add_argument('name', help='Name of data file')
     parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
     parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
-    parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
     parser.add_argument('--N', type=int, default=100, help='Maximum number of iterations per run')
     parser.add_argument('--M', type=int, default=25, help='Number of runs')
     parser.add_argument('--BURN_IN', type=int, default=3, help='Minimum number of iterations')
     parser.add_argument('--atol', type=float, default=1e-6, help='Tolerance for improving ELBO')
     parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
-    parser.add_argument('--figs', default='./figs', help='Folder to store plots')
     parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
     parser.add_argument('--test', type=float, default=0.1, help='Size of held out dataset')
     args = parser.parse_args()
@@ -87,9 +81,7 @@ class Explorer:
         self.atol = atol
         self.path = path
         self.prefix = prefix
-        #self.run_number = 0
-        #self.lock = Lock()
-    
+   
     def explore(self,solution):
         m = solution.m
         s = solution.s
@@ -103,6 +95,7 @@ class Explorer:
                 break
     
         solution.set_params(m, s, c, c_test) 
+        print (cavi.get_ELBO(m, s, c_test, self.x_test))
         solution.save(get_solution_path(self.path,self.prefix,solution.id))
         return solution
     
@@ -119,7 +112,6 @@ class Explorer:
         return (Path(self.path) / f'{prefix}{self.run_number:04d}').with_suffix('.npz') 
 
 def main():
-    print (f'matplotlib {__version__}')
     start = time()
     args = parse_args()
     rng = np.random.default_rng(args.seed)
@@ -134,20 +126,10 @@ def main():
     with Pool(processes=cpu_count()-1) as pool:
         Solutions = pool.map(explorer.explore, Solutions0)
     
-    
-    #ELBOS = [solution.ELBO[-1] for solution in Solutions]
-    #index_best = np.argmax(ELBOS)
-    #print (len(ELBOS),ELBOS[index_best])
-    #print (ELBOS)
-    #fig = figure(figsize=(12, 12))
-    #fig.suptitle(f'{args.name}')
-    #cavi.plotELBOs(index_best, Solutions, ax=fig.add_subplot(2, 1, 1))   
     elapsed = time() - start
     minutes = int(elapsed / 60)
     seconds = elapsed - 60 * minutes
-    print(f'Elapsed Time {minutes} m {seconds:.2f} s')
-    if args.show:
-        show()    
+    print(f'Elapsed Time {minutes} m {seconds:.2f} s') 
 
 if __name__ == '__main__':
     main()
