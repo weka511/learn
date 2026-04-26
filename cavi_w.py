@@ -29,14 +29,16 @@ from os.path import basename
 from pathlib import Path
 from time import time
 from matplotlib.pyplot import figure, rcParams, show,subplot
-from multiprocessing import cpu_count, Process, Pool
+from multiprocessing import cpu_count, Process, Pool#,Lock
 from tempfile import gettempdir
 import numpy as np
 from shared.utils import generate_xkcd_colours, Splitter
 from gmm import GaussionMixtureModel, get_name, create_colours
 import cavi_nd as cavi
-import matplotlib
-matplotlib.use('Agg')
+#import matplotlib
+#matplotlib.use('Agg')
+from matplotlib import __version__
+
 def parse_args():
     '''
     Parse command line argumengts
@@ -57,23 +59,36 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def create_solution(x_train,x_test,K,rng = np.random.default_rng()):
-    Product = cavi.Solution()
+def create_solution(x_train,x_test,K,rng = np.random.default_rng(),id=None):
+    Product = cavi.Solution(id=id)
     m, s, c = cavi.initialize(x_train, K, rng=rng)
     Product.set_params(m,s,c,[])
     Product.accumulateELBO(cavi.get_ELBO(m, s, c, x_train))
     return Product
 
-
+def get_solution_path(path: str, prefix: str, run_number: int):
+    '''
+    Read solution back from file
+    
+    Parameters:
+        path          Location of files
+        prefix        First part of file name
+        run_number    Unique identifier for each run
+    '''
+    return (Path(path) / f'{prefix}{run_number:04d}').with_suffix('.npz')
 
 class Explorer:
-    def __init__(self,x_train, x_test, K, N, BURN_IN, atol):
+    def __init__(self,x_train, x_test, K, N, BURN_IN, atol,path=gettempdir(),prefix='cavi_w'):
         self.x_train = x_train
         self.x_test = x_test
         self.K = K
         self.N = N
         self.BURN_IN = BURN_IN
         self.atol = atol
+        self.path = path
+        self.prefix = prefix
+        #self.run_number = 0
+        #self.lock = Lock()
     
     def explore(self,solution):
         m = solution.m
@@ -87,10 +102,24 @@ class Explorer:
             if j > self.BURN_IN and solution.ELBO[-1] - solution.ELBO[-2] < self.atol:
                 break
     
-        solution.set_params(m, s, c, c_test)        
+        solution.set_params(m, s, c, c_test) 
+        solution.save(get_solution_path(self.path,self.prefix,solution.id))
         return solution
+    
+    def get_solution_path(self):
+        '''
+        Read solution back from file
+        
+        Parameters:
+            path          Location of files
+            prefix        First part of file name
+            run_number    Unique identifier for each run
+        '''
+        self.run_number += 1
+        return (Path(self.path) / f'{prefix}{self.run_number:04d}').with_suffix('.npz') 
 
 def main():
+    print (f'matplotlib {__version__}')
     start = time()
     args = parse_args()
     rng = np.random.default_rng(args.seed)
@@ -101,13 +130,15 @@ def main():
     x_train, x_test = splitter.split(model.load(path_name.with_suffix('.npz')))
     
     explorer = Explorer(x_train, x_test, args.K, args.N, args.BURN_IN, args.atol)
-    Solutions0 = [create_solution(x_train,x_test,args.K,rng=rng) for _ in range(args.M)]
+    Solutions0 = [create_solution(x_train,x_test,args.K,rng=rng,id=i) for i in range(args.M)]
     with Pool(processes=cpu_count()-1) as pool:
         Solutions = pool.map(explorer.explore, Solutions0)
-    ELBOS = [solution.ELBO[-1] for solution in Solutions]
-    index_best = np.argmax(ELBOS)
-    print (len(ELBOS),ELBOS[index_best])
-    print (ELBOS)
+    
+    
+    #ELBOS = [solution.ELBO[-1] for solution in Solutions]
+    #index_best = np.argmax(ELBOS)
+    #print (len(ELBOS),ELBOS[index_best])
+    #print (ELBOS)
     #fig = figure(figsize=(12, 12))
     #fig.suptitle(f'{args.name}')
     #cavi.plotELBOs(index_best, Solutions, ax=fig.add_subplot(2, 1, 1))   
