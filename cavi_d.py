@@ -89,7 +89,7 @@ def main():
 
     fig = figure(figsize=(12, 12))
     #fig.suptitle(f'{args.name}')
-    cavi.plotELBOs(index_best, Solutions, ax=fig.add_subplot(2, 1, 1))
+    cavi.plotELBOs(index_best, Solutions, ax=fig.add_subplot(2, 1, 1),SKIP=1)
     
     
     elapsed = time() - start

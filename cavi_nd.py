@@ -249,12 +249,12 @@ def create_data_colours(x, c,cluster_colours):
         colours[i] = cluster_colours[index]
     return colours
 
-def plotELBOs(index_best,Solutions,ax=None):
+def plotELBOs(index_best,Solutions,ax=None,SKIP=0):
     '''
     Plot ELBO for all solutions
     
     Parameters:
-        index_best   Index of the soltion with the highest final value of ELBO
+        index_best   Index of the solution with the highest final value of ELBO
         Solutions    All solutuons
         ax           Axis for plotting
     '''
@@ -263,9 +263,10 @@ def plotELBOs(index_best,Solutions,ax=None):
         label = None
         linestyle = 'dotted'
         if i == index_best:
-            label = f'best {Solutions[i].ELBO[-1]:.6}'
+            label = f'best={Solutions[i].ELBO[-1]:.6}'
             linestyle = 'solid'
-        ax.plot(range(len(Solutions[i].ELBO)),Solutions[i].ELBO, c=next(ELBO_colours), label=label, linestyle=linestyle)
+        ELBO = Solutions[i].ELBO[SKIP:-1]
+        ax.plot(range(len(ELBO)),ELBO, c=next(ELBO_colours), label=label, linestyle=linestyle)
     ax.legend()
     ax.set_title(f'ELBO for {len(Solutions)} runs, plotted with held-out data')
     ax.set_xlabel('Iteration')
