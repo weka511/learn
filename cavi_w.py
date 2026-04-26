@@ -53,13 +53,6 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def create_solution(x_train,x_test,K,rng = np.random.default_rng(),id=None):
-    Product = cavi.Solution(id=id)
-    m, s, c = cavi.initialize(x_train, K, rng=rng)
-    Product.set_params(m,s,c,[])
-    Product.accumulateELBO(cavi.get_ELBO(m, s, c, x_train))
-    return Product
-
 def get_solution_path(path: str, prefix: str, run_number: int):
     '''
     Read solution back from file
@@ -82,6 +75,13 @@ class Explorer:
         self.path = path
         self.prefix = prefix
    
+    def create_solution(self,rng = np.random.default_rng(),id=None):
+        Product = cavi.Solution(id=id)
+        m, s, c = cavi.initialize(self.x_train, self.K, rng=rng)
+        Product.set_params(m,s,c,[])
+        Product.accumulateELBO(cavi.get_ELBO(m, s, c, self.x_train))
+        return Product
+        
     def explore(self,solution):
         m = solution.m
         s = solution.s
@@ -122,9 +122,9 @@ def main():
     x_train, x_test = splitter.split(model.load(path_name.with_suffix('.npz')))
     
     explorer = Explorer(x_train, x_test, args.K, args.N, args.BURN_IN, args.atol)
-    Solutions0 = [create_solution(x_train,x_test,args.K,rng=rng,id=i) for i in range(args.M)]
     with Pool(processes=cpu_count()-1) as pool:
-        Solutions = pool.map(explorer.explore, Solutions0)
+        Solutions = pool.map(explorer.explore, 
+                             [explorer.create_solution(rng=rng,id=i) for i in range(args.M)])
     
     elapsed = time() - start
     minutes = int(elapsed / 60)
