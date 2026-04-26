@@ -24,7 +24,7 @@
 
 from argparse import ArgumentParser
 from glob import glob
-from os import remove
+from os import remove,system
 from os.path import basename
 from pathlib import Path
 from time import time
@@ -78,6 +78,17 @@ class Explorer:
         self.path = path
         self.prefix = prefix
         
+    def ensure_no_temporary_files_left(self):
+        '''
+        Make sure there are no temporary files left over
+        '''
+        removed_files = 0
+        for f in glob(str(Path(self.path) / self.prefix) + '*'):
+            remove(f)
+            removed_files += 1
+        if removed_files > 0:
+            print(f'Removed {removed_files} temporary files from {self.path}')    
+        
     def save_test_data(self,path):
         np.savez(path,x_test=self.x_test)
    
@@ -101,7 +112,7 @@ class Explorer:
                 break
     
         solution.set_params(m, s, c, c_test) 
-        print (cavi.get_ELBO(m, s, c_test, self.x_test))
+  
         solution.save(get_solution_path(self.path,self.prefix,solution.id))
         self.save_test_data(get_solution_path(self.path,self.prefix,'-data'))
         return solution
@@ -117,11 +128,12 @@ class Explorer:
         '''
         self.run_number += 1
         return (Path(self.path) / f'{prefix}{self.run_number:04}').with_suffix('.npz') 
-
+            
 def main():
     start = time()
     args = parse_args()
     rng = np.random.default_rng(args.seed)
+      
     model = GaussionMixtureModel()
     path_name = Path(args.path) / args.name
 
@@ -129,6 +141,7 @@ def main():
     x_train, x_test = splitter.split(model.load(path_name.with_suffix('.npz')))
     
     explorer = Explorer(x_train, x_test, args.K, args.N, args.BURN_IN, args.atol)
+    explorer.ensure_no_temporary_files_left()
     with Pool(processes=cpu_count()-1) as pool:
         Solutions = pool.map(explorer.explore, 
                              [explorer.create_solution(rng=rng,id=i) for i in range(args.M)])
@@ -136,8 +149,8 @@ def main():
     elapsed = time() - start
     minutes = int(elapsed / 60)
     seconds = elapsed - 60 * minutes
-    print(f'Elapsed Time {minutes} m {seconds:.2f} s') 
+    print(f'Elapsed Time {minutes} m {seconds:.2f} s')
+    system(f'python cavi_d.py {args.name}  --K {args.K} --show')
 
 if __name__ == '__main__':
     main()
-    

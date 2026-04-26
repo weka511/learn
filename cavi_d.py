@@ -15,20 +15,17 @@
 # <http://www.gnu.org/licenses/>.
 
 '''
-    Driver for cavi_np.py, the Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
-    with data in 1, 2 or 3 dimensions. The driver apportions the load over multiple processes.
+    Plot results from cavi_w.py
 '''
 
 from argparse import ArgumentParser
-from glob import glob
-from os import remove
 from os.path import basename
 from pathlib import Path
 from time import time
 from matplotlib.pyplot import figure, rcParams, show
 from tempfile import gettempdir
 import numpy as np
-from shared.utils import generate_xkcd_colours, Splitter
+from shared.utils import generate_xkcd_colours
 from gmm import GaussionMixtureModel, get_name, create_colours
 import cavi_nd as cavi
 
@@ -40,19 +37,11 @@ def parse_args():
     parser.add_argument('name', help='Name of data file')
     parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
-    parser.add_argument('--N', type=int, default=100, help='Maximum number of iterations per run')
-    parser.add_argument('--M', type=int, default=25, help='Number of runs')
-    parser.add_argument('--BURN_IN', type=int, default=3, help='Minimum number of iterations')
-    parser.add_argument('--atol', type=float, default=1e-6, help='Tolerance for improving ELBO')
-    parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
+    parser.add_argument('--skip', type=int, default=1, help='Skip this maany iterations')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
-    parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
-    parser.add_argument('--test', type=float, default=0.1, help='Size of held out dataset')
 
-    args = parser.parse_args()
+    return parser.parse_args()
  
-    return args
-
 def get_solution_path(path, prefix, run_number):
     '''
     Read solution back from file
@@ -67,7 +56,7 @@ def get_solution_path(path, prefix, run_number):
     except Exception as e:
         return (Path(path) / f'{prefix}{run_number}').with_suffix('.npz')
 
-def create_solutions(temp_path: str, prefix: str, M: int):
+def create_solutions(temp_path: str, prefix: str):
     '''
     Read list of solutions from stored values
     '''
@@ -86,18 +75,15 @@ def main():
     start = time()
     args = parse_args()
 
-    temp_path = gettempdir()
-    prefix = 'cavi_w' 
-    
-    index_best, Solutions = create_solutions(temp_path, prefix, args.M)
-    z = np.load(get_solution_path(temp_path, prefix, '-data'))
+    index_best, Solutions = create_solutions(gettempdir(), 'cavi_w')
+    z = np.load(get_solution_path(gettempdir(), 'cavi_w', '-data'))
     x_test = z['x_test']
     
     fig = figure(figsize=(12, 12))
     fig.suptitle(f'{args.name}')
-    cavi.plotELBOs(index_best, Solutions, ax=fig.add_subplot(2, 1, 1),SKIP=1)
+    cavi.plotELBOs(index_best, Solutions, ax=fig.add_subplot(2, 1, 1),SKIP=args.skip)
     _, d = x_test.shape
-    cavi.plot_clusters(d, x_test, index_best, Solutions, args.K, args.M,
+    cavi.plot_clusters(d, x_test, index_best, Solutions, args.K, len(Solutions),
                        ax=fig.add_subplot(2, 1, 2, projection='3d') if d == 3 else fig.add_subplot(2, 1, 2))
 
     fig.tight_layout(pad=3, h_pad=4)

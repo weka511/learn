@@ -161,7 +161,7 @@ def create_solutions(temp_path: str, prefix: str, M: int):
 
 def ensure_no_temporary_files_left(temp_path, prefix):
     '''
-    Make sure there are no temporary files left overS
+    Make sure there are no temporary files left over
     '''
     removed_files = 0
     for f in glob(str(Path(temp_path) / prefix) + '*'):

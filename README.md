@@ -28,6 +28,7 @@ Programs written to understand Variational Inference, based on the following ref
 ---------------|-------------------------------------------------------------------------------------------
 cavi.py|The Coordinate Ascent Mean-Field Variational Inference (CAVI) example from Section 3 of Blei et al
 cavi3.py|Coordinate Ascent Mean-Field Variational Inference (in 1D with 3 peaks
+cavi_d.py|Plot results from cavi_w.py
 cavi_mp.py|Driver for cavi_np.py, which apportions the load over multiple processes.
 cavi_w.py|Driver for cavi_np.py, which used a Pool to apportion the load over multiple processes.
 cavi_nd.py|Coordinate Ascent Mean-Field Variational Inference (CAVI) for multiple dimensions
