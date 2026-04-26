@@ -37,6 +37,7 @@ def parse_args():
     Parse command line argumengts
     '''
     parser = ArgumentParser(__doc__)
+    parser.add_argument('name', help='Name of data file')
     parser.add_argument('--K', type=int, default=3, help='Number of Gaussians')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
     parser.add_argument('--N', type=int, default=100, help='Maximum number of iterations per run')
@@ -52,7 +53,7 @@ def parse_args():
  
     return args
 
-def get_solution_path(path: str, prefix: str, run_number: int):
+def get_solution_path(path, prefix, run_number):
     '''
     Read solution back from file
     
@@ -61,7 +62,10 @@ def get_solution_path(path: str, prefix: str, run_number: int):
         prefix        First part of file name
         run_number    Unique identifier for each run
     '''
-    return (Path(path) / f'{prefix}{run_number:04d}').with_suffix('.npz')
+    try:
+        return (Path(path) / f'{prefix}{run_number:04}').with_suffix('.npz')
+    except Exception as e:
+        return (Path(path) / f'{prefix}{run_number}').with_suffix('.npz')
 
 def create_solutions(temp_path: str, prefix: str, M: int):
     '''
@@ -86,12 +90,19 @@ def main():
     prefix = 'cavi_w' 
     
     index_best, Solutions = create_solutions(temp_path, prefix, args.M)
-
+    z = np.load(get_solution_path(temp_path, prefix, '-data'))
+    x_test = z['x_test']
+    
     fig = figure(figsize=(12, 12))
-    #fig.suptitle(f'{args.name}')
+    fig.suptitle(f'{args.name}')
     cavi.plotELBOs(index_best, Solutions, ax=fig.add_subplot(2, 1, 1),SKIP=1)
-    
-    
+    _, d = x_test.shape
+    cavi.plot_clusters(d, x_test, index_best, Solutions, args.K, args.M,
+                       ax=fig.add_subplot(2, 1, 2, projection='3d') if d == 3 else fig.add_subplot(2, 1, 2))
+
+    fig.tight_layout(pad=3, h_pad=4)
+    figs_path_name = Path(args.figs) / args.name
+    fig.savefig(figs_path_name.with_suffix('.png'))
     elapsed = time() - start
     minutes = int(elapsed / 60)
     seconds = elapsed - 60 * minutes

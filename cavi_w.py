@@ -53,7 +53,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def get_solution_path(path: str, prefix: str, run_number: int):
+def get_solution_path(path, prefix, run_number):
     '''
     Read solution back from file
     
@@ -62,7 +62,10 @@ def get_solution_path(path: str, prefix: str, run_number: int):
         prefix        First part of file name
         run_number    Unique identifier for each run
     '''
-    return (Path(path) / f'{prefix}{run_number:04d}').with_suffix('.npz')
+    try:
+        return (Path(path) / f'{prefix}{run_number:04}').with_suffix('.npz')
+    except Exception as e:
+        return (Path(path) / f'{prefix}{run_number}').with_suffix('.npz')
 
 class Explorer:
     def __init__(self,x_train, x_test, K, N, BURN_IN, atol,path=gettempdir(),prefix='cavi_w'):
@@ -74,6 +77,9 @@ class Explorer:
         self.atol = atol
         self.path = path
         self.prefix = prefix
+        
+    def save_test_data(self,path):
+        np.savez(path,x_test=self.x_test)
    
     def create_solution(self,rng = np.random.default_rng(),id=None):
         Product = cavi.Solution(id=id)
@@ -97,6 +103,7 @@ class Explorer:
         solution.set_params(m, s, c, c_test) 
         print (cavi.get_ELBO(m, s, c_test, self.x_test))
         solution.save(get_solution_path(self.path,self.prefix,solution.id))
+        self.save_test_data(get_solution_path(self.path,self.prefix,'-data'))
         return solution
     
     def get_solution_path(self):
@@ -109,7 +116,7 @@ class Explorer:
             run_number    Unique identifier for each run
         '''
         self.run_number += 1
-        return (Path(self.path) / f'{prefix}{self.run_number:04d}').with_suffix('.npz') 
+        return (Path(self.path) / f'{prefix}{self.run_number:04}').with_suffix('.npz') 
 
 def main():
     start = time()
