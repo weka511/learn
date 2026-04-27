@@ -163,7 +163,7 @@ def main():
     minutes = int(elapsed / 60)
     seconds = elapsed - 60 * minutes
     print(f'Elapsed Time {minutes} m {seconds:.2f} s')
-    system(f'python cavi_d.py {args.name}  --K {args.K} --show')
+    system(f'python cavi_d.py {args.name}  --K {args.K} --show --prefix {args.prefix}')
 
 if __name__ == '__main__':
     main()

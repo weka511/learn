@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot displayed')
     parser.add_argument('--skip', type=int, default=1, help='Skip this maany iterations')
     parser.add_argument('--figs', default='./figs', help='Folder to store plots')
-
+    parser.add_argument('--prefix', default=Path(__file__).stem,help='Prefix for saving solutions')
     return parser.parse_args()
  
 def get_solution_path(path, prefix, run_number):
@@ -75,8 +75,8 @@ def main():
     start = time()
     args = parse_args()
 
-    index_best, Solutions = create_solutions(gettempdir(), 'cavi_w')
-    z = np.load(get_solution_path(gettempdir(), 'cavi_w', '-data'))
+    index_best, Solutions = create_solutions(gettempdir(), args.prefix)
+    z = np.load(get_solution_path(gettempdir(), args.prefix, '-data'))
     x_test = z['x_test']
     
     fig = figure(figsize=(12, 12))
