@@ -25,7 +25,6 @@
 from argparse import ArgumentParser
 from glob import glob
 from os import remove,system
-from os.path import basename
 from pathlib import Path
 from time import time
 from multiprocessing import cpu_count, Process, Pool#,Lock
@@ -50,8 +49,8 @@ def parse_args():
     parser.add_argument('--sigma', type=float, default=1, help='Standard deviation')
     parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
     parser.add_argument('--test', type=float, default=0.1, help='Size of held out dataset')
-    args = parser.parse_args()
-    return args
+    parser.add_argument('--prefix', default=Path(__file__).stem,help='Prefix for saving solutions')
+    return parser.parse_args()
 
 def get_solution_path(path, prefix, run_number):
     '''
@@ -68,6 +67,9 @@ def get_solution_path(path, prefix, run_number):
         return (Path(path) / f'{prefix}{run_number}').with_suffix('.npz')
 
 class Explorer:
+    '''
+    This class provided a function, explore, which supervises the CAVI calculation.
+    '''
     def __init__(self,x_train, x_test, K, N, BURN_IN, atol,path=gettempdir(),prefix='cavi_w'):
         self.x_train = x_train
         self.x_test = x_test
@@ -89,10 +91,17 @@ class Explorer:
         if removed_files > 0:
             print(f'Removed {removed_files} temporary files from {self.path}')    
         
-    def save_test_data(self,path):
-        np.savez(path,x_test=self.x_test)
+    def save_test_data(self):
+        '''
+        Used to save test data
+        '''
+        np.savez(get_solution_path(self.path,self.prefix,'-data'),
+                 x_test=self.x_test)
    
     def create_solution(self,rng = np.random.default_rng(),id=None):
+        '''
+        Create a Solution ad initialize using training data
+        '''
         Product = cavi.Solution(id=id)
         m, s, c = cavi.initialize(self.x_train, self.K, rng=rng)
         Product.set_params(m,s,c,[])
@@ -100,6 +109,9 @@ class Explorer:
         return Product
         
     def explore(self,solution):
+        '''
+        This is used by Pool.map to execute CAVI
+        '''
         m = solution.m
         s = solution.s
     
@@ -114,7 +126,6 @@ class Explorer:
         solution.set_params(m, s, c, c_test) 
   
         solution.save(get_solution_path(self.path,self.prefix,solution.id))
-        self.save_test_data(get_solution_path(self.path,self.prefix,'-data'))
         return solution
     
     def get_solution_path(self):
@@ -140,8 +151,10 @@ def main():
     splitter = Splitter(rng=rng, test_size=args.test)
     x_train, x_test = splitter.split(model.load(path_name.with_suffix('.npz')))
     
-    explorer = Explorer(x_train, x_test, args.K, args.N, args.BURN_IN, args.atol)
+    explorer = Explorer(x_train, x_test, 
+                        args.K, args.N, args.BURN_IN, args.atol,prefix=args.prefix)
     explorer.ensure_no_temporary_files_left()
+    explorer.save_test_data()
     with Pool(processes=cpu_count()-1) as pool:
         Solutions = pool.map(explorer.explore, 
                              [explorer.create_solution(rng=rng,id=i) for i in range(args.M)])
