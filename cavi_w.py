@@ -52,25 +52,29 @@ def parse_args():
     parser.add_argument('--prefix', default=Path(__file__).stem,help='Prefix for saving solutions')
     return parser.parse_args()
 
-def get_solution_path(path, prefix, run_number):
+def get_solution_path(path, prefix, identifier):
     '''
-    Read solution back from file
+    Used to write solution to a from file or read it back again
     
     Parameters:
         path          Location of files
         prefix        First part of file name
-        run_number    Unique identifier for each run
+        identifier    Unique identifier for each file
+        
+    Returns:
+        Path name for load or save
     '''
     try:
-        return (Path(path) / f'{prefix}{run_number:04}').with_suffix('.npz')
+        return (Path(path) / f'{prefix}{identifier:04}').with_suffix('.npz')
     except Exception as e:
-        return (Path(path) / f'{prefix}{run_number}').with_suffix('.npz')
+        return (Path(path) / f'{prefix}{identifier}').with_suffix('.npz')
 
 class Explorer:
     '''
     This class provided a function, explore, which supervises the CAVI calculation.
     '''
-    def __init__(self,x_train, x_test, K, N, BURN_IN, atol,path=gettempdir(),prefix='cavi_w'):
+    def __init__(self,x_train, x_test, K, N, BURN_IN, atol,
+                 path=gettempdir(),prefix='cavi_w',data_suffix='-data'):
         self.x_train = x_train
         self.x_test = x_test
         self.K = K
@@ -79,6 +83,7 @@ class Explorer:
         self.atol = atol
         self.path = path
         self.prefix = prefix
+        self.data_suffix = data_suffix
         
     def ensure_no_temporary_files_left(self):
         '''
@@ -95,7 +100,7 @@ class Explorer:
         '''
         Used to save test data
         '''
-        np.savez(get_solution_path(self.path,self.prefix,'-data'),
+        np.savez(get_solution_path(self.path,self.prefix,self.data_suffix),
                  x_test=self.x_test)
    
     def create_solution(self,rng = np.random.default_rng(),id=None):
@@ -127,19 +132,7 @@ class Explorer:
   
         solution.save(get_solution_path(self.path,self.prefix,solution.id))
         return solution
-    
-    def get_solution_path(self):
-        '''
-        Read solution back from file
-        
-        Parameters:
-            path          Location of files
-            prefix        First part of file name
-            run_number    Unique identifier for each run
-        '''
-        self.run_number += 1
-        return (Path(self.path) / f'{prefix}{self.run_number:04}').with_suffix('.npz') 
-            
+                
 def main():
     start = time()
     args = parse_args()
