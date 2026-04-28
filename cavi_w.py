@@ -105,7 +105,7 @@ class Explorer:
    
     def create_solution(self,rng = np.random.default_rng(),id=None):
         '''
-        Create a Solution ad initialize using training data
+        Create a Solution and initialize using training data
         '''
         Product = cavi.Solution(id=id)
         m, s, c = cavi.initialize(self.x_train, self.K, rng=rng)
