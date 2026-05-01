@@ -19,7 +19,7 @@
 # <http://www.gnu.org/licenses/>.
 
 '''
-    Template for multiprogramming
+    Template for using multiprocessing library
 '''
 
 from argparse import ArgumentParser
@@ -119,7 +119,6 @@ def get_solution_path(path, prefix, identifier):
     except Exception as e:
         return (Path(path) / f'{prefix}{identifier}').with_suffix('.npz')
  
-
 def main():
     start = time()
     args = parse_args()
