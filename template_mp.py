@@ -30,9 +30,10 @@ from time import time
 from multiprocessing import cpu_count, Process, Pool#,Lock
 from tempfile import gettempdir
 import numpy as np
-from shared.utils import Splitter
 from gmm import GaussionMixtureModel, get_name
 import cavi_nd as cavi
+
+from shared.utils import Logger,Splitter
 
 class Model:
     def load(self,path_name):
@@ -93,13 +94,15 @@ def parse_args():
     '''
     parser = ArgumentParser(__doc__)
     parser.add_argument('name', help='Name of data file')
-    parser.add_argument('--seed', type=int, default=None, help='Seed for random number generator')
+    parser.add_argument('--logfiles', default='./logfiles', help='Location of log files')
+    parser.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
+    parser.add_argument('--data', default='./data', help='Location of data files')    
     parser.add_argument('--N', type=int, default=100, help='Maximum number of iterations per run')
     parser.add_argument('--M', type=int, default=25, help='Number of runs')
-    parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
     parser.add_argument('--test', type=float, default=0.1, help='Size of held out dataset')
     parser.add_argument('--prefix', default=Path(__file__).stem,help='Prefix for saving solutions')
     parser.add_argument('--debug',default=False, action='store_true',help='No multiprogramming')
+    
     return parser.parse_args()
 
 def get_solution_path(path, prefix, identifier):
@@ -124,7 +127,7 @@ def main():
     args = parse_args()
     rng = np.random.default_rng(args.seed)
       
-    path_name = Path(args.path) / args.name
+    path_name = Path(args.data) / args.name
     model = Model()
     model = model.load(path_name.with_suffix('.npz'))
     splitter = Splitter(rng=rng, test_size=args.test)
