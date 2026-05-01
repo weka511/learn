@@ -26,6 +26,25 @@ from matplotlib import rc
 import numpy as np
 from shared.utils import Logger
 
+class Table:
+    mu0 = 0
+    sigma0 = 1
+ 
+    def __init__(self,rng=np.random.default_rng()):
+        self.rng = rng
+        self.mu = rng.normal(loc=Table.mu0,scale=Table.sigma0)
+        self.sigma = Table.sigma0
+        self.indices = []
+        
+    def __len__(self):
+        return len(self.indices)
+        
+    def get_sample(self):
+        return self.rng.normal(loc=self.mu,scale=Table.sigma0)
+    
+    def append(self,index):
+        self.indices.append(index)
+    
 def parse_args():
     parser = ArgumentParser(description=__doc__)
     parser.add_argument('--out','-o',required=True,help='Name of output file')
@@ -37,6 +56,8 @@ def parse_args():
     parser.add_argument('--N', type=int, default=1000, help='Number of samples')
     parser.add_argument('--dimensionality', '-d',type=int, default=3, help='Dimensionality')
     parser.add_argument('--alpha', default=0.1,type=float,help='Parameter for CRP')
+    parser.add_argument('--mu', default=[0,0,0],type=float,help='Parameter for CRP')
+    parser.add_argument('--sigma', default=1,type=float,help='Parameter for CRP')
     
     return parser.parse_args()
 
@@ -50,15 +71,35 @@ def main():
     args = parse_args()
     rng = np.random.default_rng(args.seed)
     
-    z = np.empty((args.N,args.dimensionality))
-    for i in range(args.N):
-        pass
+    z = np.zeros((args.N,args.dimensionality))
+    Table.mu0 = args.mu
+    Table.sigma0 = args.sigma
+ 
+    tables = []
+    tables.append(Table(rng))
+    z[0] = tables[-1].get_sample()
+    tables[-1].append(0)
+    for i in range(1,args.N):
+        p = [len(table) - 1 + args.alpha for table in tables]
+        p.append(args.alpha)
+        p = np.array(p)
+        p /= p.sum()
+        index = rng.choice(len(tables)+1,p=p)
+        if index == len(tables):
+            tables.append(Table(rng))
+        z[i] = tables[index].get_sample()
+        tables[index].append(z[i])
+ 
     
     output_file = (Path(args.data) / args.out).with_suffix('.npz')
     np.savez(output_file,z=z)
     
     fig = figure(figsize=(8, 8))
-
+    ax = fig.add_subplot(1,1,1)
+    ax.bar(range(len(tables)),[len(table) for table in tables],color='xkcd:blue')
+    ax.set_xlabel('Tables')
+    ax.set_ylabel('Number')
+    ax.set_title(r'$\alpha=$'+f'{args.alpha}')
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
