@@ -51,6 +51,7 @@ template_torch.py|Template for starting a new file with pytorch
 File|Remarks
 ------------------|---------------------------------------------------------------------------------------
 bnp-dirichlet.py|Sampling the Dirichlet distribution
+crp.py|Generate data using Chinese Restaurant Process
 
 ## Miscellaneous
 
