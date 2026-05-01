@@ -42,8 +42,12 @@ UGMM.py|CAVI code snarfed from [Zhiya Zuo](https://zhiyzuo.github.io/VI)
 ---------------|--------------------------------------------
 gibbs.py|[Gibbs Sampling](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
 mhast.py|[Metropolis-Hastings](http://www2.bcs.rochester.edu/sites/jacobslab/cheat_sheets.html)
+template.py|Template for starting a new file
+template_mp.py|Template for starting a new file with multiprocessing
+template_torch.py|Template for starting a new file with pytorch
 
 ## Miscellaneous
+
  File  | Remarks
 ------------------|--------------------------------------------
 bt.py|  Generate test data from a Bradley-Terry model, then try to fit to the data. Compare fitted parameters to original. How large does dataset need to be?
