@@ -99,6 +99,7 @@ def parse_args():
     parser.add_argument('--path', default='./data', help='Path to folder where data are stored')
     parser.add_argument('--test', type=float, default=0.1, help='Size of held out dataset')
     parser.add_argument('--prefix', default=Path(__file__).stem,help='Prefix for saving solutions')
+    parser.add_argument('--debug',default=False, action='store_true',help='No multiprogramming')
     return parser.parse_args()
 
 def get_solution_path(path, prefix, identifier):
@@ -133,9 +134,12 @@ def main():
     explorer = Explorer(x_train, x_test, args.N, prefix=args.prefix)
     explorer.ensure_no_temporary_files_left()
     explorer.save_test_data()
-    with Pool(processes=cpu_count()-1) as pool:
-        Solutions = pool.map(explorer.explore, 
-                             [explorer.create_solution(rng=rng,id=i) for i in range(args.M)])
+    intial_values = [explorer.create_solution(rng=rng,id=i) for i in range(args.M)]
+    if debug:
+        Solutions = list(map(explorer.explore, initial_values))
+    else:
+        with Pool(processes=cpu_count()-1) as pool:
+            Solutions = pool.map(explorer.explore, initial_values)
     
     elapsed = time() - start
     minutes = int(elapsed / 60)
