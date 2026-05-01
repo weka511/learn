@@ -46,6 +46,12 @@ template.py|Template for starting a new file
 template_mp.py|Template for starting a new file with multiprocessing
 template_torch.py|Template for starting a new file with pytorch
 
+## Bayesian NonParametrics and the Chinese Restaurant Process
+
+File|Remarks
+------------------|---------------------------------------------------------------------------------------
+bnp-dirichlet.py|Sampling the Dirichlet distribution
+
 ## Miscellaneous
 
  File  | Remarks
