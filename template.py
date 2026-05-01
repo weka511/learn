@@ -24,16 +24,16 @@ from time import time
 from matplotlib.pyplot import figure, show
 from matplotlib import rc
 import numpy as np
-from shared.utils import Logger, get_seed, user_has_requested_stop
+from shared.utils import Logger
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
 
-    shared_group.add_argument('--logfiles', default='./logfiles', help='Location of log files')
-    shared_group.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
-    shared_group.add_argument('--figs', default='./figs', help='Location for storing plot files')
-    shared_group.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
-    shared_group.add_argument('--data', default='./data', help='Location of data files')
+    parser.add_argument('--logfiles', default='./logfiles', help='Location of log files')
+    parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
+    parser.add_argument('--figs', default='./figs', help='Location for storing plot files')
+    parser.add_argument('--seed', default=None, type=int, help='Used to initialize random number generator')
+    parser.add_argument('--data', default='./data', help='Location of data files')
     return parser.parse_args()
 
 def main():
@@ -44,7 +44,6 @@ def main():
  
     start = time()
     args = parse_args()
-    seed = get_seed(args.seed)
     rng = np.random.default_rng(args.seed)
     
     fig = figure(figsize=(24, 12))
