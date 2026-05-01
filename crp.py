@@ -61,6 +61,14 @@ def parse_args():
     
     return parser.parse_args()
 
+def create_weights(tables,alpha):
+    p = np.empty((len(tables) + 1))
+    for j in range(len(tables)):
+        p[j] = len(tables[j]) - 1 + alpha 
+    p[-1] = alpha
+    return p / p.sum()
+ 
+
 def main():
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
@@ -80,11 +88,8 @@ def main():
     z[0] = tables[-1].get_sample()
     tables[-1].append(0)
     for i in range(1,args.N):
-        p = [len(table) - 1 + args.alpha for table in tables]
-        p.append(args.alpha)
-        p = np.array(p)
-        p /= p.sum()
-        index = rng.choice(len(tables)+1,p=p)
+        
+        index = rng.choice(len(tables)+1,p=create_weights(tables,args.alpha))
         if index == len(tables):
             tables.append(Table(rng))
         z[i] = tables[index].get_sample()
@@ -100,6 +105,10 @@ def main():
     ax.set_xlabel('Tables')
     ax.set_ylabel('Number')
     ax.set_title(r'$\alpha=$'+f'{args.alpha}')
+    fig.tight_layout(pad=3,h_pad=4)
+    figs_path_name = (Path(args.figs) / Path(__file__).stem).with_suffix('.png')
+    fig.savefig(figs_path_name.with_suffix('.png'))    
+    
     elapsed = time() - start
     minutes = int(elapsed/60)
     seconds = elapsed - 60*minutes
