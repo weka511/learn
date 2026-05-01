@@ -46,7 +46,7 @@ def main():
     args = parse_args()
     rng = np.random.default_rng(args.seed)
     
-    fig = figure(figsize=(24, 12))
+    fig = figure(figsize=(8, 8))
 
     elapsed = time() - start
     minutes = int(elapsed/60)
