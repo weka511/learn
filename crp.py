@@ -128,20 +128,30 @@ def main():
     ax3 = fig.add_subplot(2,2,3,projection='3d' if args.dimensionality == 3 else None)
     match args.dimensionality:
         case 1:
-            pass
+            for i,table in enumerate(tables):
+                indices = table.indices
+                ax3.hist(z[indices,0],color=table.colour,label=f'{i}',density=True)
+                ax3.set_xlabel('X')
+                ax3.set_ylabel('Frequency')   
+                
         case 2:
             for i,table in enumerate(tables):
                 indices = table.indices
                 ax3.scatter(z[indices,0],z[indices,1],
                             c=table.colour,label=f'{i}')
+                ax3.set_xlabel('X')
+                ax3.set_ylabel('Y')
  
         case 3:
             for i,table in enumerate(tables):
                 indices = table.indices
                 ax3.scatter(z[indices,0],z[indices,1],z[indices,2],
                             c=table.colour,label=f'{i}')
-                
-    ax3.set_title('The generated data')
+                ax3.set_xlabel('X')
+                ax3.set_ylabel('Y')
+                ax3.set_zlabel('Z')
+                           
+    ax3.set_title('Generated data')
         
     fig.tight_layout(pad=3,h_pad=4)
     fig.savefig((Path(args.figs) / Path(__file__).stem).with_suffix('.png'))    
