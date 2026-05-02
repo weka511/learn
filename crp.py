@@ -31,10 +31,10 @@ class Table:
     sigma0 = 1
     colours = generate_xkcd_colours()
     
-    def __init__(self,rng=np.random.default_rng()):
+    def __init__(self,sigma=0.125,rng=np.random.default_rng()):
         self.rng = rng
         self.mu = rng.normal(loc=Table.mu0,scale=Table.sigma0)
-        self.sigma = 0.25*Table.sigma0   #FIXME
+        self.sigma = sigma
         self.indices = []
         self.colour = next(Table.colours)
         
@@ -42,7 +42,7 @@ class Table:
         return len(self.indices)
         
     def get_sample(self):
-        return self.rng.normal(loc=self.mu,scale=Table.sigma0)
+        return self.rng.normal(loc=self.mu,scale=self.sigma)
     
     def append(self,index):
         self.indices.append(index)
@@ -58,12 +58,22 @@ def parse_args():
     parser.add_argument('--N', type=int, default=1000, help='Number of samples')
     parser.add_argument('--dimensionality', '-d',type=int, default=3, help='Dimensionality')
     parser.add_argument('--alpha', default=0.1,type=float,help='Parameter for CRP')
-    parser.add_argument('--mu', default=[0,0,0],type=float,nargs='+',help='Parameter for CRP')
-    parser.add_argument('--sigma', default=1,type=float,help='Parameter for CRP')
+    parser.add_argument('--mu', default=None,type=float,nargs='+',help='Parameter for CRP')
+    parser.add_argument('--sigma', default=[2,0.2],type=float,nargs=2,help='Parameter for CRP')
     
     return parser.parse_args()
 
 def create_weights(tables,alpha):
+    '''
+    Used to choose a Table
+    
+    Parameters:
+        tables
+        alpha
+        
+    Returns:
+        An array of proabilities, one for each Table plus one for a new table
+    '''
     p = np.empty((len(tables) + 1))
     for j in range(len(tables)):
         p[j] = len(tables[j]) - 1 + alpha 
@@ -82,47 +92,59 @@ def main():
     rng = np.random.default_rng(args.seed)
     
     z = np.zeros((args.N,args.dimensionality))
-    Table.mu0 = args.mu
-    Table.sigma0 = args.sigma
- 
+    Table.mu0 = [0]*args.dimensionality if args.mu == None else args.mu
+    Table.sigma0 = args.sigma[0]
     tables = []
+    steps = np.zeros(args.N)
+    
     for i in range(args.N):        
         index = rng.choice(len(tables)+1,
                            p=create_weights(tables,args.alpha))
         if index == len(tables):
-            tables.append(Table(rng))
+            tables.append(Table(sigma=args.sigma[1],rng=rng))
         z[i] = tables[index].get_sample()
         tables[index].append(i)
+        steps[i] = len(tables)
     
     output_file = (Path(args.data) / args.out).with_suffix('.npz')
     np.savez(output_file,z=z)
     print (f'Saved {args.N} points in {len(tables)} clusters to {output_file}')
     
-    fig = figure(figsize=(8, 8))
-    ax1 = fig.add_subplot(2,1,1)
+    fig = figure(figsize=(16, 8))
+    ax1 = fig.add_subplot(2,2,1)
     ax1.bar(range(len(tables)),[len(table) for table in tables],
             label=[f'{i}' for i in range(len(tables))],
             color=[table.colour for table in tables])
     ax1.set_xlabel('Tables')
     ax1.set_ylabel('Number')
-    ax1.set_title(r'$\alpha=$'+f'{args.alpha}')
+    ax1.set_title(r'Clusters: $\alpha=$'+f'{args.alpha}')
     ax1.legend(title='Clusters',ncols=int(np.sqrt(len(tables))))
+    
+    ax2 = fig.add_subplot(2,2,2)
+    ax2.plot(steps)
+    ax2.set_xlabel('Number of points')
+    ax2.set_ylabel('Number of Clusters')
+    
+    ax3 = fig.add_subplot(2,2,3,projection='3d' if args.dimensionality == 3 else None)
     match args.dimensionality:
         case 1:
             pass
         case 2:
-            ax2 = fig.add_subplot(2,1,2)
             for i,table in enumerate(tables):
                 indices = table.indices
-                ax2.scatter(z[indices,0],z[indices,1],
+                ax3.scatter(z[indices,0],z[indices,1],
                             c=table.colour,label=f'{i}')
  
         case 3:
-            pass
+            for i,table in enumerate(tables):
+                indices = table.indices
+                ax3.scatter(z[indices,0],z[indices,1],z[indices,2],
+                            c=table.colour,label=f'{i}')
+                
+    ax3.set_title('The generated data')
         
     fig.tight_layout(pad=3,h_pad=4)
-    figs_path_name = (Path(args.figs) / Path(__file__).stem).with_suffix('.png')
-    fig.savefig(figs_path_name.with_suffix('.png'))    
+    fig.savefig((Path(args.figs) / Path(__file__).stem).with_suffix('.png'))    
     
     elapsed = time() - start
     minutes = int(elapsed/60)
