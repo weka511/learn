@@ -27,6 +27,9 @@ import numpy as np
 from shared.utils import Logger,generate_xkcd_colours
 
 class Table:
+    '''
+    This class represents a Table/Cluster, with a positive number of points
+    '''
     mu0 = 0
     sigma0 = 1
     colours = generate_xkcd_colours()
@@ -60,6 +63,7 @@ def parse_args():
     parser.add_argument('--alpha', default=0.1,type=float,help='Parameter for CRP')
     parser.add_argument('--mu', default=None,type=float,nargs='+',help='Parameter for CRP')
     parser.add_argument('--sigma', default=[2,0.2],type=float,nargs=2,help='Parameter for CRP')
+    parser.add_argument('--plotfile', default=Path(__file__).stem,help='Name of plotfile')
     
     return parser.parse_args()
 
@@ -68,8 +72,8 @@ def create_weights(tables,alpha):
     Used to choose a Table
     
     Parameters:
-        tables
-        alpha
+        tables    List of existing tables
+        alpha     Controls proababilty of creating a new table
         
     Returns:
         An array of proabilities, one for each Table plus one for a new table
@@ -80,7 +84,12 @@ def create_weights(tables,alpha):
     p[-1] = alpha
     return p / p.sum()
  
-
+def get_projection(dimensionality=1):
+    '''
+    Determines whether to use a 3d projection
+    '''
+    return '3d' if dimensionality == 3 else None
+    
 def main():
     rc('font', **{'family': 'serif',
                   'serif': ['Palatino'],
@@ -95,8 +104,8 @@ def main():
     Table.mu0 = [0]*args.dimensionality if args.mu == None else args.mu
     Table.sigma0 = args.sigma[0]
     tables = []
-    steps = np.zeros(args.N)
-    
+    steps = np.zeros((args.N))
+    step_colours = []
     for i in range(args.N):        
         index = rng.choice(len(tables)+1,
                            p=create_weights(tables,args.alpha))
@@ -105,27 +114,38 @@ def main():
         z[i] = tables[index].get_sample()
         tables[index].append(i)
         steps[i] = len(tables)
+        step_colours.append(tables[-1].colour)
     
     output_file = (Path(args.data) / args.out).with_suffix('.npz')
     np.savez(output_file,z=z)
     print (f'Saved {args.N} points in {len(tables)} clusters to {output_file}')
     
     fig = figure(figsize=(16, 8))
+    fig.suptitle(
+        r'$\alpha=$'+f'{args.alpha}, ' +
+        r'$\sigma_0=$'+f'{args.sigma[0]}, ' +
+        r'$\sigma_1=$'+f'{args.sigma[1]} '
+    )
+    
     ax1 = fig.add_subplot(2,2,1)
     ax1.bar(range(len(tables)),[len(table) for table in tables],
             label=[f'{i}' for i in range(len(tables))],
             color=[table.colour for table in tables])
     ax1.set_xlabel('Tables')
     ax1.set_ylabel('Number')
-    ax1.set_title(r'Clusters: $\alpha=$'+f'{args.alpha}')
+    ax1.set_title(f'Cluster sizes')
     ax1.legend(title='Clusters',ncols=int(np.sqrt(len(tables))))
     
     ax2 = fig.add_subplot(2,2,2)
-    ax2.plot(steps)
+    ax2.scatter(range(len(steps)),steps,
+                c=step_colours,s=5)
     ax2.set_xlabel('Number of points')
     ax2.set_ylabel('Number of Clusters')
+    ax2.set_title('Formation of new Clusters')
     
-    ax3 = fig.add_subplot(2,2,3,projection='3d' if args.dimensionality == 3 else None)
+    ax3 = fig.add_subplot(2,2,3,projection=get_projection(dimensionality=args.dimensionality))
+    ax3.set_title('Generated data')
+    
     match args.dimensionality:
         case 1:
             for i,table in enumerate(tables):
@@ -151,10 +171,8 @@ def main():
                 ax3.set_ylabel('Y')
                 ax3.set_zlabel('Z')
                            
-    ax3.set_title('Generated data')
-        
     fig.tight_layout(pad=3,h_pad=4)
-    fig.savefig((Path(args.figs) / Path(__file__).stem).with_suffix('.png'))    
+    fig.savefig((Path(args.figs) / args.plotfile).with_suffix('.png'))    
     
     elapsed = time() - start
     minutes = int(elapsed/60)
