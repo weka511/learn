@@ -53,7 +53,37 @@ class Table:
     def append(self, index):
         self.indices.append(index)
 
-
+class Process:
+    '''
+    This class is used to generate data 
+    '''
+    def __init__(self,alpha=1.0,rng=np.random.default_rng()):
+        self.alpha = alpha
+        self.rng = rng
+        
+    def create_probabilities(self,tables):
+        '''
+        Used to choose a Table
+        
+        Parameters:
+            tables    List of existing tables
+            
+        Returns:
+            An array of probabilities, one for each Table plus one for a new table
+        '''
+        p = np.empty((len(tables) + 1))
+        for j in range(len(tables)):
+            p[j] = len(tables[j]) - 1 + self.alpha
+        p[-1] = self.alpha
+        return p / p.sum() 
+    
+    def get_index(self,tables,sigma):
+        index = self.rng.choice(len(tables) + 1,
+                               p=self.create_probabilities(tables))
+        if index == len(tables):
+            tables.append(Table(sigma=sigma, rng=self.rng))
+        return index    
+    
 def parse_args():
     parser = ArgumentParser(description=__doc__)
     figs = './figs'
@@ -81,25 +111,6 @@ def parse_args():
     parser.add_argument('--plotfile', default=plotfile, help=f'Name of plotfile [{plotfile}]')
 
     return parser.parse_args()
-
-
-def create_weights(tables, alpha):
-    '''
-    Used to choose a Table
-    
-    Parameters:
-        tables    List of existing tables
-        alpha     Controls proababilty of creating a new cluster
-        
-    Returns:
-        An array of proabilities, one for each Table plus one for a new table
-    '''
-    p = np.empty((len(tables) + 1))
-    for j in range(len(tables)):
-        p[j] = len(tables[j]) - 1 + alpha
-    p[-1] = alpha
-    return p / p.sum()
-
 
 def get_projection(dimensionality=1):
     '''
@@ -180,13 +191,11 @@ def main():
     tables = []
     steps = np.zeros((args.N))
     step_colours = []
+    process = Process(alpha=args.alpha,rng=rng)
     for i in range(args.N):
-        index = rng.choice(len(tables) + 1,
-                           p=create_weights(tables, args.alpha))
-        if index == len(tables):
-            tables.append(Table(sigma=args.sigma1, rng=rng))
-        z[i] = tables[index].get_sample()
+        index = process.get_index(tables,sigma=args.sigma1)
         tables[index].append(i)
+        z[i] = tables[index].get_sample()
         steps[i] = len(tables)
         step_colours.append(tables[-1].colour)
 
