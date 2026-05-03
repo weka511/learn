@@ -52,6 +52,7 @@ File|Remarks
 ------------------|---------------------------------------------------------------------------------------
 bnp-dirichlet.py|Sampling the Dirichlet distribution
 crp.py|Generate data using Chinese Restaurant Process
+crp-gibbs.py|Attempt to cluster data using simple Gibbs sampling
 
 ## Miscellaneous
 
