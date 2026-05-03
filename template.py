@@ -18,7 +18,6 @@
 '''Template for python script'''
 
 from argparse import ArgumentParser
-from os.path import splitext,join
 from pathlib import Path
 from time import time
 from matplotlib.pyplot import figure, show
