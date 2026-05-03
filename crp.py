@@ -21,6 +21,7 @@ and time to create new clusters. Also plot
 data if dimenion is 1, 2, or 3.
 '''
 
+from abc import ABC
 from argparse import ArgumentParser
 from pathlib import Path
 from time import time
@@ -29,45 +30,50 @@ from matplotlib import rc
 import numpy as np
 from shared.utils import generate_xkcd_colours
 
-class Table:
+class Cluster(ABC):
+    colours = generate_xkcd_colours()
+    
+    def __init__(self, rng=np.random.default_rng()):
+        self.indices = []
+        self.colour = next(Cluster.colours)
+        self.rng = rng
+        
+    def __len__(self):
+        return len(self.indices)
+    
+    def append(self, index):
+        self.indices.append(index)    
+
+class Table(Cluster):
     '''
     This class represents a Table/Cluster, with a positive number of points
     '''
     mu0 = 0
     sigma0 = 1
-    colours = generate_xkcd_colours()
 
     def __init__(self, sigma=0.125, rng=np.random.default_rng()):
-        self.rng = rng
+        super().__init__(rng=rng)
         self.mu = rng.normal(loc=Table.mu0, scale=Table.sigma0)
         self.sigma = sigma
-        self.indices = []
-        self.colour = next(Table.colours)
-
-    def __len__(self):
-        return len(self.indices)
 
     def get_sample(self):
         return self.rng.normal(loc=self.mu, scale=self.sigma)
 
-    def append(self, index):
-        self.indices.append(index)
-
-class Process:
+class Process(ABC):
     '''
     This class is used to generate data 
     '''
     def __init__(self,alpha=1.0,rng=np.random.default_rng()):
         self.alpha = alpha
         self.rng = rng
-        
+
     def create_probabilities(self,tables):
         '''
         Used to choose a Table
-        
+
         Parameters:
             tables    List of existing tables
-            
+
         Returns:
             An array of probabilities, one for each Table plus one for a new table
         '''
@@ -76,20 +82,25 @@ class Process:
             p[j] = len(tables[j])
         p[-1] = self.alpha
         return p / p.sum() 
+
+class DataGenerator(Process):
     
+    def __init__(self,alpha=1.0,rng=np.random.default_rng()):
+        super().__init__(alpha,rng)
+        
     def get_index(self,tables,sigma):
         '''
         Choose the table for the next datum (may be a new table)
-        
+
         The Algorithm follows equation (1) in Blei & Frazier,
         Distance Dependent Chinese Restaurant Processes
         '''
         index = self.rng.choice(len(tables) + 1,
-                               p=self.create_probabilities(tables))
+                                p=self.create_probabilities(tables))
         if index == len(tables):
             tables.append(Table(sigma=sigma, rng=self.rng))
         return index    
-    
+
 def parse_args():
     parser = ArgumentParser(description=__doc__)
     figs = './figs'
@@ -100,7 +111,7 @@ def parse_args():
     sigma0 = 2
     sigma1 = 0.5
     plotfile=Path(__file__).stem
-    
+
     parser.add_argument('--out', '-o', required=True, help='Name of output file')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
     parser.add_argument('--figs', default=figs, help=f'Location for storing plot files [{figs}]')
@@ -197,7 +208,7 @@ def main():
     tables = []
     steps = np.zeros((args.N))
     step_colours = []
-    process = Process(alpha=args.alpha,rng=rng)
+    process = DataGenerator(alpha=args.alpha,rng=rng)
     for i in range(args.N):
         index = process.get_index(tables,sigma=args.sigma1)
         tables[index].append(i)
