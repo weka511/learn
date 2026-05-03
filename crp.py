@@ -73,11 +73,17 @@ class Process:
         '''
         p = np.empty((len(tables) + 1))
         for j in range(len(tables)):
-            p[j] = len(tables[j]) - 1 + self.alpha
+            p[j] = len(tables[j])
         p[-1] = self.alpha
         return p / p.sum() 
     
     def get_index(self,tables,sigma):
+        '''
+        Choose the table for the next datum (may be a new table)
+        
+        The Algorithm follows equation (1) in Blei & Frazier,
+        Distance Dependent Chinese Restaurant Processes
+        '''
         index = self.rng.choice(len(tables) + 1,
                                p=self.create_probabilities(tables))
         if index == len(tables):
