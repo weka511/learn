@@ -30,19 +30,21 @@ from matplotlib import rc
 import numpy as np
 from shared.utils import generate_xkcd_colours
 
+
 class Cluster(ABC):
     colours = generate_xkcd_colours()
-    
+
     def __init__(self, rng=np.random.default_rng()):
         self.indices = []
         self.colour = next(Cluster.colours)
         self.rng = rng
-        
+
     def __len__(self):
         return len(self.indices)
-    
+
     def append(self, index):
-        self.indices.append(index)    
+        self.indices.append(index)
+
 
 class Table(Cluster):
     '''
@@ -59,15 +61,17 @@ class Table(Cluster):
     def get_sample(self):
         return self.rng.normal(loc=self.mu, scale=self.sigma)
 
+
 class Process(ABC):
     '''
     This class is used to generate data 
     '''
-    def __init__(self,alpha=1.0,rng=np.random.default_rng()):
+
+    def __init__(self, alpha=1.0, rng=np.random.default_rng()):
         self.alpha = alpha
         self.rng = rng
 
-    def create_probabilities(self,tables):
+    def create_probabilities(self, tables):
         '''
         Used to choose a Table
 
@@ -81,14 +85,15 @@ class Process(ABC):
         for j in range(len(tables)):
             p[j] = len(tables[j])
         p[-1] = self.alpha
-        return p / p.sum() 
+        return p / p.sum()
+
 
 class DataGenerator(Process):
-    
-    def __init__(self,alpha=1.0,rng=np.random.default_rng()):
-        super().__init__(alpha,rng)
-        
-    def get_index(self,tables,sigma):
+
+    def __init__(self, alpha=1.0, rng=np.random.default_rng()):
+        super().__init__(alpha, rng)
+
+    def get_index(self, tables, sigma):
         '''
         Choose the table for the next datum (may be a new table)
 
@@ -99,7 +104,8 @@ class DataGenerator(Process):
                                 p=self.create_probabilities(tables))
         if index == len(tables):
             tables.append(Table(sigma=sigma, rng=self.rng))
-        return index    
+        return index
+
 
 def parse_args():
     parser = ArgumentParser(description=__doc__)
@@ -110,7 +116,7 @@ def parse_args():
     alpha = 5.0
     sigma0 = 2
     sigma1 = 0.5
-    plotfile=Path(__file__).stem
+    plotfile = Path(__file__).stem
 
     parser.add_argument('--out', '-o', required=True, help='Name of output file')
     parser.add_argument('--show', default=False, action='store_true', help='Controls whether plot will be displayed')
@@ -128,6 +134,7 @@ def parse_args():
     parser.add_argument('--plotfile', default=plotfile, help=f'Name of plotfile [{plotfile}]')
 
     return parser.parse_args()
+
 
 def get_projection(dimensionality=1):
     '''
@@ -160,11 +167,11 @@ def plot_cluster_formation(steps, step_colours, ax):
     ax.set_title('Formation of new Clusters')
 
 
-def plot_generated(z, tables, dimensionality, ax):
+def plot_generated(z, tables, dimensionality=2, title='Generated data', ax=None):
     '''
     Plot the actual data points within their clusters
     '''
-    ax.set_title('Generated data')
+    ax.set_title(title)
 
     match dimensionality:
         case 1:
@@ -208,9 +215,9 @@ def main():
     tables = []
     steps = np.zeros((args.N))
     step_colours = []
-    process = DataGenerator(alpha=args.alpha,rng=rng)
+    process = DataGenerator(alpha=args.alpha, rng=rng)
     for i in range(args.N):
-        index = process.get_index(tables,sigma=args.sigma1)
+        index = process.get_index(tables, sigma=args.sigma1)
         tables[index].append(i)
         z[i] = tables[index].get_sample()
         steps[i] = len(tables)
